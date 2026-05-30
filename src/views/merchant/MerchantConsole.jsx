@@ -24,7 +24,10 @@ const STATUT_COLORS = {
 export default function MerchantConsole() {
   const { merchantUser, authReady, loginMerchant, signupMerchant, resetMerchantPassword } = useTenant();
 
-  const [tab, setTab]       = useState('login');
+  const [tab, setTab]       = useState(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('creer')) return 'register';
+    return 'login';
+  });
   const [email, setEmail]   = useState('');
   const [pw, setPw]         = useState('');
   const [name, setName]     = useState('');

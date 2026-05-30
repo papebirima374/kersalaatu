@@ -97,7 +97,7 @@ export default function LandingPage() {
             <Settings className="w-4 h-4" /> Console Marchand
           </Link>
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => navigate('/merchant?creer=1')}
             className="relative inline-flex items-center justify-center overflow-hidden text-sm font-medium rounded-xl bg-gradient-to-br from-orange-500 to-orange-400 text-white cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-lg hover:shadow-orange-500/25"
           >
             <span className="relative px-5 py-2.5 font-semibold flex items-center gap-2">
@@ -125,7 +125,7 @@ export default function LandingPage() {
 
           <div className="flex flex-wrap gap-4 pt-4">
             <button
-              onClick={() => setShowModal(true)}
+              onClick={() => navigate('/merchant?creer=1')}
               className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-orange-400 text-white font-bold hover:shadow-lg hover:shadow-orange-500/25 transition-all flex items-center gap-2 hover:translate-x-0.5 cursor-pointer"
             >
               Lancer ma boutique maintenant <ArrowRight className="w-5 h-5 stroke-[2.5]" />
@@ -229,7 +229,7 @@ export default function LandingPage() {
 
             <div className="mt-6 pt-5 border-t border-slate-800/60 text-center">
               <button
-                onClick={() => setShowModal(true)}
+                onClick={() => navigate('/merchant?creer=1')}
                 className="text-sm font-semibold text-teal-400 hover:text-teal-300 transition-colors flex items-center gap-1.5 mx-auto cursor-pointer"
               >
                 <Plus className="w-4 h-4 stroke-[3]" /> Créer une nouvelle boutique
@@ -417,7 +417,7 @@ export default function LandingPage() {
             </div>
 
             <button
-              onClick={() => setShowModal(true)}
+              onClick={() => navigate('/merchant?creer=1')}
               className="w-full mt-8 py-3 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-200 font-semibold text-xs transition-all cursor-pointer"
             >
               Lancer gratuitement
@@ -466,7 +466,7 @@ export default function LandingPage() {
             </div>
 
             <button
-              onClick={() => setShowModal(true)}
+              onClick={() => navigate('/merchant?creer=1')}
               className="w-full mt-8 py-3 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-extrabold text-xs transition-all cursor-pointer shadow-lg shadow-orange-500/10"
             >
               Commencer le forfait Pro
@@ -512,7 +512,7 @@ export default function LandingPage() {
             </div>
 
             <button
-              onClick={() => setShowModal(true)}
+              onClick={() => navigate('/merchant?creer=1')}
               className="w-full mt-8 py-3 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-200 font-semibold text-xs transition-all cursor-pointer"
             >
               Lancer la version Premium
