@@ -120,6 +120,9 @@ export const TenantProvider = ({ children }) => {
     return local ? JSON.parse(local) : null;
   });
 
+  // true tant que Firebase n'a pas résolu l'état d'auth (évite la page blanche)
+  const [authReady, setAuthReady] = useState(!isConfigured);
+
   // Sync to local storage
   useEffect(() => {
     localStorage.setItem('ks_boutiques', JSON.stringify(boutiques));
@@ -166,6 +169,8 @@ export const TenantProvider = ({ children }) => {
       } else {
         setMerchantUser(null);
       }
+      // Firebase a résolu l'état d'auth — on peut maintenant afficher l'UI
+      setAuthReady(true);
     });
     return () => unsubscribe();
   }, []);
@@ -742,6 +747,7 @@ export const TenantProvider = ({ children }) => {
       currentMerchantBoutiqueId,
       setCurrentMerchantBoutiqueId,
       merchantUser,
+      authReady,
       loginMerchant,
       signupMerchant,
       resetMerchantPassword,

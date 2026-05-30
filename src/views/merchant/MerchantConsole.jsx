@@ -249,6 +249,7 @@ export default function MerchantConsole() {
     currentMerchantBoutiqueId,
     setCurrentMerchantBoutiqueId,
     merchantUser,
+    authReady,
     loginMerchant,
     signupMerchant,
     resetMerchantPassword,
@@ -316,6 +317,18 @@ export default function MerchantConsole() {
       setAuthLoading(false);
     }
   };
+
+  // Attendre que Firebase confirme l'état d'auth avant d'afficher quoi que ce soit
+  if (!authReady) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 text-slate-400">
+          <div className="w-10 h-10 rounded-full border-4 border-teal-500 border-t-transparent animate-spin" />
+          <p className="text-sm font-semibold">Vérification de la session...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!merchantUser) {
     return (
