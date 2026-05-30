@@ -7,12 +7,22 @@
   --color-brand-light: var(--tenant-color-light, rgba(13, 148, 136, 0.1));
 }
 
+html, body, #root {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 body {
   margin: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background-color: #f8fafc;
   color: #0f172a;
   min-height: 100vh;
+}
+
+/* Empêche tout élément de dépasser horizontalement (stabilité mobile) */
+* {
+  min-width: 0;
 }
 
 /* Custom scrollbar for premium aesthetics */

@@ -1,12 +1,16 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { TenantProvider } from './context/TenantContext';
 
 // Chargement paresseux — chaque route est un chunk séparé
+const importMerchant   = () => import('./views/merchant/MerchantConsole');
+const importStorefront = () => import('./views/shop/PublicStorefront');
+const importAdmin      = () => import('./views/admin/DeveloperConsole');
+
 const LandingPage      = lazy(() => import('./views/LandingPage'));
-const MerchantConsole  = lazy(() => import('./views/merchant/MerchantConsole'));
-const PublicStorefront = lazy(() => import('./views/shop/PublicStorefront'));
-const DeveloperConsole = lazy(() => import('./views/admin/DeveloperConsole'));
+const MerchantConsole  = lazy(importMerchant);
+const PublicStorefront = lazy(importStorefront);
+const DeveloperConsole = lazy(importAdmin);
 
 // Écran de chargement minimal
 function PageLoader() {
@@ -32,6 +36,18 @@ function PageLoader() {
 }
 
 function App() {
+  // Précharge les autres pages en arrière-plan dès que le navigateur est libre
+  // → la navigation entre les pages devient quasi instantanée
+  useEffect(() => {
+    const preload = () => { importMerchant(); importStorefront(); importAdmin(); };
+    if ('requestIdleCallback' in window) {
+      const id = requestIdleCallback(preload, { timeout: 3000 });
+      return () => cancelIdleCallback(id);
+    }
+    const t = setTimeout(preload, 2500);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
     <TenantProvider>
       <Router>

@@ -18,6 +18,7 @@ const STATUT_COLORS = {
   Préparée:'bg-amber-500/10 text-amber-400 border-amber-500/20',
   Livrée:  'bg-purple-500/10 text-purple-400 border-purple-500/20',
   Payée:   'bg-teal-500/10 text-teal-400 border-teal-500/20',
+  Annulée: 'bg-red-500/10 text-red-400 border-red-500/20',
 };
 
 // ─── Auth Shell ──────────────────────────────────────────────────────────────
@@ -167,7 +168,7 @@ function MerchantDashboard() {
     currentMerchantBoutiqueId, setCurrentMerchantBoutiqueId,
     merchantUser, logoutMerchant,
     updateBoutique, addProduct, updateProduct, deleteProduct,
-    updateOrder, updateOrderStatus, updateOrderPaymentStatus,
+    updateOrder, cancelOrder, updateOrderStatus, updateOrderPaymentStatus,
     addTicket, getProductsByBoutique, getOrdersByBoutique,
     uploadBoutiqueLogo, uploadProductPhoto,
     upgradeRequests, createUpgradeRequest, createOrder
@@ -961,7 +962,7 @@ function MerchantDashboard() {
                 </div>
                 <select value={orderStatut} onChange={e => setOrderStatut(e.target.value)}
                   className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-300 focus:outline-none">
-                  {['Tous','Reçue','Préparée','Livrée','Payée'].map(s => <option key={s}>{s}</option>)}
+                  {['Tous','Reçue','Préparée','Livrée','Payée','Annulée'].map(s => <option key={s}>{s}</option>)}
                 </select>
                 <select value={orderPaiement} onChange={e => setOrderPaiement(e.target.value)}
                   className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-300 focus:outline-none">
@@ -997,9 +998,9 @@ function MerchantDashboard() {
                       {/* Articles */}
                       <div className="bg-slate-800/50 rounded-lg p-3 mb-3">
                         {o.items.map((it, i) => (
-                          <div key={i} className="flex justify-between text-sm py-1">
-                            <span className="text-slate-300"><span className="text-teal-400 font-bold">{it.quantity}×</span> {it.name}</span>
-                            <span className="text-slate-400 font-mono">{fmt(it.price * it.quantity)}</span>
+                          <div key={i} className="flex justify-between gap-2 text-sm py-1">
+                            <span className="text-slate-300 min-w-0 truncate"><span className="text-teal-400 font-bold">{it.quantity}×</span> {it.name}</span>
+                            <span className="text-slate-400 font-mono shrink-0">{fmt(it.price * it.quantity)}</span>
                           </div>
                         ))}
                         {o.livraison.frais > 0 && (
@@ -1011,13 +1012,24 @@ function MerchantDashboard() {
                       </div>
 
                       {/* Actions */}
+                      {o.statut === 'Annulée' ? (
+                        <div className="flex flex-wrap gap-2 items-center">
+                          <span className="text-xs text-red-400 font-medium flex items-center gap-1.5">
+                            <X className="w-3.5 h-3.5" /> Commande annulée — stock remboursé
+                          </span>
+                          <button onClick={() => setActivePrintInvoice(o)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors flex items-center gap-1">
+                            <Printer className="w-3.5 h-3.5" /> Facture
+                          </button>
+                        </div>
+                      ) : (
                       <div className="flex flex-wrap gap-2">
                         <select value={o.statut} onChange={e => updateOrderStatus(o.id, e.target.value)}
                           className={`px-3 py-1.5 rounded-lg text-xs font-bold border cursor-pointer focus:outline-none ${STATUT_COLORS[o.statut] || ''}`}>
                           {['Reçue','Préparée','Livrée','Payée'].map(s => <option key={s}>{s}</option>)}
                         </select>
                         {o.paiement?.statut !== 'Payé' && (
-                          <button onClick={() => { if (confirm('Confirmer l\'encaissement ?')) updateOrderPaymentStatus(o.id, 'Payé'); }}
+                          <button onClick={() => updateOrderPaymentStatus(o.id, 'Payé')}
                             className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors flex items-center gap-1">
                             <Check className="w-3.5 h-3.5" /> Encaissé
                           </button>
@@ -1035,6 +1047,7 @@ function MerchantDashboard() {
                           <Printer className="w-3.5 h-3.5" /> Facture
                         </button>
                       </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1739,12 +1752,18 @@ function MerchantDashboard() {
               </div>
               <div className="flex gap-3">
                 <button onClick={() => setEditingOrder(null)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-400 hover:text-white font-medium text-sm transition-colors">Annuler</button>
+                  className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-400 hover:text-white font-medium text-sm transition-colors">Fermer</button>
                 <button onClick={saveEditOrder}
                   className="flex-1 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm transition-all flex items-center justify-center gap-2">
                   <Save className="w-4 h-4" /> Enregistrer
                 </button>
               </div>
+              {editingOrder.statut !== 'Annulée' && (
+                <button onClick={() => { cancelOrder(editingOrder.id); setEditingOrder(null); }}
+                  className="w-full mt-2 py-2.5 rounded-xl bg-red-500/5 text-red-400 border border-red-500/20 hover:bg-red-500/10 font-bold text-sm transition-all flex items-center justify-center gap-2">
+                  <X className="w-4 h-4" /> Annuler cette commande (rembourse le stock)
+                </button>
+              )}
             </div>
           </div>
         </div>

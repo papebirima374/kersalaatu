@@ -495,6 +495,33 @@ export const TenantProvider = ({ children }) => {
     });
   };
 
+  // Annuler une commande : restaure le stock des articles et marque "Annulée"
+  const cancelOrder = (orderId) => {
+    setOrders(prevOrders => {
+      const order = prevOrders.find(o => o.id === orderId);
+      if (!order || order.statut === 'Annulée') return prevOrders;
+
+      // Restaurer le stock (delta positif par produit/variante)
+      setProducts(prevProducts => prevProducts.map(p => {
+        const lines = order.items.filter(it => it.id === p.id);
+        if (lines.length === 0) return p;
+        const qtyByVariant = {};
+        let globalDelta = 0;
+        lines.forEach(it => {
+          if (it.variantId) qtyByVariant[it.variantId] = (qtyByVariant[it.variantId] || 0) + it.quantity;
+          else globalDelta += it.quantity;
+        });
+        return applyStockDelta(p, qtyByVariant, globalDelta);
+      }));
+
+      if (isConfigured) {
+        updateDoc(doc(db, 'orders', orderId), { statut: 'Annulée' })
+          .catch(err => console.error("cancel order:", err));
+      }
+      return prevOrders.map(o => o.id === orderId ? { ...o, statut: 'Annulée' } : o);
+    });
+  };
+
   const updateOrderStatus = (orderId, newStatus) => {
     setOrders(prev => prev.map(o => {
       if (o.id === orderId) {
@@ -822,6 +849,7 @@ export const TenantProvider = ({ children }) => {
       deleteProduct,
       createOrder,
       updateOrder,
+      cancelOrder,
       updateOrderStatus,
       updateOrderPaymentStatus,
       addTicket,
