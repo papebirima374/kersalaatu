@@ -444,41 +444,119 @@ function MerchantDashboard() {
     a.click();
   };
 
-  // ── Génération PDF ───────────────────────────────────────────────────────
+  // ── Génération PDF (dessin direct jsPDF, sans html2canvas) ──────────────
   const generatePDF = async () => {
-    if (!invoiceRef.current) return;
+    if (!activePrintInvoice) return;
     setPdfLoading(true);
     try {
-      const { default: html2canvas } = await import('html2canvas');
       const { default: jsPDF } = await import('jspdf');
-      const canvas = await html2canvas(invoiceRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false
-      });
-      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pageW = pdf.internal.pageSize.getWidth();
-      const pageH = pdf.internal.pageSize.getHeight();
-      const ratio = canvas.height / canvas.width;
-      const imgH = pageW * ratio;
-      if (imgH <= pageH) {
-        pdf.addImage(imgData, 'PNG', 0, 0, pageW, imgH);
+      const pageW = 210;
+      const m = 15; // margin
+      const cW = pageW - 2 * m; // content width
+      let y = m;
+      const fmtNum = (n) => new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
+
+      // ── Logo ──
+      const logo = activeBoutique.logo;
+      if (logo && (logo.startsWith('data:image'))) {
+        try { pdf.addImage(logo, 'PNG', m, y, 20, 20); } catch(_) {}
+        pdf.setFontSize(16); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0,0,0);
+        pdf.text(activeBoutique.name.toUpperCase(), m + 24, y + 8);
+        pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(100,100,100);
+        if (activeBoutique.adresse) pdf.text(activeBoutique.adresse, m + 24, y + 14);
+        pdf.text(activeBoutique.whatsapp || '', m + 24, y + 19);
       } else {
-        // Multi-page
-        let yPos = 0;
-        while (yPos < imgH) {
-          pdf.addImage(imgData, 'PNG', 0, -yPos, pageW, imgH);
-          yPos += pageH;
-          if (yPos < imgH) pdf.addPage();
-        }
+        pdf.setFontSize(18); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0,0,0);
+        pdf.text(activeBoutique.name.toUpperCase(), m, y + 8);
+        pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(100,100,100);
+        if (activeBoutique.adresse) pdf.text(activeBoutique.adresse, m, y + 14);
+        pdf.text(activeBoutique.whatsapp || '', m, y + 19);
       }
-      const filename = `Facture_${activePrintInvoice?.id || 'recu'}_${activeBoutique.name.replace(/\s+/g,'_')}.pdf`;
+
+      // ── FACTURE title ──
+      pdf.setFontSize(22); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0,0,0);
+      pdf.text('FACTURE', pageW - m, y + 8, { align: 'right' });
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(100,100,100);
+      pdf.text(`Réf : ${activePrintInvoice.id}`, pageW - m, y + 14, { align: 'right' });
+      pdf.text(new Date(activePrintInvoice.date).toLocaleDateString('fr-FR'), pageW - m, y + 19, { align: 'right' });
+      y += 28;
+
+      // ── Séparateur ──
+      pdf.setDrawColor(220,220,220); pdf.setLineWidth(0.3);
+      pdf.line(m, y, pageW - m, y); y += 8;
+
+      // ── Bloc Client / Paiement ──
+      pdf.setFillColor(248,250,252);
+      pdf.roundedRect(m, y, cW, 28, 3, 3, 'F');
+      pdf.setFontSize(7); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(150,150,150);
+      pdf.text('CLIENT', m + 4, y + 6);
+      pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0,0,0);
+      pdf.text(activePrintInvoice.client.nom, m + 4, y + 12);
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(80,80,80);
+      pdf.text(activePrintInvoice.client.telephone, m + 4, y + 18);
+      pdf.text(activePrintInvoice.client.adresse || '', m + 4, y + 23);
+
+      pdf.setFontSize(7); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(150,150,150);
+      pdf.text('PAIEMENT', pageW - m - 4, y + 6, { align: 'right' });
+      pdf.setFontSize(10); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0,0,0);
+      pdf.text(activePrintInvoice.paiement?.methode || 'À la livraison', pageW - m - 4, y + 12, { align: 'right' });
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(80,80,80);
+      pdf.text(activePrintInvoice.paiement?.statut || 'En attente', pageW - m - 4, y + 18, { align: 'right' });
+      y += 36;
+
+      // ── En-tête tableau ──
+      pdf.setFillColor(15,23,42);
+      pdf.rect(m, y, cW, 9, 'F');
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(255,255,255);
+      pdf.text('Article', m + 3, y + 6);
+      pdf.text('Qté', m + cW * 0.58, y + 6);
+      pdf.text('P.U.', m + cW * 0.72, y + 6);
+      pdf.text('Total', pageW - m - 3, y + 6, { align: 'right' });
+      y += 9;
+
+      // ── Lignes articles ──
+      activePrintInvoice.items.forEach((item, i) => {
+        if (i % 2 === 1) { pdf.setFillColor(248,250,252); pdf.rect(m, y, cW, 9, 'F'); }
+        pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0,0,0);
+        const name = item.name.length > 38 ? item.name.substring(0,38)+'…' : item.name;
+        pdf.text(name, m + 3, y + 6);
+        pdf.text(String(item.quantity), m + cW * 0.58, y + 6);
+        pdf.text(fmtNum(item.price), m + cW * 0.72, y + 6);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(fmtNum(item.price * item.quantity), pageW - m - 3, y + 6, { align: 'right' });
+        y += 9;
+      });
+
+      // ── Séparateur ──
+      pdf.setDrawColor(200,200,200); pdf.setLineWidth(0.3);
+      pdf.line(m, y, pageW - m, y); y += 8;
+
+      // ── Totaux ──
+      const sousTotal = activePrintInvoice.total - activePrintInvoice.livraison.frais;
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(100,100,100);
+      pdf.text('Sous-total', pageW - m - 55, y);
+      pdf.text(fmtNum(sousTotal), pageW - m - 3, y, { align: 'right' }); y += 7;
+      pdf.text('Livraison', pageW - m - 55, y);
+      pdf.text(fmtNum(activePrintInvoice.livraison.frais), pageW - m - 3, y, { align: 'right' }); y += 3;
+      pdf.setDrawColor(0,0,0); pdf.setLineWidth(0.5);
+      pdf.line(pageW - m - 60, y, pageW - m, y); y += 6;
+      pdf.setFontSize(13); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0,0,0);
+      pdf.text('TOTAL', pageW - m - 55, y);
+      pdf.setTextColor(13,148,136);
+      pdf.text(fmtNum(activePrintInvoice.total), pageW - m - 3, y, { align: 'right' });
+      y += 18;
+
+      // ── Footer ──
+      pdf.setFontSize(8); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(160,160,160);
+      pdf.text(`Merci pour votre achat chez ${activeBoutique.name} · Kër Salaatu Tech`, pageW / 2, y, { align: 'center' });
+
+      const filename = `Facture_${activePrintInvoice.id}_${activeBoutique.name.replace(/\s+/g,'_')}.pdf`;
       pdf.save(filename);
+
     } catch (err) {
-      console.error('Erreur génération PDF:', err);
-      alert('Erreur lors de la génération du PDF. Réessayez.');
+      console.error('PDF error:', err);
+      alert('Erreur PDF : ' + (err.message || 'Réessayez'));
     } finally {
       setPdfLoading(false);
     }

@@ -82,9 +82,9 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      {/* Background patterns */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-teal-900/20 via-slate-950 to-orange-950/10 pointer-events-none" />
+    <div className="bg-slate-950 text-slate-100 flex flex-col font-sans" style={{ overflowX: 'hidden' }}>
+      {/* Background patterns — fixed pour éviter les sauts sur mobile */}
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-teal-900/20 via-slate-950 to-orange-950/10 pointer-events-none -z-10" />
 
       {/* Header */}
       <header className="relative max-w-7xl w-full mx-auto px-6 py-4 flex items-center justify-between border-b border-slate-800/80">
@@ -239,10 +239,6 @@ export default function LandingPage() {
         </div>
       </main>
 
-      {/* Background patterns */}
-      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-teal-500/5 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute top-2/4 right-1/4 w-[400px] h-[400px] bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute top-3/4 left-1/3 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[150px] pointer-events-none" />
 
       {/* Workflow: Comment ça marche */}
       <section className="relative max-w-7xl w-full mx-auto px-6 py-16 md:py-24 border-t border-slate-900/80 text-center">
