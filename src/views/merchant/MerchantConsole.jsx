@@ -3,26 +3,34 @@ import { useTenant } from '../../context/TenantContext';
 import { Link } from 'react-router-dom';
 import { isConfigured } from '../../firebase/config';
 
-import { 
-  LayoutDashboard, 
-  ShoppingBag, 
-  ClipboardList, 
-  Settings, 
-  LogOut, 
-  Plus, 
-  Trash2, 
-  Edit3, 
-  Check, 
-  Clock, 
-  AlertTriangle, 
-  DollarSign, 
-  TrendingUp, 
+import {
+  LayoutDashboard,
+  ShoppingBag,
+  ClipboardList,
+  Settings,
+  LogOut,
+  Plus,
+  Trash2,
+  Edit3,
+  Check,
+  Clock,
+  AlertTriangle,
+  DollarSign,
+  TrendingUp,
   Store,
   ExternalLink,
   Save,
   MessageSquare,
   Printer,
-  Lock
+  Lock,
+  ShoppingCart,
+  Minus,
+  User,
+  Phone,
+  MapPin,
+  Receipt,
+  Search,
+  X
 } from 'lucide-react';
 
 // A beautiful premium interactive Sales Chart using simple responsive SVG elements
@@ -442,7 +450,16 @@ export default function MerchantConsole() {
     );
   }
 
-  const [activeTab, setActiveTab] = useState('dashboard'); // dashboard, products, orders, settings
+  const [activeTab, setActiveTab] = useState('dashboard'); // dashboard, products, orders, caisse, settings
+
+  // ── Caisse (POS) state ───────────────────────────────────────────────────
+  const [posCart, setPosCart] = useState([]);
+  const [posClientForm, setPosClientForm] = useState({ nom: '', telephone: '', adresse: '' });
+  const [posPayMethod, setPosPayMethod] = useState('Espèces');
+  const [posPayStatut, setPosPayStatut] = useState('Payé');
+  const [posNote, setPosNote] = useState('');
+  const [posSearch, setPosSearch] = useState('');
+  const [posSaleSuccess, setPosSaleSuccess] = useState(null); // holds last order ref on success
 
   // ── Isolation marchand : seules ses propres boutiques sont accessibles ──
   // En mode simulation locale (pas de Firebase), on affiche toutes les boutiques
@@ -915,6 +932,12 @@ export default function MerchantConsole() {
                   {pendingOrders}
                 </span>
               )}
+            </button>
+            <button
+              onClick={() => setActiveTab('caisse')}
+              className={`w-full px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-3 transition-all cursor-pointer ${activeTab === 'caisse' ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200 border border-transparent'}`}
+            >
+              <Receipt className="w-4 h-4" /> Caisse / Vente directe
             </button>
             <button
               onClick={() => setActiveTab('settings')}
@@ -1543,6 +1566,303 @@ export default function MerchantConsole() {
             </div>
           </div>
         )}
+
+        {/* 4. CAISSE / POS TAB */}
+        {activeTab === 'caisse' && (() => {
+          const posProducts = activeProducts.filter(p => p.actif && p.stock > 0 && p.name.toLowerCase().includes(posSearch.toLowerCase()));
+          const posSubtotal = posCart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+
+          const addToPos = (prod) => {
+            setPosCart(prev => {
+              const ex = prev.find(i => i.id === prod.id);
+              if (ex) {
+                if (ex.quantity >= prod.stock) return prev;
+                return prev.map(i => i.id === prod.id ? { ...i, quantity: i.quantity + 1 } : i);
+              }
+              return [...prev, { ...prod, quantity: 1 }];
+            });
+          };
+
+          const updatePosQty = (id, delta) => {
+            setPosCart(prev =>
+              prev.map(i => i.id === id ? { ...i, quantity: i.quantity + delta } : i)
+                  .filter(i => i.quantity > 0)
+            );
+          };
+
+          const handlePosSell = () => {
+            if (posCart.length === 0) { alert('Ajoutez au moins un article.'); return; }
+            if (!posClientForm.nom.trim() || !posClientForm.telephone.trim()) {
+              alert('Nom et téléphone du client sont obligatoires.');
+              return;
+            }
+            const ref = createOrder(
+              activeBoutique.id,
+              posClientForm,
+              posCart,
+              0,
+              'Vente directe',
+              { methode: posPayMethod, statut: posPayStatut, note: posNote }
+            );
+            // Build WhatsApp message for the merchant's own record/client
+            const orderId = `VD-${Math.floor(1000 + Math.random() * 9000)}`;
+            setPosSaleSuccess({ orderId, items: posCart, total: posSubtotal, client: posClientForm, payMethod: posPayMethod });
+            // Reset form
+            setPosCart([]);
+            setPosClientForm({ nom: '', telephone: '', adresse: '' });
+            setPosNote('');
+          };
+
+          const handlePosSendWhatsApp = (sale) => {
+            if (!sale || !activeBoutique.whatsapp) return;
+            let msg = `*🧾 REÇU DE VENTE - ${activeBoutique.name.toUpperCase()}*\n`;
+            msg += `_Réf: ${sale.orderId}_\n`;
+            msg += `_Date: ${new Date().toLocaleDateString('fr-FR')}_\n\n`;
+            msg += `*👤 CLIENT:* ${sale.client.nom} — ${sale.client.telephone}\n\n`;
+            msg += `*🛍️ ARTICLES:*\n`;
+            sale.items.forEach(i => { msg += `• ${i.quantity}× ${i.name} → ${formatMoney(i.price * i.quantity)}\n`; });
+            msg += `\n*💵 TOTAL: ${formatMoney(sale.total)}*\n`;
+            msg += `• Paiement: ${sale.payMethod}\n\n`;
+            msg += `🙏 Merci pour votre achat chez ${activeBoutique.name} !`;
+            const phone = sale.client.telephone.replace(/\D/g, '');
+            const finalPhone = phone.startsWith('221') ? phone : '221' + phone;
+            window.open(`https://wa.me/${finalPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+          };
+
+          return (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-extrabold text-slate-100 flex items-center gap-2">
+                    <Receipt className="w-5 h-5 text-teal-400" /> Caisse — Vente Directe
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">Clients en boutique, par téléphone, ou toute vente hors site.</p>
+                </div>
+              </div>
+
+              {/* Success banner */}
+              {posSaleSuccess && (
+                <div className="p-5 rounded-2xl bg-emerald-950/60 border border-emerald-700/40 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                    <Check className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-extrabold text-emerald-300 text-sm">Vente enregistrée — Réf. {posSaleSuccess.orderId}</p>
+                    <p className="text-xs text-emerald-600 mt-0.5">
+                      {posSaleSuccess.client.nom} · {posSaleSuccess.items.length} article(s) · {formatMoney(posSaleSuccess.total)} · {posSaleSuccess.payMethod}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => handlePosSendWhatsApp(posSaleSuccess)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all cursor-pointer"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" /> Envoyer reçu WhatsApp
+                    </button>
+                    <button
+                      onClick={() => setPosSaleSuccess(null)}
+                      className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 transition-all cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                {/* LEFT — Product picker */}
+                <div className="lg:col-span-3 space-y-4">
+                  <div className="p-5 rounded-2xl bg-slate-950 border border-slate-850 shadow-xl space-y-4">
+                    <h3 className="font-extrabold text-slate-200 text-sm flex items-center gap-2">
+                      <ShoppingBag className="w-4 h-4 text-teal-400" /> Catalogue
+                    </h3>
+                    <div className="relative">
+                      <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        placeholder="Rechercher un produit..."
+                        value={posSearch}
+                        onChange={e => setPosSearch(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-teal-500"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[420px] overflow-y-auto pr-1">
+                      {posProducts.map(prod => {
+                        const inCart = posCart.find(i => i.id === prod.id);
+                        return (
+                          <button
+                            key={prod.id}
+                            onClick={() => addToPos(prod)}
+                            disabled={inCart?.quantity >= prod.stock}
+                            className={`text-left rounded-xl border p-3 transition-all cursor-pointer group ${
+                              inCart ? 'border-teal-500/50 bg-teal-500/5' : 'border-slate-800 bg-slate-900 hover:border-slate-600 hover:bg-slate-850'
+                            } ${inCart?.quantity >= prod.stock ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            <img src={prod.photo} alt={prod.name} className="w-full h-24 object-cover rounded-lg mb-2 bg-slate-800" />
+                            <p className="text-xs font-bold text-slate-200 line-clamp-1">{prod.name}</p>
+                            <p className="text-[10px] text-slate-500 mt-0.5">Stock: {prod.stock}</p>
+                            <p className="text-xs font-black text-teal-400 mt-1">{formatMoney(prod.price)}</p>
+                            {inCart && (
+                              <span className="mt-1.5 inline-block text-[9px] font-bold bg-teal-500/20 text-teal-300 px-2 py-0.5 rounded-full">
+                                {inCart.quantity} dans panier
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                      {posProducts.length === 0 && (
+                        <div className="col-span-3 py-12 text-center text-slate-500 text-sm">
+                          Aucun produit disponible en stock.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* RIGHT — Cart + client + payment */}
+                <div className="lg:col-span-2 space-y-4">
+                  {/* Cart */}
+                  <div className="p-5 rounded-2xl bg-slate-950 border border-slate-850 shadow-xl space-y-3">
+                    <h3 className="font-extrabold text-slate-200 text-sm flex items-center gap-2">
+                      <ShoppingCart className="w-4 h-4 text-teal-400" /> Panier
+                      {posCart.length > 0 && (
+                        <span className="ml-auto text-[10px] font-bold text-slate-500 cursor-pointer hover:text-red-400 transition-colors" onClick={() => setPosCart([])}>
+                          Vider
+                        </span>
+                      )}
+                    </h3>
+                    {posCart.length === 0 ? (
+                      <p className="text-xs text-slate-600 text-center py-6">Cliquez sur un produit pour l'ajouter.</p>
+                    ) : (
+                      <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                        {posCart.map(item => (
+                          <div key={item.id} className="flex items-center gap-3 bg-slate-900 rounded-xl px-3 py-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-slate-200 truncate">{item.name}</p>
+                              <p className="text-[10px] text-slate-500">{formatMoney(item.price)} / u</p>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <button onClick={() => updatePosQty(item.id, -1)} className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center cursor-pointer">
+                                <Minus className="w-3 h-3" />
+                              </button>
+                              <span className="text-xs font-black text-slate-100 w-5 text-center">{item.quantity}</span>
+                              <button onClick={() => updatePosQty(item.id, 1)} disabled={item.quantity >= item.stock} className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center cursor-pointer disabled:opacity-40">
+                                <Plus className="w-3 h-3" />
+                              </button>
+                            </div>
+                            <span className="text-xs font-black text-teal-400 w-20 text-right shrink-0">{formatMoney(item.price * item.quantity)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {posCart.length > 0 && (
+                      <div className="flex justify-between border-t border-slate-800 pt-3 text-sm font-black">
+                        <span className="text-slate-400">Total</span>
+                        <span className="text-teal-300">{formatMoney(posSubtotal)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Client info */}
+                  <div className="p-5 rounded-2xl bg-slate-950 border border-slate-850 shadow-xl space-y-3">
+                    <h3 className="font-extrabold text-slate-200 text-sm flex items-center gap-2">
+                      <User className="w-4 h-4 text-teal-400" /> Informations Client
+                    </h3>
+                    <div className="relative">
+                      <User className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="Nom complet *"
+                        value={posClientForm.nom}
+                        onChange={e => setPosClientForm(p => ({ ...p, nom: e.target.value }))}
+                        className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-teal-500"
+                      />
+                    </div>
+                    <div className="relative">
+                      <Phone className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="Téléphone *"
+                        value={posClientForm.telephone}
+                        onChange={e => setPosClientForm(p => ({ ...p, telephone: e.target.value }))}
+                        className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-teal-500"
+                      />
+                    </div>
+                    <div className="relative">
+                      <MapPin className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        placeholder="Adresse (optionnel)"
+                        value={posClientForm.adresse}
+                        onChange={e => setPosClientForm(p => ({ ...p, adresse: e.target.value }))}
+                        className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-teal-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Payment method */}
+                  <div className="p-5 rounded-2xl bg-slate-950 border border-slate-850 shadow-xl space-y-3">
+                    <h3 className="font-extrabold text-slate-200 text-sm flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-teal-400" /> Paiement
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {['Espèces', 'Wave', 'Orange Money', 'Crédit'].map(m => (
+                        <button
+                          key={m}
+                          onClick={() => setPosPayMethod(m)}
+                          className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                            posPayMethod === m
+                              ? 'border-teal-500 bg-teal-500/10 text-teal-300'
+                              : 'border-slate-800 bg-slate-900 text-slate-400 hover:border-slate-600'
+                          }`}
+                        >
+                          {m}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {['Payé', 'En attente'].map(s => (
+                        <button
+                          key={s}
+                          onClick={() => setPosPayStatut(s)}
+                          className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                            posPayStatut === s
+                              ? s === 'Payé'
+                                ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
+                                : 'border-amber-500 bg-amber-500/10 text-amber-300'
+                              : 'border-slate-800 bg-slate-900 text-slate-400 hover:border-slate-600'
+                          }`}
+                        >
+                          {s === 'Payé' ? '✓ Payé' : '⏳ En attente'}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Note interne (optionnel)"
+                      value={posNote}
+                      onChange={e => setPosNote(e.target.value)}
+                      className="w-full px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-400 placeholder-slate-600 focus:outline-none focus:border-teal-500"
+                    />
+                  </div>
+
+                  {/* Confirm button */}
+                  <button
+                    onClick={handlePosSell}
+                    disabled={posCart.length === 0 || !posClientForm.nom || !posClientForm.telephone}
+                    className="w-full py-4 rounded-2xl bg-teal-500 hover:bg-teal-400 disabled:bg-slate-800 disabled:text-slate-600 text-slate-950 font-extrabold text-sm shadow-lg shadow-teal-500/20 transition-all cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    <Receipt className="w-4 h-4" />
+                    Enregistrer la vente
+                    {posCart.length > 0 && ` — ${formatMoney(posSubtotal)}`}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* 4. SETTINGS TAB */}
         {activeTab === 'settings' && (
