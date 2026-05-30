@@ -383,10 +383,36 @@ export const TenantProvider = ({ children }) => {
     }
   };
 
+  // Applique un delta de stock à un produit (variante ou global). delta négatif = déduction.
+  // qtyByVariant : map variantId -> delta. globalDelta : pour produits sans variante.
+  const applyStockDelta = (product, qtyByVariant, globalDelta) => {
+    const hasVar = product.variantes && product.variantes.length > 0;
+    if (hasVar) {
+      const newVariantes = product.variantes.map(v => {
+        const d = qtyByVariant[v.id] || 0;
+        if (d === 0) return v;
+        return { ...v, stock: Math.max(0, (Number(v.stock) || 0) + d) };
+      });
+      const newStock = newVariantes.reduce((s, v) => s + (Number(v.stock) || 0), 0);
+      if (isConfigured) {
+        updateDoc(doc(db, 'products', product.id), { variantes: newVariantes, stock: newStock })
+          .catch(err => console.error("stock variante:", err));
+      }
+      return { ...product, variantes: newVariantes, stock: newStock };
+    } else {
+      const newStock = Math.max(0, (Number(product.stock) || 0) + globalDelta);
+      if (isConfigured) {
+        updateDoc(doc(db, 'products', product.id), { stock: newStock })
+          .catch(err => console.error("stock produit:", err));
+      }
+      return { ...product, stock: newStock };
+    }
+  };
+
   const createOrder = (boutiqueId, clientInfo, cartItems, shippingCost, shippingLieu, paiementInfo = null) => {
     const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     const total = subtotal + shippingCost;
-    
+
     const newOrder = {
       id: `cmd-${Math.floor(1000 + Math.random() * 9000)}`,
       boutiqueId,
@@ -396,39 +422,77 @@ export const TenantProvider = ({ children }) => {
         id: item.id,
         name: item.name,
         price: item.price,
-        quantity: item.quantity
+        quantity: item.quantity,
+        variantId: item.variantId || null,
+        variantNom: item.variantNom || null
       })),
       total,
       statut: 'Reçue',
-      livraison: {
-        frais: shippingCost,
-        lieu: shippingLieu
-      },
+      livraison: { frais: shippingCost, lieu: shippingLieu },
       paiement: paiementInfo || { methode: 'À la livraison', statut: 'En attente' }
     };
 
-    setProducts(prevProducts => {
-      return prevProducts.map(p => {
-        const cartItem = cartItems.find(item => item.id === p.id);
-        if (cartItem) {
-          const newStock = Math.max(0, p.stock - cartItem.quantity);
-          if (isConfigured) {
-            updateDoc(doc(db, 'products', p.id), { stock: newStock })
-              .catch(err => console.error("Error updating product stock in Firestore:", err));
-          }
-          return { ...p, stock: newStock };
-        }
-        return p;
+    // Déduction du stock (variante ou global), en agrégeant toutes les lignes par produit
+    setProducts(prevProducts => prevProducts.map(p => {
+      const lines = cartItems.filter(it => it.id === p.id);
+      if (lines.length === 0) return p;
+      const qtyByVariant = {};
+      let globalDelta = 0;
+      lines.forEach(it => {
+        if (it.variantId) qtyByVariant[it.variantId] = (qtyByVariant[it.variantId] || 0) - it.quantity;
+        else globalDelta -= it.quantity;
       });
-    });
+      return applyStockDelta(p, qtyByVariant, globalDelta);
+    }));
 
     setOrders(prev => [newOrder, ...prev]);
-    
     if (isConfigured) {
       setDoc(doc(db, 'orders', newOrder.id), newOrder)
         .catch(err => console.error("Error writing order to Firestore:", err));
     }
     return newOrder;
+  };
+
+  // Modifier une commande existante : ajuste le stock selon les écarts de quantité
+  const updateOrder = (orderId, newItems) => {
+    setOrders(prevOrders => {
+      const oldOrder = prevOrders.find(o => o.id === orderId);
+      if (!oldOrder) return prevOrders;
+
+      // Calcul des deltas par (produit, variante)
+      const keyOf = (it) => it.id + (it.variantId ? '__' + it.variantId : '');
+      const deltas = {}; // key -> { productId, variantId, delta }
+      const ensure = (it) => {
+        const k = keyOf(it);
+        if (!deltas[k]) deltas[k] = { productId: it.id, variantId: it.variantId || null, delta: 0 };
+        return deltas[k];
+      };
+      oldOrder.items.forEach(it => { ensure(it).delta += it.quantity; });   // on rend l'ancien
+      newItems.forEach(it => { ensure(it).delta -= it.quantity; });         // on déduit le nouveau
+
+      // Appliquer aux produits
+      setProducts(prevProducts => prevProducts.map(p => {
+        const rel = Object.values(deltas).filter(d => d.productId === p.id && d.delta !== 0);
+        if (rel.length === 0) return p;
+        const qtyByVariant = {};
+        let globalDelta = 0;
+        rel.forEach(d => {
+          if (d.variantId) qtyByVariant[d.variantId] = (qtyByVariant[d.variantId] || 0) + d.delta;
+          else globalDelta += d.delta;
+        });
+        return applyStockDelta(p, qtyByVariant, globalDelta);
+      }));
+
+      const subtotal = newItems.reduce((s, it) => s + it.price * it.quantity, 0);
+      const total = subtotal + (oldOrder.livraison?.frais || 0);
+      const updatedOrder = { ...oldOrder, items: newItems, total };
+
+      if (isConfigured) {
+        updateDoc(doc(db, 'orders', orderId), { items: newItems, total })
+          .catch(err => console.error("update order:", err));
+      }
+      return prevOrders.map(o => o.id === orderId ? updatedOrder : o);
+    });
   };
 
   const updateOrderStatus = (orderId, newStatus) => {
@@ -757,6 +821,7 @@ export const TenantProvider = ({ children }) => {
       updateProduct,
       deleteProduct,
       createOrder,
+      updateOrder,
       updateOrderStatus,
       updateOrderPaymentStatus,
       addTicket,

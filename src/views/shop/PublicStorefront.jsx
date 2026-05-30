@@ -120,9 +120,11 @@ export default function PublicStorefront() {
     return matchesSearch && matchesCategory && p.actif;
   });
 
-  // Cart operations — gère les variantes (parfums, couleurs...)
+  // Cart operations — gère les variantes (parfums, couleurs...) avec stock propre
   const addToCart = (product, variant = null) => {
-    if (product.stock <= 0) return;
+    // Stock disponible : celui de la variante si fournie, sinon global
+    const availStock = variant ? (Number(variant.stock) || 0) : product.stock;
+    if (availStock <= 0) return;
 
     const cartKey = variant ? `${product.id}__${variant.id}` : product.id;
     const displayName = variant ? `${product.name} — ${variant.nom}` : product.name;
@@ -131,8 +133,8 @@ export default function PublicStorefront() {
     setCart(prevCart => {
       const existing = prevCart.find(item => item.cartKey === cartKey);
       if (existing) {
-        if (existing.quantity >= product.stock) {
-          alert(`Désolé, il n'y a que ${product.stock} unités de ce produit en stock.`);
+        if (existing.quantity >= availStock) {
+          alert(`Désolé, il n'y a que ${availStock} unité(s) en stock.`);
           return prevCart;
         }
         return prevCart.map(item => item.cartKey === cartKey ? { ...item, quantity: item.quantity + 1 } : item);
@@ -142,6 +144,8 @@ export default function PublicStorefront() {
         cartKey,
         name: displayName,
         photo: displayPhoto,
+        stock: availStock,
+        variantId: variant?.id || null,
         variantNom: variant?.nom || null,
         quantity: 1
       }];
@@ -1250,21 +1254,33 @@ export default function PublicStorefront() {
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
                     {selectedProduct.variantes.map(v => {
                       const active = selectedVariant?.id === v.id;
+                      const vStock = Number(v.stock) || 0;
+                      const vOut = vStock <= 0;
                       return (
                         <button
                           key={v.id}
-                          onClick={() => setSelectedVariant(v)}
-                          className={`rounded-xl border-2 overflow-hidden transition-all ${
-                            active ? 'border-[var(--tenant-color)] ring-2 ring-[var(--tenant-color)]/20' : 'border-slate-200 hover:border-slate-300'
+                          onClick={() => { if (!vOut) setSelectedVariant(v); }}
+                          disabled={vOut}
+                          className={`rounded-xl border-2 overflow-hidden transition-all relative ${
+                            vOut ? 'border-slate-200 opacity-60 cursor-not-allowed'
+                            : active ? 'border-[var(--tenant-color)] ring-2 ring-[var(--tenant-color)]/20' : 'border-slate-200 hover:border-slate-300'
                           }`}
                         >
-                          <div className="w-full h-16 bg-slate-100">
+                          <div className="w-full h-16 bg-slate-100 relative">
                             {v.photo
                               ? <img src={v.photo} alt={v.nom} className="w-full h-full object-cover" />
                               : <div className="w-full h-full flex items-center justify-center text-slate-300 text-xs">—</div>}
+                            {vOut && (
+                              <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+                                <X className="w-6 h-6 text-red-400 stroke-[3]" />
+                              </div>
+                            )}
                           </div>
-                          <p className={`text-[10px] font-bold py-1.5 px-1 truncate ${active ? 'text-[var(--tenant-color)]' : 'text-slate-600'}`}>
+                          <p className={`text-[10px] font-bold py-1 px-1 truncate ${active ? 'text-[var(--tenant-color)]' : 'text-slate-600'}`}>
                             {v.nom}
+                          </p>
+                          <p className={`text-[8px] pb-1 ${vOut ? 'text-red-400' : 'text-slate-400'}`}>
+                            {vOut ? 'Épuisé' : `${vStock} dispo`}
                           </p>
                         </button>
                       );
@@ -1274,30 +1290,35 @@ export default function PublicStorefront() {
               )}
 
               {/* Stock and Buy */}
+              {(() => {
+                const dispoStock = selectedVariant ? (Number(selectedVariant.stock) || 0) : selectedProduct.stock;
+                return (
               <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-2">
                 <div className="text-xs">
                   <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px]">Disponibilité</span>
-                  <span className={`font-bold ${selectedProduct.stock === 0 ? 'text-red-500' : 'text-slate-700'}`}>
-                    {selectedProduct.stock === 0 ? 'Épuisé' : `${selectedProduct.stock} articles restants`}
+                  <span className={`font-bold ${dispoStock <= 0 ? 'text-red-500' : 'text-slate-700'}`}>
+                    {dispoStock <= 0 ? 'Épuisé' : `${dispoStock} article(s) restant(s)`}
                   </span>
                 </div>
 
                 <button
                   onClick={() => {
-                    if (needsChoice) return;
+                    if (needsChoice || dispoStock <= 0) return;
                     addToCart(selectedProduct, selectedVariant);
                     closeModal();
                   }}
-                  disabled={selectedProduct.stock === 0 || needsChoice}
+                  disabled={dispoStock <= 0 || needsChoice}
                   className={`py-3 px-6 rounded-2xl font-bold text-sm transition-all cursor-pointer ${
-                    selectedProduct.stock === 0 || needsChoice
+                    dispoStock <= 0 || needsChoice
                     ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
                     : 'bg-[var(--tenant-color)] hover:bg-[var(--tenant-color-hover)] text-white shadow hover:scale-105'
                   }`}
                 >
-                  {needsChoice ? 'Choisissez une option' : 'Ajouter au panier'}
+                  {needsChoice ? 'Choisissez une option' : dispoStock <= 0 ? 'Épuisé' : 'Ajouter au panier'}
                 </button>
               </div>
+                );
+              })()}
             </div>
           </div>
         </div>

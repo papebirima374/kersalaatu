@@ -164,7 +164,7 @@ function MerchantDashboard() {
     currentMerchantBoutiqueId, setCurrentMerchantBoutiqueId,
     merchantUser, logoutMerchant,
     updateBoutique, addProduct, updateProduct, deleteProduct,
-    updateOrderStatus, updateOrderPaymentStatus,
+    updateOrder, updateOrderStatus, updateOrderPaymentStatus,
     addTicket, getProductsByBoutique, getOrdersByBoutique,
     uploadBoutiqueLogo, uploadProductPhoto,
     upgradeRequests, createUpgradeRequest, createOrder
@@ -236,6 +236,37 @@ function MerchantDashboard() {
   const invoiceRef = useRef(null);
   const [pdfLoading, setPdfLoading] = useState(false);
 
+  // Édition de commande
+  const [editingOrder, setEditingOrder] = useState(null);   // commande en cours d'édition
+  const [editItems, setEditItems] = useState([]);           // items modifiables
+  const [editAddSearch, setEditAddSearch] = useState('');   // recherche pour ajouter un produit
+
+  const openEditOrder = (order) => {
+    setEditingOrder(order);
+    setEditItems(order.items.map(it => ({ ...it })));
+    setEditAddSearch('');
+  };
+  const editChangeQty = (idx, delta) => {
+    setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: Math.max(1, it.quantity + delta) } : it));
+  };
+  const editRemoveItem = (idx) => {
+    setEditItems(prev => prev.filter((_, i) => i !== idx));
+  };
+  const editAddProduct = (p) => {
+    setEditItems(prev => {
+      const ex = prev.find(it => it.id === p.id && !it.variantId);
+      if (ex) return prev.map(it => (it.id === p.id && !it.variantId) ? { ...it, quantity: it.quantity + 1 } : it);
+      return [...prev, { id: p.id, name: p.name, price: p.price, quantity: 1, variantId: null, variantNom: null }];
+    });
+    setEditAddSearch('');
+  };
+  const editSubtotal = editItems.reduce((s, it) => s + it.price * it.quantity, 0);
+  const saveEditOrder = () => {
+    if (editItems.length === 0) { alert('La commande doit contenir au moins un article.'); return; }
+    updateOrder(editingOrder.id, editItems);
+    setEditingOrder(null);
+  };
+
   // Tickets
   const [ticketForm, setTicketForm] = useState({ sujet:'', message:'' });
 
@@ -300,13 +331,16 @@ function MerchantDashboard() {
   // ── Handlers variantes (parfums, couleurs, tailles...) ───────────────────
   const [variantUploading, setVariantUploading] = useState(null); // index en cours d'upload
   const addVariant = () => {
-    setProductForm(p => ({ ...p, variantes: [...(p.variantes || []), { id: `v-${Date.now()}`, nom: '', photo: '' }] }));
+    setProductForm(p => ({ ...p, variantes: [...(p.variantes || []), { id: `v-${Date.now()}`, nom: '', photo: '', stock: '' }] }));
   };
   const removeVariant = (index) => {
     setProductForm(p => ({ ...p, variantes: p.variantes.filter((_, i) => i !== index) }));
   };
   const updateVariantName = (index, nom) => {
     setProductForm(p => ({ ...p, variantes: p.variantes.map((v, i) => i === index ? { ...v, nom } : v) }));
+  };
+  const updateVariantStock = (index, stock) => {
+    setProductForm(p => ({ ...p, variantes: p.variantes.map((v, i) => i === index ? { ...v, stock } : v) }));
   };
   const handleVariantPhoto = async (index, e) => {
     const file = e.target.files[0];
@@ -346,13 +380,19 @@ function MerchantDashboard() {
         .map(v => ({
           id: v.id,
           nom: v.nom.trim(),
-          photo: (v.photo && v.photo.startsWith('data:') && isConfigured) ? '' : (v.photo || '')
+          photo: (v.photo && v.photo.startsWith('data:') && isConfigured) ? '' : (v.photo || ''),
+          stock: Number(v.stock) || 0
         }));
+
+      // Si variantes : le stock global = somme des variantes
+      const globalStock = variantes.length > 0
+        ? variantes.reduce((s, v) => s + v.stock, 0)
+        : Number(productForm.stock);
 
       const data = {
         name: productForm.name,
         price: Number(productForm.price),
-        stock: Number(productForm.stock),
+        stock: globalStock,
         category: productForm.category,
         photo: photoUrl || 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600&auto=format&fit=crop&q=80',
         description: productForm.description,
@@ -983,6 +1023,10 @@ function MerchantDashboard() {
                           className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors flex items-center gap-1">
                           <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
                         </a>
+                        <button onClick={() => openEditOrder(o)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors flex items-center gap-1">
+                          <Edit3 className="w-3.5 h-3.5" /> Modifier
+                        </button>
                         <button onClick={() => setActivePrintInvoice(o)}
                           className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors flex items-center gap-1">
                           <Printer className="w-3.5 h-3.5" /> Facture
@@ -1339,10 +1383,18 @@ function MerchantDashboard() {
                     className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none transition-colors" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1.5">Stock *</label>
-                  <input required type="number" min="0" value={productForm.stock} onChange={e => setProductForm(p=>({...p, stock:e.target.value}))}
-                    placeholder="10"
-                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none transition-colors" />
+                  <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                    Stock {productForm.variantes?.length > 0 ? '(auto)' : '*'}
+                  </label>
+                  {productForm.variantes?.length > 0 ? (
+                    <div className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-xl text-sm text-slate-400">
+                      {productForm.variantes.reduce((s, v) => s + (Number(v.stock) || 0), 0)} (somme des variantes)
+                    </div>
+                  ) : (
+                    <input required type="number" min="0" value={productForm.stock} onChange={e => setProductForm(p=>({...p, stock:e.target.value}))}
+                      placeholder="10"
+                      className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none transition-colors" />
+                  )}
                 </div>
               </div>
 
@@ -1394,11 +1446,16 @@ function MerchantDashboard() {
                           ? <img src={v.photo} alt={v.nom} className="w-full h-full object-cover" />
                           : <span className="text-slate-500 text-[9px]">photo</span>}
                     </div>
-                    {/* Nom + upload */}
+                    {/* Nom + stock + upload */}
                     <div className="flex-1 space-y-1.5">
-                      <input value={v.nom} onChange={e => updateVariantName(i, e.target.value)}
-                        placeholder="Nom de la variante (ex: Vanille)"
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none" />
+                      <div className="flex gap-1.5">
+                        <input value={v.nom} onChange={e => updateVariantName(i, e.target.value)}
+                          placeholder="Nom (ex: Vanille)"
+                          className="flex-1 px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none" />
+                        <input type="number" min="0" value={v.stock} onChange={e => updateVariantStock(i, e.target.value)}
+                          placeholder="Stock"
+                          className="w-16 px-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-600 text-center focus:border-teal-500 focus:outline-none" />
+                      </div>
                       <input type="file" accept="image/*" onChange={e => handleVariantPhoto(i, e)}
                         className="text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-teal-500/10 file:text-teal-400 file:cursor-pointer" />
                     </div>
@@ -1603,6 +1660,88 @@ function MerchantDashboard() {
               <p className="text-center text-xs text-slate-400 mt-6 pt-4 border-t border-slate-100">
                 Merci pour votre achat chez {activeBoutique.name} · Propulsé par Kër Salaatu Tech
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL ÉDITION COMMANDE ────────────────────────────────────────── */}
+      {editingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+          <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 shrink-0">
+              <div>
+                <h3 className="font-bold text-white">Modifier la commande</h3>
+                <p className="text-xs text-slate-500 font-mono">{editingOrder.id}</p>
+              </div>
+              <button onClick={() => setEditingOrder(null)} className="text-slate-500 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
+              {/* Articles */}
+              <div className="space-y-2">
+                {editItems.length === 0 && <p className="text-sm text-slate-500 text-center py-4">Aucun article. Ajoutez-en ci-dessous.</p>}
+                {editItems.map((it, idx) => (
+                  <div key={idx} className="flex items-center gap-3 bg-slate-800 rounded-lg p-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-200 truncate">{it.name}</p>
+                      <p className="text-xs text-slate-500">{fmt(it.price)} / unité</p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => editChangeQty(idx, -1)} className="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center"><Minus className="w-3.5 h-3.5" /></button>
+                      <span className="text-sm font-bold text-white w-6 text-center">{it.quantity}</span>
+                      <button onClick={() => editChangeQty(idx, 1)} className="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center"><Plus className="w-3.5 h-3.5" /></button>
+                    </div>
+                    <span className="text-sm font-bold text-teal-400 w-20 text-right shrink-0">{fmt(it.price * it.quantity)}</span>
+                    <button onClick={() => editRemoveItem(idx)} className="w-7 h-7 rounded-lg bg-red-500/5 text-red-400 hover:bg-red-500/10 flex items-center justify-center shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Ajouter un produit */}
+              <div className="border-t border-slate-800 pt-4">
+                <label className="block text-xs font-medium text-slate-400 mb-2">Ajouter un produit</label>
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                  <input value={editAddSearch} onChange={e => setEditAddSearch(e.target.value)}
+                    placeholder="Rechercher dans le catalogue..."
+                    className="w-full pl-9 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-teal-500" />
+                </div>
+                {editAddSearch && (
+                  <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
+                    {activeProducts.filter(p => p.name.toLowerCase().includes(editAddSearch.toLowerCase())).slice(0, 6).map(p => (
+                      <button key={p.id} onClick={() => editAddProduct(p)}
+                        className="w-full flex items-center gap-2 p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-left transition-colors">
+                        <img src={p.photo} alt={p.name} className="w-8 h-8 rounded object-cover bg-slate-700 shrink-0" />
+                        <span className="flex-1 text-xs text-slate-200 truncate">{p.name}</span>
+                        <span className="text-xs font-bold text-teal-400">{fmt(p.price)}</span>
+                        <Plus className="w-4 h-4 text-teal-400 shrink-0" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Note */}
+              <p className="text-[11px] text-slate-500 bg-slate-800/50 rounded-lg p-2.5">
+                Les stocks seront automatiquement réajustés selon les changements (ajouts déduits, retraits restaurés).
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-slate-800 shrink-0">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-sm text-slate-400">Nouveau sous-total</span>
+                <span className="text-lg font-bold text-white">{fmt(editSubtotal)}</span>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => setEditingOrder(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-400 hover:text-white font-medium text-sm transition-colors">Annuler</button>
+                <button onClick={saveEditOrder}
+                  className="flex-1 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm transition-all flex items-center justify-center gap-2">
+                  <Save className="w-4 h-4" /> Enregistrer
+                </button>
+              </div>
             </div>
           </div>
         </div>
