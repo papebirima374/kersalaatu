@@ -166,7 +166,8 @@ function MerchantDashboard() {
     updateBoutique, addProduct, updateProduct, deleteProduct,
     updateOrderStatus, updateOrderPaymentStatus,
     addTicket, getProductsByBoutique, getOrdersByBoutique,
-    uploadBoutiqueLogo, upgradeRequests, createUpgradeRequest, createOrder
+    uploadBoutiqueLogo, uploadProductPhoto,
+    upgradeRequests, createUpgradeRequest, createOrder
   } = useTenant();
 
   const [activeTab, setActiveTab]   = useState('dashboard');
@@ -205,6 +206,7 @@ function MerchantDashboard() {
   const [editingProduct, setEditingProduct]     = useState(null);
   const [productSaving, setProductSaving]       = useState(false);
   const [productError, setProductError]         = useState('');
+  const [productPhotoFile, setProductPhotoFile] = useState(null);
   const [productForm, setProductForm]           = useState({
     name:'', price:'', stock:'', category:'Vêtements', photo:'', description:''
   });
@@ -280,6 +282,7 @@ function MerchantDashboard() {
     if (isFree && activeProducts.length >= 5) { setShowUpgradeModal(true); return; }
     setEditingProduct(null);
     setProductForm({ name:'', price:'', stock:'', category:'Vêtements', photo:'', description:'' });
+    setProductPhotoFile(null);
     setProductError('');
     setShowProductModal(true);
   };
@@ -287,6 +290,7 @@ function MerchantDashboard() {
   const openEditProduct = (p) => {
     setEditingProduct(p);
     setProductForm({ name:p.name, price:p.price, stock:p.stock, category:p.category, photo:p.photo, description:p.description });
+    setProductPhotoFile(null);
     setProductError('');
     setShowProductModal(true);
   };
@@ -295,15 +299,28 @@ function MerchantDashboard() {
     e.preventDefault();
     setProductSaving(true);
     setProductError('');
-    const data = {
-      name: productForm.name,
-      price: Number(productForm.price),
-      stock: Number(productForm.stock),
-      category: productForm.category,
-      photo: productForm.photo || 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600&auto=format&fit=crop&q=80',
-      description: productForm.description
-    };
     try {
+      let photoUrl = productForm.photo;
+
+      // Si un fichier a été sélectionné, on l'upload d'abord sur Firebase Storage
+      if (productPhotoFile) {
+        photoUrl = await uploadProductPhoto(activeBoutique.id, productPhotoFile);
+      }
+
+      // Si photo en base64 (pas de Storage dispo), on met une image par défaut
+      if (photoUrl && photoUrl.startsWith('data:') && isConfigured) {
+        photoUrl = 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600&auto=format&fit=crop&q=80';
+      }
+
+      const data = {
+        name: productForm.name,
+        price: Number(productForm.price),
+        stock: Number(productForm.stock),
+        category: productForm.category,
+        photo: photoUrl || 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600&auto=format&fit=crop&q=80',
+        description: productForm.description
+      };
+
       if (editingProduct) {
         await updateProduct(editingProduct.id, data);
       } else {
@@ -311,8 +328,10 @@ function MerchantDashboard() {
       }
       setShowProductModal(false);
       setEditingProduct(null);
+      setProductPhotoFile(null);
     } catch(err) {
-      setProductError('Erreur de sauvegarde. Vérifiez votre connexion et réessayez.');
+      console.error(err);
+      setProductError('Erreur de sauvegarde : ' + (err.message || 'Vérifiez votre connexion.'));
     } finally {
       setProductSaving(false);
     }
@@ -326,7 +345,9 @@ function MerchantDashboard() {
   const handlePhotoUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { alert('Image trop lourde (max 2 Mo).'); return; }
+    if (file.size > 5 * 1024 * 1024) { alert('Image trop lourde (max 5 Mo).'); return; }
+    // Stocker le fichier pour upload ultérieur, aperçu local en base64
+    setProductPhotoFile(file);
     const reader = new FileReader();
     reader.onloadend = () => setProductForm(p => ({ ...p, photo: reader.result }));
     reader.readAsDataURL(file);

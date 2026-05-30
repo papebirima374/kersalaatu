@@ -490,6 +490,25 @@ export const TenantProvider = ({ children }) => {
 
   /** Upload un logo de boutique vers Firebase Storage et retourne l'URL publique.
    *  Fallback automatique en base64 si Storage n'est pas configuré. */
+  const uploadProductPhoto = async (boutiqueId, file) => {
+    if (storage && isConfigured) {
+      const storageRef = ref(storage, `products/${boutiqueId}/${Date.now()}_${file.name}`);
+      const snap = await uploadBytes(storageRef, file);
+      return getDownloadURL(snap.ref);
+    }
+    // Mode local : base64 (limité à 500 Ko)
+    return new Promise((resolve, reject) => {
+      if (file.size > 500 * 1024) {
+        reject(new Error("En mode local, la photo doit faire moins de 500 Ko."));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const uploadBoutiqueLogo = async (boutiqueId, file) => {
     if (storage && isConfigured) {
       const storageRef = ref(storage, `logos/${boutiqueId}/${Date.now()}_${file.name}`);
@@ -747,6 +766,7 @@ export const TenantProvider = ({ children }) => {
       getBoutiqueById,
       getProductsByBoutique,
       getOrdersByBoutique,
+      uploadProductPhoto,
       uploadBoutiqueLogo,
       upgradeRequests,
       createUpgradeRequest,
