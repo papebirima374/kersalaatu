@@ -31,8 +31,10 @@ export default function PublicStorefront() {
 
   const activeShop = getBoutiqueBySlug(shopSlug);
 
+  // Produits directement depuis le contexte (réactif aux onSnapshot Firestore)
+  const products = activeShop ? getProductsByBoutique(activeShop.id) : [];
+
   // States
-  const [products, setProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tous');
   const [cart, setCart] = useState([]);
@@ -58,16 +60,12 @@ export default function PublicStorefront() {
   const [payPhone, setPayPhone] = useState('');
   const [payStatusText, setPayStatusText] = useState('');
 
-  const activeShopId = activeShop?.id;
+  // Initialiser la zone de livraison par défaut
   useEffect(() => {
-    if (activeShopId) {
-      setProducts(getProductsByBoutique(activeShopId));
-      if (activeShop?.zonesLivraison?.length > 0) {
-        setDeliveryZone(activeShop.zonesLivraison[0].id);
-      }
+    if (activeShop?.zonesLivraison?.length > 0) {
+      setDeliveryZone(activeShop.zonesLivraison[0].id);
     }
-  // getProductsByBoutique est mémoïsé dans TenantContext (useCallback), safe en dépendance
-  }, [activeShopId, getProductsByBoutique]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeShop?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentZone = activeShop?.zonesLivraison?.find(z => z.id === deliveryZone) || activeShop?.zonesLivraison?.[0] || { label: 'Livraison', price: 0 };
 
