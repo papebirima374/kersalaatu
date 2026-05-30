@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import { Link } from 'react-router-dom';
 import { isConfigured } from '../../firebase/config';
@@ -233,6 +233,8 @@ function MerchantDashboard() {
   const [orderStatut, setOrderStatut]       = useState('Tous');
   const [orderPaiement, setOrderPaiement]   = useState('Tous');
   const [activePrintInvoice, setActivePrintInvoice] = useState(null);
+  const invoiceRef = useRef(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   // Tickets
   const [ticketForm, setTicketForm] = useState({ sujet:'', message:'' });
@@ -440,6 +442,46 @@ function MerchantDashboard() {
     a.href = URL.createObjectURL(new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8' }));
     a.download = `commandes_${activeBoutique.slug}.csv`;
     a.click();
+  };
+
+  // ── Génération PDF ───────────────────────────────────────────────────────
+  const generatePDF = async () => {
+    if (!invoiceRef.current) return;
+    setPdfLoading(true);
+    try {
+      const { default: html2canvas } = await import('html2canvas');
+      const { default: jsPDF } = await import('jspdf');
+      const canvas = await html2canvas(invoiceRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const ratio = canvas.height / canvas.width;
+      const imgH = pageW * ratio;
+      if (imgH <= pageH) {
+        pdf.addImage(imgData, 'PNG', 0, 0, pageW, imgH);
+      } else {
+        // Multi-page
+        let yPos = 0;
+        while (yPos < imgH) {
+          pdf.addImage(imgData, 'PNG', 0, -yPos, pageW, imgH);
+          yPos += pageH;
+          if (yPos < imgH) pdf.addPage();
+        }
+      }
+      const filename = `Facture_${activePrintInvoice?.id || 'recu'}_${activeBoutique.name.replace(/\s+/g,'_')}.pdf`;
+      pdf.save(filename);
+    } catch (err) {
+      console.error('Erreur génération PDF:', err);
+      alert('Erreur lors de la génération du PDF. Réessayez.');
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   // ── Nav items ─────────────────────────────────────────────────────────────
@@ -1273,72 +1315,84 @@ function MerchantDashboard() {
 
       {/* ── MODAL FACTURE ─────────────────────────────────────────────────── */}
       {activePrintInvoice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
-          <div className="w-full max-w-2xl bg-white text-slate-800 rounded-2xl shadow-2xl overflow-hidden my-8">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 no-print">
-              <h3 className="font-bold text-slate-900">Facture / Reçu</h3>
-              <div className="flex gap-2">
-                <button onClick={() => sendInvoiceWA(activePrintInvoice)}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5">
-                  <MessageSquare className="w-4 h-4" /> WhatsApp
-                </button>
-                <button onClick={() => window.print()}
-                  className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-1.5">
-                  <Printer className="w-4 h-4" /> Imprimer
-                </button>
-                <button onClick={() => setActivePrintInvoice(null)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-50">
-                  Fermer
-                </button>
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-3 bg-black/70 backdrop-blur-sm overflow-y-auto">
+          <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl overflow-hidden my-4">
+            {/* Barre d'actions — responsive mobile */}
+            <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
+              <div className="flex flex-wrap items-center gap-2 justify-between">
+                <span className="font-bold text-slate-800 text-sm">Facture / Reçu</span>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => sendInvoiceWA(activePrintInvoice)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all">
+                    <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
+                  </button>
+                  <button onClick={generatePDF} disabled={pdfLoading}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white font-bold text-xs transition-all">
+                    {pdfLoading
+                      ? <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> PDF...</>
+                      : <><Printer className="w-3.5 h-3.5" /> Télécharger PDF</>}
+                  </button>
+                  <button onClick={() => setActivePrintInvoice(null)}
+                    className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-300 text-slate-600 text-xs font-medium hover:bg-slate-100 transition-all">
+                    <X className="w-3.5 h-3.5" /> Fermer
+                  </button>
+                </div>
               </div>
             </div>
-            <div className="p-8">
-              <div className="flex justify-between items-start mb-8">
-                <div className="flex items-center gap-4">
+
+            {/* Corps de la facture — capturé par html2canvas */}
+            <div ref={invoiceRef} className="p-6 bg-white">
+              {/* En-tête */}
+              <div className="flex justify-between items-start mb-6">
+                <div className="flex items-center gap-3">
                   {activeBoutique.logo && (
-                    <div className="w-16 h-16 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
+                    <div className="w-14 h-14 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
                       {activeBoutique.logo.startsWith('http') || activeBoutique.logo.startsWith('data:') || activeBoutique.logo.startsWith('/')
-                        ? <img src={activeBoutique.logo} alt="Logo" className="w-full h-full object-contain p-1" />
-                        : <span className="text-3xl">{activeBoutique.logo}</span>}
+                        ? <img src={activeBoutique.logo} alt="Logo" className="w-full h-full object-contain p-1" crossOrigin="anonymous" />
+                        : <span className="text-2xl">{activeBoutique.logo}</span>}
                     </div>
                   )}
                   <div>
-                    <h1 className="text-xl font-black text-slate-900 uppercase">{activeBoutique.name}</h1>
-                    <p className="text-xs text-slate-500 mt-1">{activeBoutique.adresse}</p>
+                    <h1 className="text-lg font-black text-slate-900 uppercase leading-tight">{activeBoutique.name}</h1>
+                    {activeBoutique.adresse && <p className="text-xs text-slate-500">{activeBoutique.adresse}</p>}
                     <p className="text-xs text-slate-500">{activeBoutique.whatsapp}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <h2 className="text-lg font-black text-slate-900">FACTURE</h2>
-                  <p className="text-xs font-mono text-slate-500">Réf: {activePrintInvoice.id}</p>
+                  <h2 className="text-xl font-black text-slate-900">FACTURE</h2>
+                  <p className="text-xs font-mono text-slate-500 mt-1">Réf : {activePrintInvoice.id}</p>
                   <p className="text-xs text-slate-500">{new Date(activePrintInvoice.date).toLocaleDateString('fr-FR')}</p>
                 </div>
               </div>
-              <div className="bg-slate-50 rounded-xl p-4 mb-6 grid grid-cols-2 gap-4">
+
+              {/* Client + paiement */}
+              <div className="bg-slate-50 rounded-xl p-4 mb-5 grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Client</p>
-                  <p className="font-bold text-slate-900">{activePrintInvoice.client.nom}</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Client</p>
+                  <p className="font-bold text-slate-900 text-sm">{activePrintInvoice.client.nom}</p>
                   <p className="text-xs text-slate-600">{activePrintInvoice.client.telephone}</p>
                   <p className="text-xs text-slate-600">{activePrintInvoice.client.adresse}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Paiement</p>
-                  <p className="font-semibold text-slate-800">{activePrintInvoice.paiement?.methode || 'À la livraison'}</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Paiement</p>
+                  <p className="font-semibold text-slate-800 text-sm">{activePrintInvoice.paiement?.methode || 'À la livraison'}</p>
                   <p className="text-xs text-slate-600">{activePrintInvoice.paiement?.statut || 'En attente'}</p>
                 </div>
               </div>
-              <table className="w-full text-sm">
+
+              {/* Articles */}
+              <table className="w-full text-sm border-collapse">
                 <thead>
-                  <tr className="border-b-2 border-slate-200 text-left">
-                    <th className="py-2 font-bold text-slate-700">Article</th>
-                    <th className="py-2 font-bold text-slate-700 text-center">Qté</th>
-                    <th className="py-2 font-bold text-slate-700 text-right">P.U.</th>
-                    <th className="py-2 font-bold text-slate-700 text-right">Total</th>
+                  <tr className="border-b-2 border-slate-900">
+                    <th className="py-2 text-left font-bold text-slate-800">Article</th>
+                    <th className="py-2 text-center font-bold text-slate-800">Qté</th>
+                    <th className="py-2 text-right font-bold text-slate-800">P.U.</th>
+                    <th className="py-2 text-right font-bold text-slate-800">Total</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody>
                   {activePrintInvoice.items.map((it, i) => (
-                    <tr key={i}>
+                    <tr key={i} className="border-b border-slate-100">
                       <td className="py-2.5 text-slate-800">{it.name}</td>
                       <td className="py-2.5 text-center text-slate-600">{it.quantity}</td>
                       <td className="py-2.5 text-right font-mono text-slate-600">{fmt(it.price)}</td>
@@ -1347,14 +1401,28 @@ function MerchantDashboard() {
                   ))}
                 </tbody>
               </table>
-              <div className="mt-4 pt-4 border-t-2 border-slate-200 flex justify-end">
-                <div className="space-y-1 text-sm w-56">
-                  <div className="flex justify-between text-slate-500"><span>Sous-total</span><span className="font-mono">{fmt(activePrintInvoice.total - activePrintInvoice.livraison.frais)}</span></div>
-                  <div className="flex justify-between text-slate-500"><span>Livraison</span><span className="font-mono">{fmt(activePrintInvoice.livraison.frais)}</span></div>
-                  <div className="flex justify-between font-black text-slate-900 border-t pt-1"><span>TOTAL</span><span className="text-teal-700">{fmt(activePrintInvoice.total)}</span></div>
+
+              {/* Totaux */}
+              <div className="mt-4 flex justify-end">
+                <div className="w-52 space-y-1.5 text-sm">
+                  <div className="flex justify-between text-slate-500">
+                    <span>Sous-total</span>
+                    <span className="font-mono">{fmt(activePrintInvoice.total - activePrintInvoice.livraison.frais)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-500">
+                    <span>Livraison</span>
+                    <span className="font-mono">{fmt(activePrintInvoice.livraison.frais)}</span>
+                  </div>
+                  <div className="flex justify-between font-black text-slate-900 border-t-2 border-slate-900 pt-2 text-base">
+                    <span>TOTAL</span>
+                    <span style={{ color: '#0d9488' }}>{fmt(activePrintInvoice.total)}</span>
+                  </div>
                 </div>
               </div>
-              <p className="text-center text-xs text-slate-400 mt-8">Merci pour votre achat chez {activeBoutique.name} · Kër Salaatu Tech</p>
+
+              <p className="text-center text-xs text-slate-400 mt-6 pt-4 border-t border-slate-100">
+                Merci pour votre achat chez {activeBoutique.name} · Propulsé par Kër Salaatu Tech
+              </p>
             </div>
           </div>
         </div>
