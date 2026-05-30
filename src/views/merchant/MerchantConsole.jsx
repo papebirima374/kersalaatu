@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import { Link } from 'react-router-dom';
 import { isConfigured } from '../../firebase/config';
+
 import { 
   LayoutDashboard, 
   ShoppingBag, 
@@ -444,8 +445,11 @@ export default function MerchantConsole() {
   const [activeTab, setActiveTab] = useState('dashboard'); // dashboard, products, orders, settings
 
   // ── Isolation marchand : seules ses propres boutiques sont accessibles ──
+  // En mode simulation locale (pas de Firebase), on affiche toutes les boutiques
+  // car il n'y a pas de vrai système d'auth pour distinguer les propriétaires.
   const myBoutiques = React.useMemo(() => {
     if (!merchantUser) return [];
+    if (!isConfigured) return boutiques; // mode local : pas de filtrage
     return boutiques.filter(
       b => b.ownerUid === merchantUser.uid || b.ownerEmail === merchantUser.email
     );
