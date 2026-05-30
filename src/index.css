@@ -10,6 +10,10 @@
 html, body, #root {
   overflow-x: hidden;
   max-width: 100%;
+  /* Empêche le zoom (double-tap) et l'ajustement auto de la taille du texte */
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
