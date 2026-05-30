@@ -160,7 +160,7 @@ export default function LandingPage() {
 
         {/* Interactive Demo list */}
         <div className="flex-1 w-full max-w-md">
-          <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80 shadow-2xl relative overflow-hidden backdrop-blur-sm">
+          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800/80 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
               <ShoppingBag className="w-5 h-5 text-teal-400" />

@@ -283,7 +283,7 @@ function MerchantDashboard() {
     const isFree = !activeBoutique.abonnement?.plan || activeBoutique.abonnement.plan === 'Découverte';
     if (isFree && activeProducts.length >= 5) { setShowUpgradeModal(true); return; }
     setEditingProduct(null);
-    setProductForm({ name:'', price:'', stock:'', category:'Vêtements', photo:'', description:'' });
+    setProductForm({ name:'', price:'', stock:'', category:'Vêtements', photo:'', description:'', variantes:[] });
     setProductPhotoFile(null);
     setProductError('');
     setShowProductModal(true);
@@ -291,10 +291,36 @@ function MerchantDashboard() {
 
   const openEditProduct = (p) => {
     setEditingProduct(p);
-    setProductForm({ name:p.name, price:p.price, stock:p.stock, category:p.category, photo:p.photo, description:p.description });
+    setProductForm({ name:p.name, price:p.price, stock:p.stock, category:p.category, photo:p.photo, description:p.description, variantes: p.variantes || [] });
     setProductPhotoFile(null);
     setProductError('');
     setShowProductModal(true);
+  };
+
+  // ── Handlers variantes (parfums, couleurs, tailles...) ───────────────────
+  const [variantUploading, setVariantUploading] = useState(null); // index en cours d'upload
+  const addVariant = () => {
+    setProductForm(p => ({ ...p, variantes: [...(p.variantes || []), { id: `v-${Date.now()}`, nom: '', photo: '' }] }));
+  };
+  const removeVariant = (index) => {
+    setProductForm(p => ({ ...p, variantes: p.variantes.filter((_, i) => i !== index) }));
+  };
+  const updateVariantName = (index, nom) => {
+    setProductForm(p => ({ ...p, variantes: p.variantes.map((v, i) => i === index ? { ...v, nom } : v) }));
+  };
+  const handleVariantPhoto = async (index, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { alert('Image trop lourde (max 5 Mo).'); return; }
+    setVariantUploading(index);
+    try {
+      const url = await uploadProductPhoto(activeBoutique.id, file);
+      setProductForm(p => ({ ...p, variantes: p.variantes.map((v, i) => i === index ? { ...v, photo: url } : v) }));
+    } catch (err) {
+      alert('Erreur upload image variante : ' + (err.message || ''));
+    } finally {
+      setVariantUploading(null);
+    }
   };
 
   const handleProductSubmit = async (e) => {
@@ -314,13 +340,23 @@ function MerchantDashboard() {
         photoUrl = 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600&auto=format&fit=crop&q=80';
       }
 
+      // Variantes : ne garder que celles avec un nom, nettoyer les base64
+      const variantes = (productForm.variantes || [])
+        .filter(v => v.nom && v.nom.trim())
+        .map(v => ({
+          id: v.id,
+          nom: v.nom.trim(),
+          photo: (v.photo && v.photo.startsWith('data:') && isConfigured) ? '' : (v.photo || '')
+        }));
+
       const data = {
         name: productForm.name,
         price: Number(productForm.price),
         stock: Number(productForm.stock),
         category: productForm.category,
         photo: photoUrl || 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600&auto=format&fit=crop&q=80',
-        description: productForm.description
+        description: productForm.description,
+        variantes
       };
 
       if (editingProduct) {
@@ -1332,6 +1368,47 @@ function MerchantDashboard() {
                 <textarea value={productForm.description} onChange={e => setProductForm(p=>({...p, description:e.target.value}))} rows={3}
                   placeholder="Couleurs, tailles, matière..."
                   className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none resize-none" />
+              </div>
+
+              {/* Variantes (parfums, couleurs, modèles...) */}
+              <div className="space-y-3 p-4 bg-slate-800/50 rounded-xl border border-slate-700">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-medium text-slate-400">Variantes / Choix (parfums, couleurs...)</label>
+                  <span className="text-[10px] text-slate-500">Optionnel</span>
+                </div>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Ajoutez des options que le client pourra choisir (ex: Vanille, Musc, Ambre...), chacune avec sa propre image.
+                </p>
+
+                {(productForm.variantes || []).map((v, i) => (
+                  <div key={v.id} className="flex items-center gap-2 bg-slate-800 rounded-lg p-2 border border-slate-700">
+                    {/* Aperçu image */}
+                    <div className="w-12 h-12 rounded-lg bg-slate-700 overflow-hidden shrink-0 flex items-center justify-center">
+                      {variantUploading === i
+                        ? <span className="w-4 h-4 border-2 border-teal-400 border-t-transparent rounded-full animate-spin" />
+                        : v.photo
+                          ? <img src={v.photo} alt={v.nom} className="w-full h-full object-cover" />
+                          : <span className="text-slate-500 text-[9px]">photo</span>}
+                    </div>
+                    {/* Nom + upload */}
+                    <div className="flex-1 space-y-1.5">
+                      <input value={v.nom} onChange={e => updateVariantName(i, e.target.value)}
+                        placeholder="Nom de la variante (ex: Vanille)"
+                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none" />
+                      <input type="file" accept="image/*" onChange={e => handleVariantPhoto(i, e)}
+                        className="text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-teal-500/10 file:text-teal-400 file:cursor-pointer" />
+                    </div>
+                    <button type="button" onClick={() => removeVariant(i)}
+                      className="w-7 h-7 rounded-lg bg-red-500/5 text-red-400 hover:bg-red-500/10 flex items-center justify-center shrink-0">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+
+                <button type="button" onClick={addVariant}
+                  className="flex items-center gap-1.5 text-xs text-teal-400 hover:text-teal-300 transition-colors">
+                  <Plus className="w-3.5 h-3.5 stroke-[3]" /> Ajouter une variante
+                </button>
               </div>
 
               <div className="flex gap-3 pt-2">

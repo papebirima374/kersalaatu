@@ -41,6 +41,7 @@ export default function PublicStorefront() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [checkoutStep, setCheckoutStep] = useState('cart'); // cart, delivery, success
   const [selectedProduct, setSelectedProduct] = useState(null); // Product detail modal
+  const [selectedVariant, setSelectedVariant] = useState(null); // Variante choisie dans le modal
 
   // Delivery form state
   const [clientForm, setClientForm] = useState({
@@ -119,34 +120,42 @@ export default function PublicStorefront() {
     return matchesSearch && matchesCategory && p.actif;
   });
 
-  // Cart operations
-  const addToCart = (product) => {
+  // Cart operations — gère les variantes (parfums, couleurs...)
+  const addToCart = (product, variant = null) => {
     if (product.stock <= 0) return;
-    
+
+    const cartKey = variant ? `${product.id}__${variant.id}` : product.id;
+    const displayName = variant ? `${product.name} — ${variant.nom}` : product.name;
+    const displayPhoto = variant?.photo || product.photo;
+
     setCart(prevCart => {
-      const existing = prevCart.find(item => item.id === product.id);
+      const existing = prevCart.find(item => item.cartKey === cartKey);
       if (existing) {
-        // Check stock
         if (existing.quantity >= product.stock) {
           alert(`Désolé, il n'y a que ${product.stock} unités de ce produit en stock.`);
           return prevCart;
         }
-        return prevCart.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+        return prevCart.map(item => item.cartKey === cartKey ? { ...item, quantity: item.quantity + 1 } : item);
       }
-      return [...prevCart, { ...product, quantity: 1 }];
+      return [...prevCart, {
+        ...product,
+        cartKey,
+        name: displayName,
+        photo: displayPhoto,
+        variantNom: variant?.nom || null,
+        quantity: 1
+      }];
     });
   };
 
-  const updateCartQty = (productId, change) => {
-    const product = products.find(p => p.id === productId);
-    
+  const updateCartQty = (cartKey, change) => {
     setCart(prevCart => {
       return prevCart.map(item => {
-        if (item.id === productId) {
+        if (item.cartKey === cartKey) {
           const newQty = item.quantity + change;
           if (newQty <= 0) return null;
-          if (product && newQty > product.stock) {
-            alert(`Désolé, il n'y a que ${product.stock} unités de ce produit en stock.`);
+          if (newQty > item.stock) {
+            alert(`Désolé, il n'y a que ${item.stock} unités de ce produit en stock.`);
             return item;
           }
           return { ...item, quantity: newQty };
@@ -156,8 +165,8 @@ export default function PublicStorefront() {
     });
   };
 
-  const removeFromCart = (productId) => {
-    setCart(prevCart => prevCart.filter(item => item.id !== productId));
+  const removeFromCart = (cartKey) => {
+    setCart(prevCart => prevCart.filter(item => item.cartKey !== cartKey));
   };
 
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
@@ -188,7 +197,6 @@ export default function PublicStorefront() {
             const currentDbStock = Number(productSnap.data().stock);
             if (currentDbStock < item.quantity) {
               alert(`Stock insuffisant pour "${item.name}". Il ne reste que ${currentDbStock} pièces en stock. Votre panier a été mis à jour.`);
-              setProducts(prev => prev.map(p => p.id === item.id ? { ...p, stock: currentDbStock } : p));
               setCart(prev => prev.map(c => c.id === item.id ? { ...c, stock: currentDbStock, quantity: Math.min(c.quantity, currentDbStock) } : c).filter(c => c.quantity > 0));
               return false;
             }
@@ -497,8 +505,13 @@ export default function PublicStorefront() {
                     </span>
                   )}
                 </div>
+                {prod.variantes && prod.variantes.length > 0 && (
+                  <span className="absolute bottom-2 right-2 bg-white/90 text-slate-800 font-bold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full shadow">
+                    {prod.variantes.length} options
+                  </span>
+                )}
                 {prod.stock === 0 && (
-                  <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[1px] flex items-center justify-center">
+                  <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center">
                     <span className="px-3 py-1 rounded-full bg-slate-800 text-white font-extrabold text-xs shadow-md border border-white/10">
                       Rupture de Stock
                     </span>
@@ -522,9 +535,17 @@ export default function PublicStorefront() {
                 </div>
 
                 {/* Boutons toujours en bas */}
+                {(() => {
+                  const hasVar = prod.variantes && prod.variantes.length > 0;
+                  return (
                 <div className="flex gap-1.5 mt-3">
                   <button
-                    onClick={(e) => { e.stopPropagation(); addToCart(prod); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (prod.stock === 0) return;
+                      if (hasVar) { setSelectedProduct(prod); setSelectedVariant(null); }
+                      else addToCart(prod);
+                    }}
                     disabled={prod.stock === 0}
                     className={`flex-1 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1 transition-all border ${
                       prod.stock === 0
@@ -538,6 +559,7 @@ export default function PublicStorefront() {
                     onClick={(e) => {
                       e.stopPropagation();
                       if (prod.stock === 0) return;
+                      if (hasVar) { setSelectedProduct(prod); setSelectedVariant(null); return; }
                       addToCart(prod);
                       setCheckoutStep('delivery');
                       setIsCartOpen(true);
@@ -549,9 +571,11 @@ export default function PublicStorefront() {
                       : 'bg-[var(--tenant-color)] hover:opacity-90 text-white shadow-sm'
                     }`}
                   >
-                    Commander
+                    {hasVar ? 'Choisir' : 'Commander'}
                   </button>
                 </div>
+                  );
+                })()}
               </div>
             </div>
             );
@@ -631,10 +655,10 @@ export default function PublicStorefront() {
                     </div>
                   ) : (
                     cart.map((item) => (
-                      <div key={item.id} className="flex gap-4 p-3 rounded-xl bg-slate-50 border border-slate-150 relative">
-                        <img 
-                          src={item.photo} 
-                          alt={item.name} 
+                      <div key={item.cartKey} className="flex gap-4 p-3 rounded-xl bg-slate-50 border border-slate-150 relative">
+                        <img
+                          src={item.photo}
+                          alt={item.name}
                           className="w-16 h-16 rounded-lg object-cover bg-slate-200 border border-slate-100"
                         />
                         <div className="flex-1 flex flex-col justify-between py-0.5">
@@ -645,23 +669,23 @@ export default function PublicStorefront() {
                           <div className="flex items-center justify-between mt-1">
                             {/* Quantity buttons */}
                             <div className="flex items-center border border-slate-200 bg-white rounded-lg p-0.5">
-                              <button 
-                                onClick={() => updateCartQty(item.id, -1)}
+                              <button
+                                onClick={() => updateCartQty(item.cartKey, -1)}
                                 className="p-1 hover:bg-slate-100 rounded text-slate-500 cursor-pointer"
                               >
                                 <Minus className="w-3.5 h-3.5" />
                               </button>
                               <span className="px-2 text-xs font-bold text-slate-700">{item.quantity}</span>
-                              <button 
-                                onClick={() => updateCartQty(item.id, 1)}
+                              <button
+                                onClick={() => updateCartQty(item.cartKey, 1)}
                                 className="p-1 hover:bg-slate-100 rounded text-slate-500 cursor-pointer"
                               >
                                 <Plus className="w-3.5 h-3.5" />
                               </button>
                             </div>
 
-                            <button 
-                              onClick={() => removeFromCart(item.id)}
+                            <button
+                              onClick={() => removeFromCart(item.cartKey)}
                               className="text-xs font-semibold text-red-500 hover:text-red-650 cursor-pointer"
                             >
                               Retirer
@@ -1172,23 +1196,28 @@ export default function PublicStorefront() {
       )}
 
       {/* Product Detail Modal */}
-      {selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs" onClick={() => setSelectedProduct(null)}>
-          <div className="w-full max-w-lg bg-white rounded-3xl overflow-hidden shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
-            
+      {selectedProduct && (() => {
+        const hasVariants = selectedProduct.variantes && selectedProduct.variantes.length > 0;
+        const displayPhoto = selectedVariant?.photo || selectedProduct.photo;
+        const needsChoice = hasVariants && !selectedVariant;
+        const closeModal = () => { setSelectedProduct(null); setSelectedVariant(null); };
+        return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70" onClick={closeModal}>
+          <div className="w-full max-w-lg bg-white rounded-3xl overflow-hidden shadow-2xl relative max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+
             {/* Close Button */}
-            <button 
-              onClick={() => setSelectedProduct(null)}
+            <button
+              onClick={closeModal}
               className="absolute top-4 right-4 z-10 p-2 rounded-full bg-slate-900/60 hover:bg-slate-900 text-white transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
 
-            {/* Photo */}
+            {/* Photo principale (change selon variante) */}
             <div className="w-full h-64 sm:h-80 bg-slate-100 relative">
-              <img 
-                src={selectedProduct.photo} 
-                alt={selectedProduct.name} 
+              <img
+                src={displayPhoto}
+                alt={selectedProduct.name}
                 className="w-full h-full object-cover"
               />
             </div>
@@ -1199,13 +1228,50 @@ export default function PublicStorefront() {
                 <span className="text-[10px] font-bold tracking-wider text-[var(--tenant-color)] uppercase bg-[var(--tenant-color-light)] px-2.5 py-1 rounded-md inline-block">
                   {selectedProduct.category}
                 </span>
-                <h3 className="font-black text-slate-900 text-2xl">{selectedProduct.name}</h3>
+                <h3 className="font-black text-slate-900 text-2xl">
+                  {selectedProduct.name}
+                  {selectedVariant && <span className="text-[var(--tenant-color)]"> — {selectedVariant.nom}</span>}
+                </h3>
                 <span className="text-xl font-black text-slate-800 block">{formatMoney(selectedProduct.price)}</span>
               </div>
 
-              <div className="text-sm text-slate-500 leading-relaxed border-t border-slate-100 pt-3">
-                {selectedProduct.description}
-              </div>
+              {selectedProduct.description && (
+                <div className="text-sm text-slate-500 leading-relaxed border-t border-slate-100 pt-3">
+                  {selectedProduct.description}
+                </div>
+              )}
+
+              {/* Sélecteur de variantes */}
+              {hasVariants && (
+                <div className="border-t border-slate-100 pt-4">
+                  <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
+                    Choisissez votre option <span className="text-red-500">*</span>
+                  </p>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                    {selectedProduct.variantes.map(v => {
+                      const active = selectedVariant?.id === v.id;
+                      return (
+                        <button
+                          key={v.id}
+                          onClick={() => setSelectedVariant(v)}
+                          className={`rounded-xl border-2 overflow-hidden transition-all ${
+                            active ? 'border-[var(--tenant-color)] ring-2 ring-[var(--tenant-color)]/20' : 'border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="w-full h-16 bg-slate-100">
+                            {v.photo
+                              ? <img src={v.photo} alt={v.nom} className="w-full h-full object-cover" />
+                              : <div className="w-full h-full flex items-center justify-center text-slate-300 text-xs">—</div>}
+                          </div>
+                          <p className={`text-[10px] font-bold py-1.5 px-1 truncate ${active ? 'text-[var(--tenant-color)]' : 'text-slate-600'}`}>
+                            {v.nom}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Stock and Buy */}
               <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-2">
@@ -1218,23 +1284,25 @@ export default function PublicStorefront() {
 
                 <button
                   onClick={() => {
-                    addToCart(selectedProduct);
-                    setSelectedProduct(null);
+                    if (needsChoice) return;
+                    addToCart(selectedProduct, selectedVariant);
+                    closeModal();
                   }}
-                  disabled={selectedProduct.stock === 0}
+                  disabled={selectedProduct.stock === 0 || needsChoice}
                   className={`py-3 px-6 rounded-2xl font-bold text-sm transition-all cursor-pointer ${
-                    selectedProduct.stock === 0
+                    selectedProduct.stock === 0 || needsChoice
                     ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
                     : 'bg-[var(--tenant-color)] hover:bg-[var(--tenant-color-hover)] text-white shadow hover:scale-105'
                   }`}
                 >
-                  Ajouter au panier
+                  {needsChoice ? 'Choisissez une option' : 'Ajouter au panier'}
                 </button>
               </div>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Floating WhatsApp button */}
       {!isCartOpen && activeShop.whatsapp && (
