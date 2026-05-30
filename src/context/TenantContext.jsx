@@ -313,7 +313,7 @@ export const TenantProvider = ({ children }) => {
     return boutique;
   };
 
-  const addProduct = (boutiqueId, productData) => {
+  const addProduct = async (boutiqueId, productData) => {
     const newProduct = {
       id: `prod-${Date.now()}`,
       boutiqueId,
@@ -322,16 +322,23 @@ export const TenantProvider = ({ children }) => {
       price: Number(productData.price) || 0,
       stock: Number(productData.stock) || 0
     };
+    // Mise à jour optimiste immédiate
     setProducts(prev => [newProduct, ...prev]);
-    
+
     if (isConfigured) {
-      setDoc(doc(db, 'products', newProduct.id), newProduct)
-        .catch(err => console.error("Error adding product to Firestore:", err));
+      try {
+        await setDoc(doc(db, 'products', newProduct.id), newProduct);
+      } catch (err) {
+        // Annuler la mise à jour optimiste si l'écriture échoue
+        setProducts(prev => prev.filter(p => p.id !== newProduct.id));
+        console.error("Erreur ajout produit Firestore:", err);
+        throw err;
+      }
     }
     return newProduct;
   };
 
-  const updateProduct = (productId, updatedFields) => {
+  const updateProduct = async (productId, updatedFields) => {
     const changes = {
       ...updatedFields,
       price: updatedFields.price !== undefined ? Number(updatedFields.price) : undefined,
@@ -340,19 +347,27 @@ export const TenantProvider = ({ children }) => {
     Object.keys(changes).forEach(key => changes[key] === undefined && delete changes[key]);
 
     setProducts(prev => prev.map(p => p.id === productId ? { ...p, ...changes } : p));
-    
+
     if (isConfigured) {
-      updateDoc(doc(db, 'products', productId), changes)
-        .catch(err => console.error("Error updating product in Firestore:", err));
+      try {
+        await updateDoc(doc(db, 'products', productId), changes);
+      } catch (err) {
+        console.error("Erreur mise à jour produit Firestore:", err);
+        throw err;
+      }
     }
   };
 
-  const deleteProduct = (productId) => {
+  const deleteProduct = async (productId) => {
     setProducts(prev => prev.filter(p => p.id !== productId));
-    
+
     if (isConfigured) {
-      deleteDoc(doc(db, 'products', productId))
-        .catch(err => console.error("Error deleting product from Firestore:", err));
+      try {
+        await deleteDoc(doc(db, 'products', productId));
+      } catch (err) {
+        console.error("Erreur suppression produit Firestore:", err);
+        throw err;
+      }
     }
   };
 
