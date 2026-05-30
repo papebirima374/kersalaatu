@@ -859,38 +859,42 @@ function MerchantDashboard() {
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                   {activeProducts.map(p => (
-                    <div key={p.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden hover:border-slate-700 transition-all group">
-                      <div className="relative h-40 bg-slate-800 overflow-hidden">
+                    <div key={p.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden hover:border-slate-700 transition-all group flex flex-col">
+                      <div className="relative h-28 sm:h-32 bg-slate-800 overflow-hidden shrink-0">
                         <img src={p.photo} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                         {p.stock === 0 && (
                           <div className="absolute inset-0 bg-slate-950/70 flex items-center justify-center">
-                            <span className="text-xs font-bold text-red-400 bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20">Épuisé</span>
+                            <span className="text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">Épuisé</span>
                           </div>
                         )}
                         {p.stock > 0 && p.stock <= 3 && (
-                          <span className="absolute top-2 right-2 text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                            Stock: {p.stock}
+                          <span className="absolute top-1.5 right-1.5 text-[9px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full border border-amber-500/20">
+                            {p.stock}
+                          </span>
+                        )}
+                        {p.variantes && p.variantes.length > 0 && (
+                          <span className="absolute bottom-1.5 left-1.5 text-[9px] font-bold text-white bg-slate-900/80 px-1.5 py-0.5 rounded-full">
+                            {p.variantes.length} options
                           </span>
                         )}
                       </div>
-                      <div className="p-3">
-                        <span className="text-[10px] font-semibold text-teal-400 uppercase tracking-wider">{p.category}</span>
-                        <h4 className="font-semibold text-slate-200 text-sm mt-0.5 line-clamp-1">{p.name}</h4>
-                        <p className="text-xs text-slate-500 line-clamp-2 mt-0.5 min-h-[2rem]">{p.description}</p>
-                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-800">
-                          <span className="font-bold text-white">{fmt(p.price)}</span>
-                          <span className="text-xs text-slate-500">{p.stock} en stock</span>
+                      <div className="p-2.5 flex flex-col flex-1">
+                        <span className="text-[9px] font-semibold text-teal-400 uppercase tracking-wider">{p.category}</span>
+                        <h4 className="font-semibold text-slate-200 text-xs mt-0.5 line-clamp-2 leading-tight flex-1">{p.name}</h4>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="font-bold text-white text-sm">{fmt(p.price)}</span>
+                          <span className="text-[10px] text-slate-500">{p.stock} stk</span>
                         </div>
-                        <div className="flex gap-2 mt-3">
+                        <div className="flex gap-1.5 mt-2">
                           <button onClick={() => openEditProduct(p)}
-                            className="flex-1 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center justify-center gap-1">
-                            <Edit3 className="w-3.5 h-3.5" /> Modifier
+                            className="flex-1 py-1.5 rounded-lg text-[11px] font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors flex items-center justify-center gap-1">
+                            <Edit3 className="w-3 h-3" /> Modifier
                           </button>
                           <button onClick={() => handleDeleteProduct(p.id)}
-                            className="py-1.5 px-2.5 rounded-lg text-xs bg-red-500/5 hover:bg-red-500/10 text-red-400 border border-red-500/10 transition-colors">
-                            <Trash2 className="w-3.5 h-3.5" />
+                            className="py-1.5 px-2 rounded-lg text-xs bg-red-500/5 hover:bg-red-500/10 text-red-400 border border-red-500/10 transition-colors">
+                            <Trash2 className="w-3 h-3" />
                           </button>
                         </div>
                       </div>
