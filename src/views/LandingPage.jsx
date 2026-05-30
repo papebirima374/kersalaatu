@@ -84,18 +84,12 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       {/* Background patterns */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-teal-900/20 via-slate-950 to-slate-950 pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-teal-900/20 via-slate-950 to-orange-950/10 pointer-events-none" />
 
       {/* Header */}
-      <header className="relative max-w-7xl w-full mx-auto px-6 py-5 flex items-center justify-between border-b border-slate-800/80">
+      <header className="relative max-w-7xl w-full mx-auto px-6 py-4 flex items-center justify-between border-b border-slate-800/80">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-teal-500/20">
-            <ShoppingBag className="w-5 h-5 text-slate-950 stroke-[2.5]" />
-          </div>
-          <div>
-            <span className="font-bold text-xl tracking-tight bg-gradient-to-r from-teal-400 to-emerald-300 bg-clip-text text-transparent">Kër Salaatu Tech</span>
-            <span className="block text-[9px] uppercase tracking-widest text-slate-500 font-semibold">SaaS E-Commerce</span>
-          </div>
+          <img src="/logo-kersalaatu.png" alt="Kër Salaatu" className="h-12 w-auto object-contain" />
         </div>
 
         <div className="flex items-center gap-4">
@@ -104,9 +98,9 @@ export default function LandingPage() {
           </Link>
           <button
             onClick={() => setShowModal(true)}
-            className="relative inline-flex items-center justify-center p-0.5 mb-2 me-2 overflow-hidden text-sm font-medium rounded-xl group bg-gradient-to-br from-teal-300 to-lime-300 group-hover:from-teal-300 group-hover:to-lime-300 text-slate-900 focus:ring-4 focus:outline-none focus:ring-lime-800 cursor-pointer transition-all duration-200 hover:scale-105"
+            className="relative inline-flex items-center justify-center overflow-hidden text-sm font-medium rounded-xl bg-gradient-to-br from-orange-500 to-orange-400 text-white cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-lg hover:shadow-orange-500/25"
           >
-            <span className="relative px-5 py-2 transition-all ease-in duration-75 bg-transparent rounded-md font-semibold flex items-center gap-2">
+            <span className="relative px-5 py-2.5 font-semibold flex items-center gap-2">
               <Plus className="w-4 h-4 stroke-[3]" /> Créer ma Boutique
             </span>
           </button>
@@ -116,12 +110,12 @@ export default function LandingPage() {
       {/* Hero Section */}
       <main className="relative flex-grow max-w-7xl w-full mx-auto px-6 py-12 md:py-20 flex flex-col md:flex-row items-center gap-12">
         <div className="flex-1 space-y-6 text-left">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-xs font-semibold">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-semibold">
             <Sparkles className="w-3.5 h-3.5" /> Propulsé par Kër Salaatu Tech
           </div>
           <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight">
             Vendez en ligne <br />
-            <span className="bg-gradient-to-r from-teal-400 via-emerald-400 to-lime-300 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-teal-400 via-teal-300 to-orange-400 bg-clip-text text-transparent">
               en 2 minutes chrono
             </span>
           </h1>
@@ -132,7 +126,7 @@ export default function LandingPage() {
           <div className="flex flex-wrap gap-4 pt-4">
             <button
               onClick={() => setShowModal(true)}
-              className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-400 text-slate-950 font-bold hover:shadow-lg hover:shadow-teal-500/25 transition-all flex items-center gap-2 hover:translate-x-0.5 cursor-pointer"
+              className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-orange-400 text-white font-bold hover:shadow-lg hover:shadow-orange-500/25 transition-all flex items-center gap-2 hover:translate-x-0.5 cursor-pointer"
             >
               Lancer ma boutique maintenant <ArrowRight className="w-5 h-5 stroke-[2.5]" />
             </button>
@@ -253,7 +247,7 @@ export default function LandingPage() {
       {/* Workflow: Comment ça marche */}
       <section className="relative max-w-7xl w-full mx-auto px-6 py-16 md:py-24 border-t border-slate-900/80 text-center">
         <div className="space-y-3 mb-16">
-          <span className="text-xs font-bold text-teal-400 uppercase tracking-widest bg-teal-500/10 px-3 py-1.5 rounded-full border border-teal-500/20">Processus Simple</span>
+          <span className="text-xs font-bold text-orange-400 uppercase tracking-widest bg-orange-500/10 px-3 py-1.5 rounded-full border border-orange-500/20">Processus Simple</span>
           <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight mt-3">Comment ça marche ?</h2>
           <p className="text-slate-400 text-sm md:text-base max-w-xl mx-auto">
             Trois étapes simples suffisent pour digitaliser votre commerce et commencer à vendre à vos clients.
@@ -262,7 +256,7 @@ export default function LandingPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
           {/* Connector line for large screens */}
-          <div className="hidden md:block absolute top-1/2 left-16 right-16 h-0.5 bg-gradient-to-r from-teal-500/20 via-emerald-500/20 to-lime-500/20 -translate-y-14 z-0" />
+          <div className="hidden md:block absolute top-1/2 left-16 right-16 h-0.5 bg-gradient-to-r from-teal-500/20 via-orange-500/20 to-orange-500/20 -translate-y-14 z-0" />
 
           {/* Step 1 */}
           <div className="bg-slate-900/40 border border-slate-850 p-8 rounded-2xl flex flex-col items-center space-y-4 relative z-10 hover:border-teal-500/30 transition-all hover:scale-[1.02] duration-300">
@@ -287,8 +281,8 @@ export default function LandingPage() {
           </div>
 
           {/* Step 3 */}
-          <div className="bg-slate-900/40 border border-slate-850 p-8 rounded-2xl flex flex-col items-center space-y-4 relative z-10 hover:border-lime-500/30 transition-all hover:scale-[1.02] duration-300">
-            <div className="w-16 h-16 rounded-2xl bg-lime-500/10 border border-lime-500/20 flex items-center justify-center text-lime-400 shadow shadow-lime-500/10">
+          <div className="bg-slate-900/40 border border-slate-850 p-8 rounded-2xl flex flex-col items-center space-y-4 relative z-10 hover:border-orange-500/30 transition-all hover:scale-[1.02] duration-300">
+            <div className="w-16 h-16 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 shadow shadow-orange-500/10">
               <span className="text-2xl font-black font-sans">3</span>
             </div>
             <h3 className="text-lg font-bold text-white">Vendez sur WhatsApp</h3>
@@ -302,7 +296,7 @@ export default function LandingPage() {
       {/* Key Features Grid */}
       <section className="relative max-w-7xl w-full mx-auto px-6 py-16 md:py-24 border-t border-slate-900/80 text-center">
         <div className="space-y-3 mb-16">
-          <span className="text-xs font-bold text-teal-400 uppercase tracking-widest bg-teal-500/10 px-3 py-1.5 rounded-full border border-teal-500/20">SaaS Complet</span>
+          <span className="text-xs font-bold text-orange-400 uppercase tracking-widest bg-orange-500/10 px-3 py-1.5 rounded-full border border-orange-500/20">SaaS Complet</span>
           <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight mt-3">Tout pour gérer votre activité</h2>
           <p className="text-slate-400 text-sm md:text-base max-w-xl mx-auto">
             Bénéficiez d'outils professionnels pour suivre vos ventes, éditer des factures et offrir la meilleure expérience client.
@@ -435,14 +429,14 @@ export default function LandingPage() {
           </div>
 
           {/* Plan Pro */}
-          <div className="p-8 rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 border border-teal-500/30 hover:border-teal-500/50 transition-all flex flex-col justify-between relative group hover:scale-[1.02] duration-300 shadow-xl shadow-teal-500/5">
-            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-teal-500 text-slate-950 font-extrabold text-[10px] uppercase tracking-widest shadow shadow-teal-500/20">
+          <div className="p-8 rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 border border-orange-500/30 hover:border-orange-500/50 transition-all flex flex-col justify-between relative group hover:scale-[1.02] duration-300 shadow-xl shadow-orange-500/5">
+            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-orange-500 text-white font-extrabold text-[10px] uppercase tracking-widest shadow shadow-orange-500/20">
               Recommandé
             </div>
             
             <div className="space-y-6">
               <div>
-                <span className="text-xs font-extrabold text-teal-400 uppercase tracking-widest">Le choix des vendeurs</span>
+                <span className="text-xs font-extrabold text-orange-400 uppercase tracking-widest">Le choix des vendeurs</span>
                 <h3 className="text-2xl font-black text-white mt-1">SaaS Pro</h3>
                 <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">Une boutique sur mesure avec toutes les fonctionnalités essentielles.</p>
               </div>
@@ -477,7 +471,7 @@ export default function LandingPage() {
 
             <button
               onClick={() => setShowModal(true)}
-              className="w-full mt-8 py-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold text-xs transition-all cursor-pointer shadow-lg shadow-teal-500/10"
+              className="w-full mt-8 py-3 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-extrabold text-xs transition-all cursor-pointer shadow-lg shadow-orange-500/10"
             >
               Commencer le forfait Pro
             </button>
@@ -535,7 +529,7 @@ export default function LandingPage() {
       <section className="relative max-w-4xl w-full mx-auto px-6 py-16 md:py-24 border-t border-slate-900/80 text-left">
         <div className="absolute bottom-10 right-10 w-64 h-64 bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none" />
         <div className="text-center space-y-3 mb-12">
-          <span className="text-xs font-bold text-teal-400 uppercase tracking-widest bg-teal-500/10 px-3 py-1.5 rounded-full border border-teal-500/20">Des Réponses à vos questions</span>
+          <span className="text-xs font-bold text-orange-400 uppercase tracking-widest bg-orange-500/10 px-3 py-1.5 rounded-full border border-orange-500/20">Des Réponses à vos questions</span>
           <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight mt-3">Questions Fréquentes</h2>
           <p className="text-slate-400 text-sm md:text-base max-w-xl mx-auto">
             Vous avez des questions sur Kër Salaatu Tech ? Voici les réponses aux interrogations les plus fréquentes des commerçants.
@@ -660,7 +654,7 @@ export default function LandingPage() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-400 text-slate-950 font-bold hover:shadow-lg hover:shadow-teal-500/20 transition-all cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-orange-400 text-white font-bold hover:shadow-lg hover:shadow-teal-500/20 transition-all cursor-pointer"
                 >
                   Créer & Ouvrir
                 </button>
@@ -671,8 +665,9 @@ export default function LandingPage() {
       )}
 
       {/* Footer */}
-      <footer className="py-8 bg-slate-950 border-t border-slate-900 text-center text-xs text-slate-600 relative">
-        <p>© 2026 Kër Salaatu Tech. Conçu pour les entrepreneurs d'Afrique de l'Ouest.</p>
+      <footer className="py-10 bg-slate-950 border-t border-slate-900 text-center relative">
+        <img src="/logo-kersalaatu.png" alt="Kër Salaatu" className="h-10 w-auto object-contain mx-auto mb-3 opacity-80" />
+        <p className="text-xs text-slate-600">© 2026 Kër Salaatu Tech. Conçu pour les entrepreneurs d'Afrique de l'Ouest.</p>
       </footer>
     </div>
   );
