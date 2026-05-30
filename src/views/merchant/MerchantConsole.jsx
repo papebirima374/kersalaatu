@@ -444,7 +444,23 @@ function MerchantDashboard() {
     a.click();
   };
 
-  // ── Génération PDF (dessin direct jsPDF, sans html2canvas) ──────────────
+  // ── Charge une image distante en dataURL (contourne CORS via canvas) ─────
+  const loadImgDataURL = (url) => new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth; c.height = img.naturalHeight;
+        c.getContext('2d').drawImage(img, 0, 0);
+        resolve(c.toDataURL('image/png'));
+      } catch { resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+  });
+
+  // ── Génération PDF (dessin direct jsPDF) ─────────────────────────────────
   const generatePDF = async () => {
     if (!activePrintInvoice) return;
     setPdfLoading(true);
@@ -452,27 +468,32 @@ function MerchantDashboard() {
       const { default: jsPDF } = await import('jspdf');
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const pageW = 210;
-      const m = 15; // margin
-      const cW = pageW - 2 * m; // content width
+      const m = 15;
+      const cW = pageW - 2 * m;
       let y = m;
       const fmtNum = (n) => new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
 
-      // ── Logo ──
+      // ── Logo : data URL (local) ou URL distante via canvas ──
       const logo = activeBoutique.logo;
-      if (logo && (logo.startsWith('data:image'))) {
-        try { pdf.addImage(logo, 'PNG', m, y, 20, 20); } catch(_) {}
-        pdf.setFontSize(16); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0,0,0);
-        pdf.text(activeBoutique.name.toUpperCase(), m + 24, y + 8);
-        pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(100,100,100);
-        if (activeBoutique.adresse) pdf.text(activeBoutique.adresse, m + 24, y + 14);
-        pdf.text(activeBoutique.whatsapp || '', m + 24, y + 19);
-      } else {
-        pdf.setFontSize(18); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0,0,0);
-        pdf.text(activeBoutique.name.toUpperCase(), m, y + 8);
-        pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(100,100,100);
-        if (activeBoutique.adresse) pdf.text(activeBoutique.adresse, m, y + 14);
-        pdf.text(activeBoutique.whatsapp || '', m, y + 19);
+      let logoData = null;
+      if (logo) {
+        if (logo.startsWith('data:image')) {
+          logoData = logo;
+        } else if (logo.startsWith('http')) {
+          logoData = await loadImgDataURL(logo);
+        }
       }
+
+      if (logoData) {
+        try { pdf.addImage(logoData, 'PNG', m, y, 20, 20); } catch(_) { logoData = null; }
+      }
+
+      const nameX = logoData ? m + 24 : m;
+      pdf.setFontSize(16); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0,0,0);
+      pdf.text(activeBoutique.name.toUpperCase(), nameX, y + 8);
+      pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(100,100,100);
+      if (activeBoutique.adresse) pdf.text(activeBoutique.adresse, nameX, y + 14);
+      pdf.text(activeBoutique.whatsapp || '', nameX, y + 19);
 
       // ── FACTURE title ──
       pdf.setFontSize(22); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0,0,0);

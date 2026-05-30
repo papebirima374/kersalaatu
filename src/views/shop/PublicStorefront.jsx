@@ -459,20 +459,19 @@ export default function PublicStorefront() {
           </div>
         </div>
 
-        {/* Product Catalog — Mosaïque moderne */}
-        <div className="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
+        {/* Product Catalog — Grille uniforme */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filteredProducts.map((prod, idx) => {
             const isNew = idx < 3;
             const isBestseller = idx === 0 && prod.stock > 0;
-            const isTall = idx % 5 === 0; // carte haute pour la première de chaque groupe
             return (
             <div
               key={prod.id}
-              className="break-inside-avoid bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden group hover:shadow-xl hover:border-[var(--tenant-color)]/40 transition-all duration-300 mb-4"
+              className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden group hover:shadow-lg hover:border-[var(--tenant-color)]/40 transition-all duration-300 flex flex-col"
             >
-              {/* Image */}
+              {/* Image — hauteur fixe identique pour toutes les cartes */}
               <div
-                className={`w-full bg-slate-100 overflow-hidden relative cursor-pointer ${isTall ? 'h-72' : 'h-48'}`}
+                className="w-full h-44 bg-slate-100 overflow-hidden relative cursor-pointer shrink-0"
                 onClick={() => setSelectedProduct(prod)}
               >
                 <img
@@ -481,7 +480,7 @@ export default function PublicStorefront() {
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 {/* Badges */}
-                <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5">
+                <div className="absolute top-2 left-2 flex flex-col gap-1">
                   {isBestseller && (
                     <span className="bg-amber-400 text-slate-900 font-extrabold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full shadow">
                       ⭐ Bestseller
@@ -500,38 +499,40 @@ export default function PublicStorefront() {
                 </div>
                 {prod.stock === 0 && (
                   <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[1px] flex items-center justify-center">
-                    <span className="px-3 py-1.5 rounded-full bg-slate-800 text-white font-extrabold text-xs shadow-md border border-white/10">
+                    <span className="px-3 py-1 rounded-full bg-slate-800 text-white font-extrabold text-xs shadow-md border border-white/10">
                       Rupture de Stock
                     </span>
                   </div>
                 )}
               </div>
 
-              {/* Infos + actions */}
-              <div className="p-3.5">
-                <span className="text-[9px] font-bold tracking-wider text-[var(--tenant-color)] uppercase bg-[var(--tenant-color-light)] px-2 py-0.5 rounded-md inline-block mb-1">
-                  {prod.category}
-                </span>
-                <h3
-                  className="font-extrabold text-slate-900 text-sm line-clamp-1 cursor-pointer hover:text-[var(--tenant-color)] transition-colors"
-                  onClick={() => setSelectedProduct(prod)}
-                >
-                  {prod.name}
-                </h3>
-                <p className="text-xs text-slate-900 font-black mt-1">{formatMoney(prod.price)}</p>
+              {/* Infos + actions — flex-col flex-1 pour aligner les boutons en bas */}
+              <div className="p-3 flex flex-col flex-1">
+                <div className="flex-1">
+                  <span className="text-[9px] font-bold tracking-wider text-[var(--tenant-color)] uppercase bg-[var(--tenant-color-light)] px-2 py-0.5 rounded-md inline-block mb-1">
+                    {prod.category}
+                  </span>
+                  <h3
+                    className="font-extrabold text-slate-900 text-sm line-clamp-2 cursor-pointer hover:text-[var(--tenant-color)] transition-colors leading-tight"
+                    onClick={() => setSelectedProduct(prod)}
+                  >
+                    {prod.name}
+                  </h3>
+                  <p className="text-base font-black text-slate-900 mt-1.5">{formatMoney(prod.price)}</p>
+                </div>
 
-                {/* Boutons */}
-                <div className="flex gap-2 mt-3">
+                {/* Boutons toujours en bas */}
+                <div className="flex gap-1.5 mt-3">
                   <button
                     onClick={(e) => { e.stopPropagation(); addToCart(prod); }}
                     disabled={prod.stock === 0}
-                    className={`flex-1 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1 transition-all ${
+                    className={`flex-1 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1 transition-all border ${
                       prod.stock === 0
-                      ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                      ? 'bg-slate-50 text-slate-300 border-slate-200 cursor-not-allowed'
+                      : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    <Plus className="w-3.5 h-3.5 stroke-[3]" /> Panier
+                    <Plus className="w-3 h-3 stroke-[3]" /> Panier
                   </button>
                   <button
                     onClick={(e) => {
@@ -542,9 +543,9 @@ export default function PublicStorefront() {
                       setIsCartOpen(true);
                     }}
                     disabled={prod.stock === 0}
-                    className={`flex-1 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1 transition-all ${
+                    className={`flex-1 py-2 rounded-xl font-bold text-xs flex items-center justify-center transition-all ${
                       prod.stock === 0
-                      ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      ? 'bg-slate-100 text-slate-300 cursor-not-allowed'
                       : 'bg-[var(--tenant-color)] hover:opacity-90 text-white shadow-sm'
                     }`}
                   >
