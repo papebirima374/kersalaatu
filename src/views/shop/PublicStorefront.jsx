@@ -881,7 +881,7 @@ export default function PublicStorefront() {
                           onClick={() => setPayMethod('livraison')}
                           className={`p-4 rounded-2xl border flex items-center gap-3.5 cursor-pointer transition-all ${
                             payMethod === 'livraison' 
-                            ? 'border-slate-800 bg-slate-50 shadow-sm scale-[1.02]' 
+                            ? 'border-slate-800 bg-slate-50 shadow-sm' 
                             : 'border-slate-200 hover:bg-slate-50/50'
                           }`}
                         >
@@ -892,12 +892,12 @@ export default function PublicStorefront() {
                             onChange={() => setPayMethod('livraison')}
                             className="accent-slate-800"
                           />
-                          <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700">
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 shrink-0">
                             <Truck className="w-5 h-5" />
                           </div>
-                          <div>
+                          <div className="flex-1 min-w-0">
                             <span className="font-extrabold text-sm text-slate-800 block">Paiement à la livraison</span>
-                            <span className="text-[10px] text-slate-400">Payez en espèces lorsque vous recevez vos articles.</span>
+                            <span className="text-[10px] text-slate-400 block">Payez en espèces lorsque vous recevez vos articles.</span>
                           </div>
                         </label>
 
@@ -906,7 +906,7 @@ export default function PublicStorefront() {
                           onClick={() => setPayMethod('wave')}
                           className={`p-4 rounded-2xl border flex items-center gap-3.5 cursor-pointer transition-all ${
                             payMethod === 'wave' 
-                            ? 'border-sky-500 bg-sky-50 shadow-sm scale-[1.02]' 
+                            ? 'border-sky-500 bg-sky-50 shadow-sm' 
                             : 'border-slate-200 hover:bg-slate-50/50'
                           }`}
                         >
@@ -917,12 +917,12 @@ export default function PublicStorefront() {
                             onChange={() => setPayMethod('wave')}
                             className="accent-sky-500"
                           />
-                          <div className="w-10 h-10 rounded-xl bg-sky-500 text-white flex items-center justify-center font-black text-lg">
+                          <div className="w-10 h-10 rounded-xl bg-sky-500 text-white flex items-center justify-center font-black text-lg shrink-0">
                             W
                           </div>
-                          <div>
+                          <div className="flex-1 min-w-0">
                             <span className="font-extrabold text-sm text-slate-800 block">Wave Mobile Money</span>
-                            <span className="text-[10px] text-slate-400">Règlement instantané sécurisé par l'application Wave.</span>
+                            <span className="text-[10px] text-slate-400 block">Règlement instantané sécurisé par l'application Wave.</span>
                           </div>
                         </label>
 
@@ -931,7 +931,7 @@ export default function PublicStorefront() {
                           onClick={() => setPayMethod('om')}
                           className={`p-4 rounded-2xl border flex items-center gap-3.5 cursor-pointer transition-all ${
                             payMethod === 'om' 
-                            ? 'border-orange-500 bg-orange-50 shadow-sm scale-[1.02]' 
+                            ? 'border-orange-500 bg-orange-50 shadow-sm' 
                             : 'border-slate-200 hover:bg-slate-50/50'
                           }`}
                         >
@@ -942,12 +942,12 @@ export default function PublicStorefront() {
                             onChange={() => setPayMethod('om')}
                             className="accent-orange-500"
                           />
-                          <div className="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center font-black text-xs">
+                          <div className="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center font-black text-xs shrink-0">
                             OM
                           </div>
-                          <div>
+                          <div className="flex-1 min-w-0">
                             <span className="font-extrabold text-sm text-slate-800 block">Orange Money</span>
-                            <span className="text-[10px] text-slate-400">Règlement instantané sécurisé via code d'autorisation Orange.</span>
+                            <span className="text-[10px] text-slate-400 block">Règlement instantané sécurisé via code d'autorisation Orange.</span>
                           </div>
                         </label>
                       </div>
