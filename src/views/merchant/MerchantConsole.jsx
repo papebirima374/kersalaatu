@@ -738,7 +738,7 @@ function MerchantDashboard() {
             <p className="text-[10px] text-slate-500 truncate">{merchantUser?.email}</p>
           </div>
         </div>
-        <button onClick={() => { if (confirm('Se déconnecter ?')) logoutMerchant(); }}
+        <button type="button" onClick={async () => { setSidebarOpen(false); await logoutMerchant(); }}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-red-400 hover:bg-red-500/5 transition-all">
           <LogOut className="w-4 h-4" /> Se déconnecter
         </button>
