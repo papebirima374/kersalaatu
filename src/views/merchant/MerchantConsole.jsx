@@ -264,7 +264,8 @@ export default function MerchantConsole() {
     getBoutiqueById,
     uploadBoutiqueLogo,
     upgradeRequests,
-    createUpgradeRequest
+    createUpgradeRequest,
+    createOrder
   } = useTenant();
 
   // Authentication states
@@ -844,6 +845,76 @@ export default function MerchantConsole() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // ── Caisse handlers ──────────────────────────────────────────────────────
+  const addToPos = (prod) => {
+    setPosCart(prev => {
+      const ex = prev.find(i => i.id === prod.id);
+      if (ex) {
+        if (ex.quantity >= prod.stock) return prev;
+        return prev.map(i => i.id === prod.id ? { ...i, quantity: i.quantity + 1 } : i);
+      }
+      return [...prev, { ...prod, quantity: 1 }];
+    });
+  };
+
+  const updatePosQty = (id, delta) => {
+    setPosCart(prev =>
+      prev.map(i => i.id === id ? { ...i, quantity: i.quantity + delta } : i)
+          .filter(i => i.quantity > 0)
+    );
+  };
+
+  const handlePosSell = () => {
+    if (posCart.length === 0) { alert('Ajoutez au moins un article.'); return; }
+    if (!posClientForm.nom.trim() || !posClientForm.telephone.trim()) {
+      alert('Nom et téléphone du client sont obligatoires.');
+      return;
+    }
+    const orderId = `VD-${Math.floor(1000 + Math.random() * 9000)}`;
+    const posSubtotal = posCart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+    createOrder(
+      activeBoutique.id,
+      posClientForm,
+      posCart,
+      0,
+      'Vente directe',
+      { methode: posPayMethod, statut: posPayStatut, note: posNote }
+    );
+    setPosSaleSuccess({ orderId, items: posCart, total: posSubtotal, client: { ...posClientForm }, payMethod: posPayMethod });
+    setPosCart([]);
+    setPosClientForm({ nom: '', telephone: '', adresse: '' });
+    setPosNote('');
+  };
+
+  const handlePosPrintInvoice = (sale) => {
+    if (!sale) return;
+    setActivePrintInvoice({
+      id: sale.orderId,
+      date: new Date().toISOString(),
+      client: sale.client,
+      items: sale.items,
+      total: sale.total,
+      livraison: { frais: 0, lieu: 'Vente directe' },
+      paiement: { methode: sale.payMethod, statut: sale.payStatut || 'Payé' }
+    });
+  };
+
+  const handlePosSendWhatsApp = (sale) => {
+    if (!sale) return;
+    let msg = `*🧾 REÇU DE VENTE — ${activeBoutique.name.toUpperCase()}*\n`;
+    msg += `_Réf: ${sale.orderId}_\n`;
+    msg += `_Date: ${new Date().toLocaleDateString('fr-FR')}_\n\n`;
+    msg += `*👤 CLIENT:* ${sale.client.nom} — ${sale.client.telephone}\n\n`;
+    msg += `*🛍️ ARTICLES:*\n`;
+    sale.items.forEach(i => { msg += `• ${i.quantity}× ${i.name} → ${formatMoney(i.price * i.quantity)}\n`; });
+    msg += `\n*💵 TOTAL: ${formatMoney(sale.total)}*\n`;
+    msg += `• Paiement: ${sale.payMethod}\n\n`;
+    msg += `🙏 Merci pour votre achat chez ${activeBoutique.name} !`;
+    const phone = sale.client.telephone.replace(/\D/g, '');
+    const finalPhone = phone.startsWith('221') ? phone : '221' + phone;
+    window.open(`https://wa.me/${finalPhone}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
   const handleSettingsSubmit = (e) => {
@@ -1571,64 +1642,6 @@ export default function MerchantConsole() {
         {activeTab === 'caisse' && (() => {
           const posProducts = activeProducts.filter(p => p.actif && p.stock > 0 && p.name.toLowerCase().includes(posSearch.toLowerCase()));
           const posSubtotal = posCart.reduce((acc, item) => acc + item.price * item.quantity, 0);
-
-          const addToPos = (prod) => {
-            setPosCart(prev => {
-              const ex = prev.find(i => i.id === prod.id);
-              if (ex) {
-                if (ex.quantity >= prod.stock) return prev;
-                return prev.map(i => i.id === prod.id ? { ...i, quantity: i.quantity + 1 } : i);
-              }
-              return [...prev, { ...prod, quantity: 1 }];
-            });
-          };
-
-          const updatePosQty = (id, delta) => {
-            setPosCart(prev =>
-              prev.map(i => i.id === id ? { ...i, quantity: i.quantity + delta } : i)
-                  .filter(i => i.quantity > 0)
-            );
-          };
-
-          const handlePosSell = () => {
-            if (posCart.length === 0) { alert('Ajoutez au moins un article.'); return; }
-            if (!posClientForm.nom.trim() || !posClientForm.telephone.trim()) {
-              alert('Nom et téléphone du client sont obligatoires.');
-              return;
-            }
-            const ref = createOrder(
-              activeBoutique.id,
-              posClientForm,
-              posCart,
-              0,
-              'Vente directe',
-              { methode: posPayMethod, statut: posPayStatut, note: posNote }
-            );
-            // Build WhatsApp message for the merchant's own record/client
-            const orderId = `VD-${Math.floor(1000 + Math.random() * 9000)}`;
-            setPosSaleSuccess({ orderId, items: posCart, total: posSubtotal, client: posClientForm, payMethod: posPayMethod });
-            // Reset form
-            setPosCart([]);
-            setPosClientForm({ nom: '', telephone: '', adresse: '' });
-            setPosNote('');
-          };
-
-          const handlePosSendWhatsApp = (sale) => {
-            if (!sale || !activeBoutique.whatsapp) return;
-            let msg = `*🧾 REÇU DE VENTE - ${activeBoutique.name.toUpperCase()}*\n`;
-            msg += `_Réf: ${sale.orderId}_\n`;
-            msg += `_Date: ${new Date().toLocaleDateString('fr-FR')}_\n\n`;
-            msg += `*👤 CLIENT:* ${sale.client.nom} — ${sale.client.telephone}\n\n`;
-            msg += `*🛍️ ARTICLES:*\n`;
-            sale.items.forEach(i => { msg += `• ${i.quantity}× ${i.name} → ${formatMoney(i.price * i.quantity)}\n`; });
-            msg += `\n*💵 TOTAL: ${formatMoney(sale.total)}*\n`;
-            msg += `• Paiement: ${sale.payMethod}\n\n`;
-            msg += `🙏 Merci pour votre achat chez ${activeBoutique.name} !`;
-            const phone = sale.client.telephone.replace(/\D/g, '');
-            const finalPhone = phone.startsWith('221') ? phone : '221' + phone;
-            window.open(`https://wa.me/${finalPhone}?text=${encodeURIComponent(msg)}`, '_blank');
-          };
-
           return (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
@@ -1652,12 +1665,18 @@ export default function MerchantConsole() {
                       {posSaleSuccess.client.nom} · {posSaleSuccess.items.length} article(s) · {formatMoney(posSaleSuccess.total)} · {posSaleSuccess.payMethod}
                     </p>
                   </div>
-                  <div className="flex gap-2 shrink-0">
+                  <div className="flex gap-2 shrink-0 flex-wrap">
+                    <button
+                      onClick={() => handlePosPrintInvoice(posSaleSuccess)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold transition-all cursor-pointer"
+                    >
+                      <Printer className="w-3.5 h-3.5" /> Imprimer facture
+                    </button>
                     <button
                       onClick={() => handlePosSendWhatsApp(posSaleSuccess)}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all cursor-pointer"
                     >
-                      <MessageSquare className="w-3.5 h-3.5" /> Envoyer reçu WhatsApp
+                      <MessageSquare className="w-3.5 h-3.5" /> Reçu WhatsApp
                     </button>
                     <button
                       onClick={() => setPosSaleSuccess(null)}
