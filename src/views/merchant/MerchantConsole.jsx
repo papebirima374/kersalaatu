@@ -242,32 +242,11 @@ function SalesChart({ activeOrders, isLocked }) {
 
 export default function MerchantConsole() {
   const {
-    boutiques,
-    products,
-    orders,
-    tickets,
-    currentMerchantBoutiqueId,
-    setCurrentMerchantBoutiqueId,
     merchantUser,
     authReady,
     loginMerchant,
     signupMerchant,
-    resetMerchantPassword,
-    logoutMerchant,
-    updateBoutique,
-    addProduct,
-    updateProduct,
-    deleteProduct,
-    updateOrderStatus,
-    updateOrderPaymentStatus,
-    addTicket,
-    getProductsByBoutique,
-    getOrdersByBoutique,
-    getBoutiqueById,
-    uploadBoutiqueLogo,
-    upgradeRequests,
-    createUpgradeRequest,
-    createOrder
+    resetMerchantPassword
   } = useTenant();
 
   // Authentication states
@@ -486,6 +465,35 @@ export default function MerchantConsole() {
       </div>
     );
   }
+
+  return <MerchantDashboard />;
+}
+
+function MerchantDashboard() {
+  const {
+    boutiques,
+    products,
+    orders,
+    tickets,
+    currentMerchantBoutiqueId,
+    setCurrentMerchantBoutiqueId,
+    merchantUser,
+    logoutMerchant,
+    updateBoutique,
+    addProduct,
+    updateProduct,
+    deleteProduct,
+    updateOrderStatus,
+    updateOrderPaymentStatus,
+    addTicket,
+    getProductsByBoutique,
+    getOrdersByBoutique,
+    getBoutiqueById,
+    uploadBoutiqueLogo,
+    upgradeRequests,
+    createUpgradeRequest,
+    createOrder
+  } = useTenant();
 
   const [activeTab, setActiveTab] = useState('dashboard'); // dashboard, products, orders, caisse, settings
 
