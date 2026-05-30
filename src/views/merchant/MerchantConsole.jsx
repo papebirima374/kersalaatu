@@ -802,12 +802,10 @@ function MerchantDashboard() {
                           className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors flex items-center gap-1">
                           <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
                         </a>
-                        {!isFree && (
-                          <button onClick={() => setActivePrintInvoice(o)}
-                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors flex items-center gap-1">
-                            <Printer className="w-3.5 h-3.5" /> Facture
-                          </button>
-                        )}
+                        <button onClick={() => setActivePrintInvoice(o)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors flex items-center gap-1">
+                          <Printer className="w-3.5 h-3.5" /> Facture
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -1296,10 +1294,19 @@ function MerchantDashboard() {
             </div>
             <div className="p-8">
               <div className="flex justify-between items-start mb-8">
-                <div>
-                  <h1 className="text-xl font-black text-slate-900 uppercase">{activeBoutique.name}</h1>
-                  <p className="text-xs text-slate-500 mt-1">{activeBoutique.adresse}</p>
-                  <p className="text-xs text-slate-500">{activeBoutique.whatsapp}</p>
+                <div className="flex items-center gap-4">
+                  {activeBoutique.logo && (
+                    <div className="w-16 h-16 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
+                      {activeBoutique.logo.startsWith('http') || activeBoutique.logo.startsWith('data:') || activeBoutique.logo.startsWith('/')
+                        ? <img src={activeBoutique.logo} alt="Logo" className="w-full h-full object-contain p-1" />
+                        : <span className="text-3xl">{activeBoutique.logo}</span>}
+                    </div>
+                  )}
+                  <div>
+                    <h1 className="text-xl font-black text-slate-900 uppercase">{activeBoutique.name}</h1>
+                    <p className="text-xs text-slate-500 mt-1">{activeBoutique.adresse}</p>
+                    <p className="text-xs text-slate-500">{activeBoutique.whatsapp}</p>
+                  </div>
                 </div>
                 <div className="text-right">
                   <h2 className="text-lg font-black text-slate-900">FACTURE</h2>

@@ -459,80 +459,96 @@ export default function PublicStorefront() {
           </div>
         </div>
 
-        {/* Product Catalog Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {/* Product Catalog — Mosaïque moderne */}
+        <div className="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
           {filteredProducts.map((prod, idx) => {
-            const isNew = idx < 3; // les 3 premiers = "Nouveau"
+            const isNew = idx < 3;
             const isBestseller = idx === 0 && prod.stock > 0;
+            const isTall = idx % 5 === 0; // carte haute pour la première de chaque groupe
             return (
             <div
               key={prod.id}
-              className="bg-white rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between overflow-hidden group hover:shadow-xl hover:-translate-y-1 hover:border-[var(--tenant-color)]/30 transition-all duration-300 cursor-pointer"
-              onClick={() => setSelectedProduct(prod)}
+              className="break-inside-avoid bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden group hover:shadow-xl hover:border-[var(--tenant-color)]/40 transition-all duration-300 mb-4"
             >
-              <div>
-                {/* Product Image */}
-                <div className="w-full h-52 bg-slate-100 overflow-hidden relative">
-                  <img
-                    src={prod.photo}
-                    alt={prod.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  {/* Badges */}
-                  <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5">
-                    {isBestseller && (
-                      <span className="bg-amber-400 text-slate-900 font-extrabold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full shadow">
-                        ⭐ Bestseller
-                      </span>
-                    )}
-                    {isNew && !isBestseller && (
-                      <span className="bg-[var(--tenant-color)] text-white font-extrabold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full shadow">
-                        Nouveau
-                      </span>
-                    )}
-                    {prod.stock > 0 && prod.stock <= 3 && (
-                      <span className="bg-orange-500 text-white font-extrabold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full shadow">
-                        Plus que {prod.stock} !
-                      </span>
-                    )}
-                  </div>
-                  {prod.stock === 0 && (
-                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[1px] flex items-center justify-center">
-                      <span className="px-3 py-1.5 rounded-full bg-slate-800 text-white font-extrabold text-xs shadow-md border border-white/10">
-                        Rupture de Stock
-                      </span>
-                    </div>
+              {/* Image */}
+              <div
+                className={`w-full bg-slate-100 overflow-hidden relative cursor-pointer ${isTall ? 'h-72' : 'h-48'}`}
+                onClick={() => setSelectedProduct(prod)}
+              >
+                <img
+                  src={prod.photo}
+                  alt={prod.name}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                {/* Badges */}
+                <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5">
+                  {isBestseller && (
+                    <span className="bg-amber-400 text-slate-900 font-extrabold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full shadow">
+                      ⭐ Bestseller
+                    </span>
+                  )}
+                  {isNew && !isBestseller && (
+                    <span className="bg-[var(--tenant-color)] text-white font-extrabold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full shadow">
+                      Nouveau
+                    </span>
+                  )}
+                  {prod.stock > 0 && prod.stock <= 3 && (
+                    <span className="bg-orange-500 text-white font-extrabold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full shadow">
+                      Plus que {prod.stock} !
+                    </span>
                   )}
                 </div>
-
-                {/* Details */}
-                <div className="p-4 space-y-1">
-                  <span className="text-[9px] font-bold tracking-wider text-[var(--tenant-color)] uppercase bg-[var(--tenant-color-light)] px-2 py-0.5 rounded-md inline-block">
-                    {prod.category}
-                  </span>
-                  <h3 className="font-extrabold text-slate-900 text-base line-clamp-1 group-hover:text-[var(--tenant-color)] transition-colors">{prod.name}</h3>
-                  <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">{prod.description}</p>
-                </div>
+                {prod.stock === 0 && (
+                  <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[1px] flex items-center justify-center">
+                    <span className="px-3 py-1.5 rounded-full bg-slate-800 text-white font-extrabold text-xs shadow-md border border-white/10">
+                      Rupture de Stock
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {/* Price & Buy bar */}
-              <div className="p-4 pt-0">
-                <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-                  <div>
-                    <span className="block text-[8px] uppercase tracking-widest text-slate-400 font-semibold">Prix</span>
-                    <span className="text-base font-black text-slate-900">{formatMoney(prod.price)}</span>
-                  </div>
+              {/* Infos + actions */}
+              <div className="p-3.5">
+                <span className="text-[9px] font-bold tracking-wider text-[var(--tenant-color)] uppercase bg-[var(--tenant-color-light)] px-2 py-0.5 rounded-md inline-block mb-1">
+                  {prod.category}
+                </span>
+                <h3
+                  className="font-extrabold text-slate-900 text-sm line-clamp-1 cursor-pointer hover:text-[var(--tenant-color)] transition-colors"
+                  onClick={() => setSelectedProduct(prod)}
+                >
+                  {prod.name}
+                </h3>
+                <p className="text-xs text-slate-900 font-black mt-1">{formatMoney(prod.price)}</p>
 
+                {/* Boutons */}
+                <div className="flex gap-2 mt-3">
                   <button
                     onClick={(e) => { e.stopPropagation(); addToCart(prod); }}
                     disabled={prod.stock === 0}
-                    className={`py-2 px-3.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                    className={`flex-1 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1 transition-all ${
                       prod.stock === 0
-                      ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                      : 'bg-[var(--tenant-color)] hover:bg-[var(--tenant-color-hover)] text-white shadow-sm hover:scale-105'
+                      ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                     }`}
                   >
                     <Plus className="w-3.5 h-3.5 stroke-[3]" /> Panier
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (prod.stock === 0) return;
+                      addToCart(prod);
+                      setCheckoutStep('delivery');
+                      setIsCartOpen(true);
+                    }}
+                    disabled={prod.stock === 0}
+                    className={`flex-1 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1 transition-all ${
+                      prod.stock === 0
+                      ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      : 'bg-[var(--tenant-color)] hover:opacity-90 text-white shadow-sm'
+                    }`}
+                  >
+                    Commander
                   </button>
                 </div>
               </div>
