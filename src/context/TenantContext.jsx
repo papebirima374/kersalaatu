@@ -6,7 +6,9 @@ import {
   doc,
   setDoc,
   updateDoc,
-  deleteDoc
+  deleteDoc,
+  onSnapshot,
+  query
 } from 'firebase/firestore';
 import {
   signInWithEmailAndPassword,
@@ -175,95 +177,56 @@ export const TenantProvider = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
-  // Load data from Firestore if Firebase is configured
+  // Listeners Firestore temps réel (onSnapshot) — remplace getDocs one-shot
   useEffect(() => {
     if (!isConfigured) return;
-    
-    const loadFirestoreData = async () => {
-      try {
-        // Load boutiques
-        const boutiquesSnap = await getDocs(collection(db, 'boutiques'));
-        const loadedBoutiques = [];
-        boutiquesSnap.forEach(docSnap => {
-          loadedBoutiques.push({ id: docSnap.id, ...docSnap.data() });
-        });
-        if (loadedBoutiques.length > 0) {
-          setBoutiques(loadedBoutiques);
-        } else {
-          // If Firestore is empty, seed it with our default demo boutiques!
-          DEFAULT_BOUTIQUES.forEach(async (b) => {
-            await setDoc(doc(db, 'boutiques', b.id), b);
-          });
-          setBoutiques(DEFAULT_BOUTIQUES);
-        }
-        
-        // Load products
-        const productsSnap = await getDocs(collection(db, 'products'));
-        const loadedProducts = [];
-        productsSnap.forEach(docSnap => {
-          loadedProducts.push({ id: docSnap.id, ...docSnap.data() });
-        });
-        if (loadedProducts.length > 0) {
-          setProducts(loadedProducts);
-        } else {
-          // Seed products
-          DEFAULT_PRODUCTS.forEach(async (p) => {
-            await setDoc(doc(db, 'products', p.id), p);
-          });
-          setProducts(DEFAULT_PRODUCTS);
-        }
 
-        // Load orders
-        const ordersSnap = await getDocs(collection(db, 'orders'));
-        const loadedOrders = [];
-        ordersSnap.forEach(docSnap => {
-          loadedOrders.push({ id: docSnap.id, ...docSnap.data() });
-        });
-        if (loadedOrders.length > 0) {
-          loadedOrders.sort((a, b) => new Date(b.date) - new Date(a.date));
-          setOrders(loadedOrders);
-        } else {
-          // Seed orders
-          DEFAULT_ORDERS.forEach(async (o) => {
-            await setDoc(doc(db, 'orders', o.id), o);
-          });
-          setOrders(DEFAULT_ORDERS);
-        }
+    const unsubs = [];
 
-        // Load tickets
-        const ticketsSnap = await getDocs(collection(db, 'tickets'));
-        const loadedTickets = [];
-        ticketsSnap.forEach(docSnap => {
-          loadedTickets.push({ id: docSnap.id, ...docSnap.data() });
-        });
-        if (loadedTickets.length > 0) {
-          setTickets(loadedTickets);
-        } else {
-          // Seed tickets
-          DEFAULT_TICKETS.forEach(async (t) => {
-            await setDoc(doc(db, 'tickets', t.id), t);
-          });
-          setTickets(DEFAULT_TICKETS);
-        }
-
-        // Load upgrade requests
-        const upgradeSnap = await getDocs(collection(db, 'upgradeRequests'));
-        const loadedUpgradeRequests = [];
-        upgradeSnap.forEach(docSnap => {
-          loadedUpgradeRequests.push({ id: docSnap.id, ...docSnap.data() });
-        });
-        if (loadedUpgradeRequests.length > 0) {
-          loadedUpgradeRequests.sort((a, b) => new Date(b.date) - new Date(a.date));
-          setUpgradeRequests(loadedUpgradeRequests);
-        }
-        
-        console.log("🔥 Sync complete: loaded all data from Firestore!");
-      } catch (err) {
-        console.error("⚠️ Error synchronizing Firestore collections:", err);
+    // Boutiques
+    unsubs.push(onSnapshot(collection(db, 'boutiques'), snap => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (data.length > 0) {
+        setBoutiques(data);
+      } else {
+        DEFAULT_BOUTIQUES.forEach(b => setDoc(doc(db, 'boutiques', b.id), b).catch(() => {}));
+        setBoutiques(DEFAULT_BOUTIQUES);
       }
-    };
-    
-    loadFirestoreData();
+    }, err => console.error('boutiques listener:', err)));
+
+    // Products
+    unsubs.push(onSnapshot(collection(db, 'products'), snap => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (data.length > 0) {
+        setProducts(data);
+      } else {
+        DEFAULT_PRODUCTS.forEach(p => setDoc(doc(db, 'products', p.id), p).catch(() => {}));
+        setProducts(DEFAULT_PRODUCTS);
+      }
+    }, err => console.error('products listener:', err)));
+
+    // Orders
+    unsubs.push(onSnapshot(collection(db, 'orders'), snap => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      data.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setOrders(data);
+    }, err => console.error('orders listener:', err)));
+
+    // Tickets
+    unsubs.push(onSnapshot(collection(db, 'tickets'), snap => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setTickets(data);
+    }, err => console.error('tickets listener:', err)));
+
+    // Upgrade requests
+    unsubs.push(onSnapshot(collection(db, 'upgradeRequests'), snap => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      data.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setUpgradeRequests(data);
+    }, err => console.error('upgradeRequests listener:', err)));
+
+    console.log("🔥 Firestore listeners actifs (temps réel)");
+    return () => unsubs.forEach(u => u());
   }, []);
 
   // Actions
