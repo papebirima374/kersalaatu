@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+:root {
+  /* Dynamic brand theme colors */
+  --color-brand: var(--tenant-color, #0d9488);
+  --color-brand-hover: var(--tenant-color-hover, #14b8a6);
+  --color-brand-light: var(--tenant-color-light, rgba(13, 148, 136, 0.1));
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: #f8fafc;
+  color: #0f172a;
+  min-height: 100vh;
+}
+
+/* Custom scrollbar for premium aesthetics */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.glass-dark {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Print styles for Invoice */
+@media print {
+  /* Technique "visibility" : tout cacher sauf #print-area */
+  body * {
+    visibility: hidden !important;
+  }
+
+  #print-area,
+  #print-area * {
+    visibility: visible !important;
+  }
+
+  /* Positionner la facture en haut à gauche de la page */
+  #print-area {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+    color: #0f172a !important;
+  }
+
+  /* Marges de page */
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm;
+  }
+}
