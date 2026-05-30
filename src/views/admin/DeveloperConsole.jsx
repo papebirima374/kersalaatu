@@ -162,7 +162,7 @@ export default function DeveloperConsole() {
   ];
 
   const Sidebar = () => (
-    <aside className="w-60 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col h-screen sticky top-0">
+    <aside className="w-60 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col h-[100dvh] sticky top-0">
       <div className="p-5 border-b border-slate-800">
         <Link to="/" className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-teal-500 flex items-center justify-center shrink-0">

@@ -685,7 +685,7 @@ function MerchantDashboard() {
 
   // ── Sidebar ───────────────────────────────────────────────────────────────
   const Sidebar = () => (
-    <aside className="w-60 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col h-screen sticky top-0">
+    <aside className="w-60 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col h-[100dvh] sticky top-0">
       {/* Logo */}
       <div className="p-5 border-b border-slate-800">
         <Link to="/">
@@ -732,7 +732,7 @@ function MerchantDashboard() {
       </div>
 
       {/* User + logout */}
-      <div className="p-3 border-t border-slate-800 space-y-2">
+      <div className="p-3 border-t border-slate-800 space-y-2" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <div className="flex items-center gap-2.5 px-3 py-2 bg-slate-800 rounded-lg">
           <div className="w-7 h-7 rounded-lg bg-teal-500/20 flex items-center justify-center text-teal-400 text-xs font-bold shrink-0">
             {merchantUser?.email?.[0]?.toUpperCase()}
