@@ -11,6 +11,7 @@ import {
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
@@ -630,6 +631,13 @@ export const TenantProvider = ({ children }) => {
     }));
   };
 
+  const resetMerchantPassword = async (email) => {
+    if (!isConfigured) {
+      throw new Error("La réinitialisation par email n'est disponible qu'en mode cloud Firebase.");
+    }
+    await sendPasswordResetEmail(auth, email);
+  };
+
   const loginMerchant = async (email, password) => {
     if (isConfigured) {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -736,6 +744,7 @@ export const TenantProvider = ({ children }) => {
       merchantUser,
       loginMerchant,
       signupMerchant,
+      resetMerchantPassword,
       logoutMerchant,
       addBoutique,
       addBoutiqueWithAuth,

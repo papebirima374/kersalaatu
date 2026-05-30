@@ -251,6 +251,7 @@ export default function MerchantConsole() {
     merchantUser,
     loginMerchant,
     signupMerchant,
+    resetMerchantPassword,
     logoutMerchant,
     updateBoutique,
     addProduct,
@@ -441,10 +442,32 @@ export default function MerchantConsole() {
             </button>
           </form>
 
-          <div className="text-center">
-            <Link to="/" className="text-xs font-semibold text-slate-500 hover:text-slate-300 transition-colors inline-block font-sans">
-              Retour à la page d'accueil
-            </Link>
+          <div className="text-center space-y-2">
+            {authTab === 'login' && (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!authEmail.trim()) {
+                    alert('Saisissez votre adresse email ci-dessus puis cliquez sur ce lien.');
+                    return;
+                  }
+                  try {
+                    await resetMerchantPassword(authEmail.trim());
+                    alert(`Un email de réinitialisation a été envoyé à ${authEmail}. Vérifiez votre boîte mail (et les spams).`);
+                  } catch (err) {
+                    alert('Erreur : ' + (err.message || 'Email introuvable dans Firebase.'));
+                  }
+                }}
+                className="text-xs font-semibold text-teal-500 hover:text-teal-300 transition-colors cursor-pointer font-sans"
+              >
+                Mot de passe oublié ?
+              </button>
+            )}
+            <div>
+              <Link to="/" className="text-xs font-semibold text-slate-500 hover:text-slate-300 transition-colors inline-block font-sans">
+                Retour à la page d'accueil
+              </Link>
+            </div>
           </div>
         </div>
       </div>
