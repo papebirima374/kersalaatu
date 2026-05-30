@@ -1,66 +1,51 @@
 import React, { useState } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import { Link } from 'react-router-dom';
-import { 
-  Shield, 
-  Store, 
-  ClipboardList, 
-  Settings, 
-  LogOut, 
-  Check, 
-  AlertTriangle, 
-  DollarSign, 
-  TrendingUp, 
-  Users,
-  Lock,
-  Unlock,
-  MessageSquare,
-  Trash2
+import {
+  Shield, Store, ClipboardList, Settings, LogOut, Check, AlertTriangle,
+  DollarSign, TrendingUp, Users, Lock, Unlock, MessageSquare, Trash2,
+  Plus, X, ExternalLink, Clock
 } from 'lucide-react';
+
+const fmt = (n) => new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
+
+const logoOf = (entity) => {
+  const l = entity?.logo;
+  if (l && (l.startsWith('/') || l.startsWith('http') || l.startsWith('data:image'))) {
+    return <img src={l} alt="" className="w-full h-full object-contain" />;
+  }
+  return <span className="text-lg">{l || '🛍️'}</span>;
+};
 
 export default function DeveloperConsole() {
   const {
-    boutiques,
-    tickets,
-    updateBoutique,
-    deleteBoutique,
-    resolveTicket,
-    replyToTicket,
-    addBoutiqueWithAuth,
-    upgradeRequests,
-    approveUpgradeRequest,
-    rejectUpgradeRequest
+    boutiques, tickets, updateBoutique, deleteBoutique,
+    resolveTicket, replyToTicket, addBoutiqueWithAuth,
+    upgradeRequests, approveUpgradeRequest, rejectUpgradeRequest
   } = useTenant();
 
-  const [activeTab, setActiveTab] = useState('dashboard'); // dashboard, boutiques, tickets, config
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [replyTextMap, setReplyTextMap] = useState({});
-  
-  // Authentication states for Developer Console
+
+  // Auth
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
-  // Password change states
+  // Password change
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [passSuccess, setPassSuccess] = useState('');
   const [passError, setPassError] = useState('');
 
-  // Create Boutique modal state
+  // Create boutique modal
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newBoutiqueForm, setNewBoutiqueForm] = useState({
-    name: '',
-    whatsapp: '',
-    description: '',
-    ownerEmail: '',
-    password: '',
-    plan: 'Pro',
-    couleurMarque: '#0d9488'
+    name: '', whatsapp: '', description: '', ownerEmail: '', password: '', plan: 'Pro', couleurMarque: '#0d9488'
   });
 
-  // Mot de passe admin : priorité à la variable d'env VITE_ADMIN_SECRET,
-  // sinon au mot de passe changé via l'interface (localStorage), sinon défaut env.
   const getStoredAdminPassword = () => {
     const envSecret = import.meta.env.VITE_ADMIN_SECRET;
     return localStorage.getItem('ks_admin_password') || envSecret || 'ks-admin-2025';
@@ -69,937 +54,548 @@ export default function DeveloperConsole() {
   const handleCreateBoutiqueSubmit = async (e) => {
     e.preventDefault();
     if (!newBoutiqueForm.name.trim() || !newBoutiqueForm.whatsapp.trim()) {
-      alert('Veuillez remplir le nom et le numéro WhatsApp.');
-      return;
+      alert('Veuillez remplir le nom et le numéro WhatsApp.'); return;
     }
-    
-    // Clean whatsapp format
     let cleanWhatsapp = newBoutiqueForm.whatsapp.trim();
     if (!cleanWhatsapp.startsWith('+')) {
-      if (cleanWhatsapp.startsWith('221')) {
-        cleanWhatsapp = '+' + cleanWhatsapp;
-      } else {
-        cleanWhatsapp = '+221' + cleanWhatsapp;
-      }
+      cleanWhatsapp = cleanWhatsapp.startsWith('221') ? '+' + cleanWhatsapp : '+221' + cleanWhatsapp;
     }
-    
     const ownerEmail = newBoutiqueForm.ownerEmail.trim() || 'vendeur@kersalaatu.sn';
     const tempPassword = newBoutiqueForm.password || '123456';
-    
     try {
       await addBoutiqueWithAuth({
         name: newBoutiqueForm.name,
         description: newBoutiqueForm.description || `Boutique en ligne ${newBoutiqueForm.name} propulsée par Kër Salaatu Tech.`,
         whatsapp: cleanWhatsapp,
-        ownerEmail: ownerEmail,
+        ownerEmail,
         couleurMarque: newBoutiqueForm.couleurMarque,
         abonnement: {
-          plan: newBoutiqueForm.plan,
-          statut: 'Actif',
+          plan: newBoutiqueForm.plan, statut: 'Actif',
           dateDebut: new Date().toISOString(),
           dateExpiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
         }
       }, tempPassword);
-      
       setShowCreateModal(false);
-      setNewBoutiqueForm({
-        name: '',
-        whatsapp: '',
-        description: '',
-        ownerEmail: '',
-        password: '',
-        plan: 'Pro',
-        couleurMarque: '#0d9488'
-      });
-      alert(`Nouvelle boutique créée avec succès !\n\nIdentifiants de connexion du marchand :\nEmail : ${ownerEmail}\nMot de passe temporaire : ${tempPassword}`);
+      setNewBoutiqueForm({ name:'', whatsapp:'', description:'', ownerEmail:'', password:'', plan:'Pro', couleurMarque:'#0d9488' });
+      alert(`Boutique créée !\n\nIdentifiants du marchand :\nEmail : ${ownerEmail}\nMot de passe : ${tempPassword}`);
     } catch (error) {
-      console.error(error);
-      alert(`Erreur lors de la création de la boutique : ${error.message || error}`);
+      alert(`Erreur : ${error.message || error}`);
     }
   };
 
   const handleChangePassword = (e) => {
     e.preventDefault();
-    setPassError('');
-    setPassSuccess('');
-    
-    const stored = getStoredAdminPassword();
-    if (currentPass !== stored) {
-      setPassError('Le mot de passe actuel est incorrect.');
-      return;
-    }
-    if (newPass.length < 4) {
-      setPassError('Le nouveau mot de passe doit faire au moins 4 caractères.');
-      return;
-    }
-    if (newPass !== confirmPass) {
-      setPassError('Les deux nouveaux mots de passe ne correspondent pas.');
-      return;
-    }
-    
+    setPassError(''); setPassSuccess('');
+    if (currentPass !== getStoredAdminPassword()) { setPassError('Mot de passe actuel incorrect.'); return; }
+    if (newPass.length < 4) { setPassError('Le nouveau mot de passe doit faire au moins 4 caractères.'); return; }
+    if (newPass !== confirmPass) { setPassError('Les mots de passe ne correspondent pas.'); return; }
     localStorage.setItem('ks_admin_password', newPass);
-    setPassSuccess('Le mot de passe administrateur a été modifié avec succès !');
-    setCurrentPass('');
-    setNewPass('');
-    setConfirmPass('');
+    setPassSuccess('Mot de passe modifié avec succès !');
+    setCurrentPass(''); setNewPass(''); setConfirmPass('');
   };
 
+  const handleToggleSuspension = (b) => {
+    const newStatus = (b.abonnement?.statut || 'Actif') === 'Actif' ? 'Suspendu' : 'Actif';
+    updateBoutique(b.id, { abonnement: { ...b.abonnement, statut: newStatus } });
+  };
+
+  const handlePlanChange = (id, plan) => {
+    const b = boutiques.find(x => x.id === id);
+    if (b) updateBoutique(id, { abonnement: { ...b.abonnement, plan } });
+  };
+
+  // ── Auth screen ────────────────────────────────────────────────────────
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 relative font-sans text-slate-100">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-teal-900/25 via-slate-950 to-slate-950 pointer-events-none" />
-        
-        <div className="w-full max-w-md p-8 rounded-3xl bg-slate-900/60 border border-slate-800 shadow-2xl relative backdrop-blur-sm space-y-6 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center mx-auto shadow-lg shadow-teal-500/20">
-            <Shield className="w-7 h-7 text-slate-950 stroke-[2.5]" />
-          </div>
-          
-          <div>
-            <h2 className="text-2xl font-black tracking-tight">Accès Sécurisé Développeur</h2>
-            <p className="text-xs text-slate-500 mt-1">Veuillez saisir votre code d'accès administrateur Kër Salaatu Tech.</p>
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <div className="w-14 h-14 rounded-2xl bg-teal-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-teal-500/20">
+              <Shield className="w-7 h-7 text-slate-950 stroke-[2.5]" />
+            </div>
+            <h1 className="text-xl font-bold text-white">Console Développeur</h1>
+            <p className="text-sm text-slate-500 mt-1">Administration centrale Kër Salaatu Tech</p>
           </div>
 
           <form onSubmit={(e) => {
             e.preventDefault();
-            if (adminPassword === getStoredAdminPassword()) {
-              setIsAuthenticated(true);
-            } else {
-              setAuthError('Code d\'accès incorrect. Veuillez réessayer.');
-            }
+            if (adminPassword === getStoredAdminPassword()) setIsAuthenticated(true);
+            else setAuthError('Code d\'accès incorrect.');
           }} className="space-y-4">
-            <div>
-              <input
-                type="password"
-                required
-                placeholder="Code d'accès secret"
-                value={adminPassword}
-                onChange={(e) => {
-                  setAdminPassword(e.target.value);
-                  setAuthError('');
-                }}
-                className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl focus:border-teal-500 focus:outline-none text-center text-sm font-mono tracking-widest text-slate-200 placeholder-slate-700"
-              />
-              {authError && (
-                <span className="text-red-400 text-[10px] block mt-1.5 font-semibold">{authError}</span>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-400 text-slate-950 font-bold hover:shadow-lg hover:shadow-teal-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
-            >
-              Déverrouiller la console
+            <input type="password" required placeholder="Code d'accès secret"
+              value={adminPassword}
+              onChange={(e) => { setAdminPassword(e.target.value); setAuthError(''); }}
+              className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-center text-sm font-mono tracking-widest text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none" />
+            {authError && <p className="text-red-400 text-xs text-center font-medium">{authError}</p>}
+            <button type="submit"
+              className="w-full py-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm transition-all">
+              Déverrouiller
             </button>
           </form>
 
-          <Link to="/" className="text-xs font-semibold text-slate-500 hover:text-slate-355 transition-colors block">
-            Retour à l'accueil
-          </Link>
+          <div className="text-center mt-6">
+            <Link to="/" className="text-sm text-slate-500 hover:text-slate-300 transition-colors">← Retour à l'accueil</Link>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Stats calculation
+  // ── Stats ──────────────────────────────────────────────────────────────
   const totalShops = boutiques.length;
   const activeShops = boutiques.filter(b => b.abonnement?.statut === 'Actif').length;
   const pendingTickets = tickets.filter(t => t.statut === 'En attente').length;
-  const pendingUpgrades = upgradeRequests.filter(req => req.statut === 'En attente').length;
-  
-  // Estimate MRR (Monthly Recurring Revenue)
-  // Pro: 5,000 FCFA, Premium: 15,000 FCFA
+  const pendingUpgrades = upgradeRequests.filter(r => r.statut === 'En attente').length;
   const platformMRR = boutiques.reduce((sum, b) => {
     if (b.abonnement?.statut !== 'Actif') return sum;
     if (b.abonnement?.plan === 'Pro') return sum + 5000;
     if (b.abonnement?.plan === 'Premium') return sum + 15000;
-    return sum; // Free / Découverte
+    return sum;
   }, 0);
 
-  // Toggle Shop suspension
-  const handleToggleSuspension = (boutique) => {
-    const currentStatus = boutique.abonnement?.statut || 'Actif';
-    const newStatus = currentStatus === 'Actif' ? 'Suspendu' : 'Actif';
-    
-    updateBoutique(boutique.id, {
-      abonnement: {
-        ...boutique.abonnement,
-        statut: newStatus
-      }
-    });
-  };
+  const NAV = [
+    { id:'dashboard',   label:"Vue d'ensemble", icon: Settings },
+    { id:'boutiques',   label:`Boutiques (${totalShops})`, icon: Store },
+    { id:'tickets',     label:'Support & Bugs', icon: ClipboardList, badge: pendingTickets || null },
+    { id:'activations', label:'Activations', icon: DollarSign, badge: pendingUpgrades || null },
+    { id:'config',      label:'Accès & Sécurité', icon: Lock },
+  ];
 
-  // Change Shop plan
-  const handlePlanChange = (boutiqueId, newPlan) => {
-    const boutique = boutiques.find(b => b.id === boutiqueId);
-    if (!boutique) return;
-    
-    updateBoutique(boutiqueId, {
-      abonnement: {
-        ...boutique.abonnement,
-        plan: newPlan
-      }
-    });
-  };
+  const Sidebar = () => (
+    <aside className="w-60 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col h-screen sticky top-0">
+      <div className="p-5 border-b border-slate-800">
+        <Link to="/" className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-teal-500 flex items-center justify-center shrink-0">
+            <Shield className="w-4 h-4 text-slate-950 stroke-[2.5]" />
+          </div>
+          <div>
+            <p className="font-bold text-white text-sm leading-tight">Kër Salaatu Tech</p>
+            <p className="text-[9px] uppercase tracking-widest text-teal-400 font-semibold">Console Admin</p>
+          </div>
+        </Link>
+      </div>
 
-  // Format currency
-  const formatMoney = (amount) => {
-    return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA';
-  };
+      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+        {NAV.map(({ id, label, icon: Icon, badge }) => (
+          <button key={id} onClick={() => { setActiveTab(id); setSidebarOpen(false); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              activeTab === id ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent'
+            }`}>
+            <Icon className="w-4 h-4 shrink-0" />
+            <span className="flex-1 text-left">{label}</span>
+            {badge ? (
+              <span className="bg-emerald-500 text-slate-950 text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{badge}</span>
+            ) : null}
+          </button>
+        ))}
+      </nav>
+
+      <div className="p-3 border-t border-slate-800">
+        <Link to="/" className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-white hover:bg-slate-800 transition-all">
+          <LogOut className="w-4 h-4" /> Retour au site
+        </Link>
+      </div>
+    </aside>
+  );
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row font-sans">
-      
-      {/* Sidebar */}
-      <aside className="w-full md:w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between shrink-0">
-        <div>
-          {/* Logo / Header */}
-          <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-teal-500/20">
-              <Shield className="w-4 h-4 text-slate-950 stroke-[2.5]" />
-            </div>
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex font-sans">
+      <div className="hidden md:flex"><Sidebar /></div>
+
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setSidebarOpen(false)} />
+          <div className="absolute left-0 top-0 bottom-0 w-60"><Sidebar /></div>
+        </div>
+      )}
+
+      <main className="flex-1 flex flex-col min-h-screen overflow-x-hidden">
+        {/* Topbar */}
+        <div className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur border-b border-slate-800 px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="md:hidden p-2 text-slate-400">☰</button>
             <div>
-              <span className="font-bold tracking-tight text-white block">Kër Salaatu Tech</span>
-              <span className="block text-[8px] uppercase tracking-widest text-teal-400 font-semibold">Console Développeur</span>
+              <h1 className="text-base font-bold text-white">{NAV.find(n => n.id === activeTab)?.label}</h1>
+              <p className="text-xs text-slate-500">Administration centrale · v1.0</p>
             </div>
           </div>
+          {activeTab === 'boutiques' && (
+            <button onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 text-sm font-bold transition-all">
+              <Plus className="w-4 h-4 stroke-[3]" /> Boutique
+            </button>
+          )}
+        </div>
 
-          {/* Navigation Links */}
-          <nav className="p-4 space-y-1">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`w-full px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-3 transition-all cursor-pointer ${activeTab === 'dashboard' ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20' : 'text-slate-400 hover:bg-slate-850 hover:text-slate-200 border border-transparent'}`}
-            >
-              <Settings className="w-4 h-4" /> Vue d'ensemble
-            </button>
-            <button
-              onClick={() => setActiveTab('boutiques')}
-              className={`w-full px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-3 transition-all cursor-pointer ${activeTab === 'boutiques' ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20' : 'text-slate-400 hover:bg-slate-850 hover:text-slate-200 border border-transparent'}`}
-            >
-              <Store className="w-4 h-4" /> Gérer Boutiques ({totalShops})
-            </button>
-            <button
-              onClick={() => setActiveTab('tickets')}
-              className={`w-full px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-3 transition-all cursor-pointer ${activeTab === 'tickets' ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20' : 'text-slate-400 hover:bg-slate-850 hover:text-slate-200 border border-transparent'}`}
-            >
-              <ClipboardList className="w-4 h-4" /> Support & Bugs
-              {pendingTickets > 0 && (
-                <span className="ml-auto bg-amber-500 text-slate-950 font-bold px-2 py-0.5 rounded-full text-[10px]">
-                  {pendingTickets}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab('activations')}
-              className={`w-full px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-3 transition-all cursor-pointer ${activeTab === 'activations' ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20' : 'text-slate-400 hover:bg-slate-850 hover:text-slate-200 border border-transparent'}`}
-            >
-              <DollarSign className="w-4 h-4" /> Activations
+        <div className="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
+
+          {/* ── DASHBOARD ─────────────────────────────────────────────── */}
+          {activeTab === 'dashboard' && (
+            <div className="space-y-6">
               {pendingUpgrades > 0 && (
-                <span className="ml-auto bg-emerald-500 text-slate-950 font-bold px-2 py-0.5 rounded-full text-[10px] animate-pulse">
-                  {pendingUpgrades}
-                </span>
+                <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-sm text-emerald-300">
+                    <DollarSign className="w-4 h-4 shrink-0" />
+                    <span><strong>{pendingUpgrades}</strong> demande(s) de paiement en attente de vérification.</span>
+                  </div>
+                  <button onClick={() => setActiveTab('activations')}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 hover:bg-emerald-400 font-bold text-xs transition-all shrink-0">
+                    Voir
+                  </button>
+                </div>
               )}
-            </button>
-            <button
-              onClick={() => setActiveTab('config')}
-              className={`w-full px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-3 transition-all cursor-pointer ${activeTab === 'config' ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20' : 'text-slate-400 hover:bg-slate-850 hover:text-slate-200 border border-transparent'}`}
-            >
-              <Lock className="w-4 h-4" /> Accès & Sécurité
-            </button>
-          </nav>
-        </div>
 
-        {/* Footer actions */}
-        <div className="p-4 border-t border-slate-800">
-          <Link to="/" className="w-full px-4 py-2 rounded-lg text-sm text-slate-400 hover:bg-slate-850 hover:text-white transition-all flex items-center gap-3">
-            <LogOut className="w-4 h-4" /> Retour au site
-          </Link>
-        </div>
-      </aside>
-
-      {/* Main Content Area */}
-      <main className="flex-1 p-6 md:p-10 overflow-y-auto max-w-7xl">
-        
-        {/* Page title banner */}
-        <div className="mb-8 flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-black text-slate-100">Portail Administration Centrale</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Supervisez les abonnements, suspendez les impayés et résolvez les tickets d'assistance.</p>
-          </div>
-          <div className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-400">
-            Version : <span className="text-teal-400">v1.0 SaaS Multi-tenant</span>
-          </div>
-        </div>
-
-        {/* 1. DASHBOARD TAB */}
-        {activeTab === 'dashboard' && (
-          <div className="space-y-8">
-            {/* Live notification alerts */}
-            {pendingUpgrades > 0 && (
-              <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between text-slate-205 text-xs animate-pulse">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-emerald-400" />
-                  <span>
-                    Vous avez <strong>{pendingUpgrades}</strong> demande(s) de déblocage par paiement Mobile Money en attente de vérification.
-                  </span>
-                </div>
-                <button
-                  onClick={() => setActiveTab('activations')}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 hover:bg-emerald-450 font-bold transition-all text-[11px] cursor-pointer"
-                >
-                  Voir les demandes
-                </button>
-              </div>
-            )}
-
-            {/* KPI Analytics */}
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
-              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between relative overflow-hidden">
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Revenus (MRR)</span>
-                  <h3 className="text-xl font-black text-white">{formatMoney(platformMRR)}</h3>
-                  <p className="text-[9px] text-teal-400 flex items-center gap-1"><TrendingUp className="w-3 h-3" /> Abonnements</p>
-                </div>
-                <div className="w-10 h-10 rounded-lg bg-teal-500/10 flex items-center justify-center text-teal-400">
-                  <DollarSign className="w-5 h-5" />
-                </div>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between relative overflow-hidden">
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Boutiques</span>
-                  <h3 className="text-xl font-black text-white">{totalShops}</h3>
-                  <p className="text-[9px] text-slate-400">Inscriptions</p>
-                </div>
-                <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
-                  <Store className="w-5 h-5" />
-                </div>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between relative overflow-hidden">
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Actives</span>
-                  <h3 className="text-xl font-black text-white">{activeShops}</h3>
-                  <p className="text-[9px] text-teal-400">En service</p>
-                </div>
-                <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
-                  <Users className="w-5 h-5" />
-                </div>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between relative overflow-hidden">
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bugs Actifs</span>
-                  <h3 className="text-xl font-black text-white">{pendingTickets}</h3>
-                  <p className="text-[9px] text-amber-500">Tickets ouverts</p>
-                </div>
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${pendingTickets > 0 ? 'bg-amber-500/10 text-amber-400 animate-pulse' : 'bg-slate-805 text-slate-700'}`}>
-                  <AlertTriangle className="w-5 h-5" />
-                </div>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between relative overflow-hidden">
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Activations</span>
-                  <h3 className="text-xl font-black text-white">{pendingUpgrades}</h3>
-                  <p className="text-[9px] text-emerald-455 font-semibold">Paiements en attente</p>
-                </div>
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${pendingUpgrades > 0 ? 'bg-emerald-500/10 text-emerald-400 animate-pulse' : 'bg-slate-805 text-slate-700'}`}>
-                  <DollarSign className="w-5 h-5" />
-                </div>
-              </div>
-            </div>
-
-            {/* Quick overview of latest shops & active tickets */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Shops list short */}
-              <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-extrabold text-base text-slate-100 flex items-center gap-2">
-                    <Store className="w-4 h-4 text-teal-400" /> Boutiques Récentes
-                  </h3>
-                  <button onClick={() => setActiveTab('boutiques')} className="text-xs text-teal-400 hover:underline">
-                    Gérer
-                  </button>
-                </div>
-                
-                <div className="divide-y divide-slate-850">
-                  {boutiques.slice(0, 3).map((b) => (
-                    <div key={b.id} className="py-3 flex justify-between items-center">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-slate-950 border border-slate-850 flex items-center justify-center text-lg overflow-hidden shrink-0">
-                          {b.logo && (b.logo.startsWith('/') || b.logo.startsWith('http') || b.logo.startsWith('data:image')) ? (
-                            <img src={b.logo} alt="Logo" className="w-full h-full object-contain" />
-                          ) : (
-                            b.logo || '🛍️'
-                          )}
-                        </div>
-                        <div>
-                          <span className="font-bold text-sm block text-slate-200">{b.name}</span>
-                          <span className="text-[10px] text-slate-500 font-mono">/{b.slug}</span>
-                        </div>
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                {[
+                  { label:'Revenus MRR', value: fmt(platformMRR), icon: DollarSign, color:'teal' },
+                  { label:'Boutiques', value: totalShops, icon: Store, color:'indigo' },
+                  { label:'Actives', value: activeShops, icon: Users, color:'emerald' },
+                  { label:'Bugs ouverts', value: pendingTickets, icon: AlertTriangle, color: pendingTickets ? 'amber':'slate' },
+                  { label:'Activations', value: pendingUpgrades, icon: TrendingUp, color: pendingUpgrades ? 'emerald':'slate' },
+                ].map(({ label, value, icon: Icon, color }) => (
+                  <div key={label} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <span className="text-xs font-medium text-slate-500">{label}</span>
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-${color}-500/10`}>
+                        <Icon className={`w-4 h-4 text-${color}-400`} />
                       </div>
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${b.abonnement?.statut === 'Actif' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                        {b.abonnement?.statut || 'Actif'}
-                      </span>
                     </div>
-                  ))}
-                </div>
+                    <p className="text-xl font-bold text-white">{value}</p>
+                  </div>
+                ))}
               </div>
 
-              {/* Tickets list short */}
-              <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-extrabold text-base text-slate-100 flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4 text-teal-400" /> Tickets en attente
-                  </h3>
-                  <button onClick={() => setActiveTab('tickets')} className="text-xs text-teal-400 hover:underline">
-                    Résoudre
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  {tickets.filter(t => t.statut === 'En attente').slice(0, 2).map((t) => {
-                    const shop = boutiques.find(b => b.id === t.boutiqueId) || { name: 'Inconnue' };
-                    return (
-                      <div key={t.id} className="p-3 bg-slate-950 border border-slate-850 rounded-xl flex justify-between items-start">
-                        <div>
-                          <span className="font-bold text-xs text-slate-200 leading-snug">{t.sujet}</span>
-                          <p className="text-[10px] text-slate-500 mt-0.5">Boutique: <strong className="text-slate-400">{shop.name}</strong></p>
-                        </div>
-                        <button
-                          onClick={() => {
-                            resolveTicket(t.id);
-                            alert('Ticket résolu !');
-                          }}
-                          className="px-2 py-1 rounded bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/20 text-[10px] font-bold transition-all cursor-pointer"
-                        >
-                          Marquer résolu
-                        </button>
-                      </div>
-                    );
-                  })}
-                  {tickets.filter(t => t.statut === 'En attente').length === 0 && (
-                    <div className="py-8 text-center text-slate-500 text-xs">
-                      Aucun ticket technique en attente. Bon travail !
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 2. BOUTIQUES TAB */}
-        {activeTab === 'boutiques' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-extrabold text-xl text-slate-100">Supervision des Boutiques Hébergées</h3>
-                <p className="text-slate-500 text-xs mt-0.5">Gérez, activez, suspendez ou créez manuellement les boutiques de la plateforme.</p>
-              </div>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="py-2 px-4 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow transition-all"
-              >
-                Créer une Boutique
-              </button>
-            </div>
-            
-            <div className="overflow-x-auto bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
-              <table className="w-full text-left border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-slate-800 bg-slate-850 text-slate-400">
-                    <th className="py-3 px-4 font-bold text-xs">Boutique / Slug</th>
-                    <th className="py-3 px-4 font-bold text-xs">Coordonnées</th>
-                    <th className="py-3 px-4 font-bold text-xs">Plan d'Abonnement</th>
-                    <th className="py-3 px-4 font-bold text-xs">Statut</th>
-                    <th className="py-3 px-4 font-bold text-xs text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-850">
-                  {boutiques.map((b) => (
-                    <tr key={b.id} className="hover:bg-slate-850/30">
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-lg bg-slate-950 border border-slate-850 flex items-center justify-center text-xl overflow-hidden shrink-0">
-                            {b.logo && (b.logo.startsWith('/') || b.logo.startsWith('http') || b.logo.startsWith('data:image')) ? (
-                              <img src={b.logo} alt="Logo" className="w-full h-full object-contain" />
-                            ) : (
-                              b.logo || '🛍️'
-                            )}
-                          </div>
-                          <div>
-                            <span className="font-bold text-slate-200 block leading-snug">{b.name}</span>
-                            <Link to={`/shop/${b.slug}`} target="_blank" className="text-xs text-teal-400 hover:underline font-mono">/{b.slug}</Link>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Boutiques récentes */}
+                <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+                  <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+                    <h3 className="font-semibold text-white flex items-center gap-2"><Store className="w-4 h-4 text-teal-400" /> Boutiques récentes</h3>
+                    <button onClick={() => setActiveTab('boutiques')} className="text-xs text-teal-400 hover:text-teal-300">Gérer →</button>
+                  </div>
+                  <div className="divide-y divide-slate-800">
+                    {boutiques.slice(0, 5).map(b => (
+                      <div key={b.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">{logoOf(b)}</div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm text-slate-200 truncate">{b.name}</p>
+                            <p className="text-[10px] text-slate-500 font-mono truncate">/{b.slug}</p>
                           </div>
                         </div>
-                      </td>
-
-                      <td className="py-4 px-4 text-xs space-y-0.5 text-slate-400">
-                        <p>Tél : <strong className="text-slate-300">{b.whatsapp}</strong></p>
-                        {b.adresse && <p>Lieu : {b.adresse}</p>}
-                      </td>
-
-                      <td className="py-4 px-4">
-                        <select
-                          value={b.abonnement?.plan || 'Découverte'}
-                          onChange={(e) => handlePlanChange(b.id, e.target.value)}
-                          className="px-2 py-1 bg-slate-950 border border-slate-800 rounded text-xs text-slate-200 font-semibold focus:outline-none focus:border-teal-500 cursor-pointer"
-                        >
-                          <option value="Découverte">Découverte (Gratuit)</option>
-                          <option value="Pro">Pro (5 000 FCFA/m)</option>
-                          <option value="Premium">Premium (15 000 FCFA/m)</option>
-                        </select>
-                      </td>
-
-                      <td className="py-4 px-4">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          b.abonnement?.statut === 'Actif'
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                          : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${b.abonnement?.statut === 'Actif' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
                           {b.abonnement?.statut || 'Actif'}
                         </span>
-                      </td>
-
-                      <td className="py-4 px-4 text-right flex justify-end gap-2 items-center">
-                        <button
-                          onClick={() => handleToggleSuspension(b)}
-                          className={`py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
-                            b.abonnement?.statut === 'Actif'
-                            ? 'bg-red-950/20 text-red-400 hover:bg-red-950/40 border border-red-500/10'
-                            : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20'
-                          }`}
-                        >
-                          {b.abonnement?.statut === 'Actif' ? (
-                            <><Lock className="w-3.5 h-3.5" /> Suspendre</>
-                          ) : (
-                            <><Unlock className="w-3.5 h-3.5" /> Réactiver</>
-                          )}
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            if (confirm(`Êtes-vous sûr de vouloir supprimer définitivement la boutique "${b.name}" ainsi que tous ses produits, commandes et tickets ? Cette action est irréversible.`)) {
-                              deleteBoutique(b.id);
-                              alert('Boutique supprimée avec succès !');
-                            }
-                          }}
-                          className="py-1.5 px-2.5 rounded-lg bg-red-950/30 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-slate-950 transition-all flex items-center justify-center cursor-pointer"
-                          title="Supprimer la boutique"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* 3. TICKETS TAB */}
-        {activeTab === 'tickets' && (
-          <div className="space-y-6">
-            <h3 className="font-extrabold text-xl text-slate-100">Tickets de Support Marchands ({tickets.length})</h3>
-            
-            <div className="space-y-4">
-              {tickets.map((t) => {
-                const shop = boutiques.find(b => b.id === t.boutiqueId) || { name: 'Inconnue', logo: '🛍️' };
-                return (
-                  <div key={t.id} className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-3 relative overflow-hidden shadow-xl">
-                    <div className="flex justify-between items-start border-b border-slate-850 pb-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xl">{shop.logo.startsWith('/') ? '🛍️' : shop.logo}</span>
-                          <span className="font-bold text-sm text-slate-200">{shop.name}</span>
-                          <span className="text-xs text-slate-500">&bull; Réf Ticket: <code className="text-teal-400">{t.id}</code></span>
-                        </div>
-                        <h4 className="font-extrabold text-base text-slate-100 mt-2">{t.sujet}</h4>
                       </div>
+                    ))}
+                    {boutiques.length === 0 && <p className="py-8 text-center text-slate-500 text-sm">Aucune boutique.</p>}
+                  </div>
+                </div>
 
-                      <div className="flex items-center gap-3">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                          t.statut === 'En attente'
-                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                          : t.statut === 'En cours'
-                          ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
-                          : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        }`}>
-                          {t.statut}
-                        </span>
-
-                        {t.statut !== 'Résolu' && (
-                          <button
-                            onClick={() => {
-                              resolveTicket(t.id);
-                              alert('Ticket marqué comme résolu !');
-                            }}
-                            className="p-1.5 rounded-xl bg-teal-500 text-slate-950 hover:bg-teal-400 transition-colors text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow"
-                          >
-                            <Check className="w-4 h-4 stroke-[3]" /> Résoudre
+                {/* Tickets en attente */}
+                <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+                  <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+                    <h3 className="font-semibold text-white flex items-center gap-2"><MessageSquare className="w-4 h-4 text-teal-400" /> Tickets en attente</h3>
+                    <button onClick={() => setActiveTab('tickets')} className="text-xs text-teal-400 hover:text-teal-300">Résoudre →</button>
+                  </div>
+                  <div className="divide-y divide-slate-800">
+                    {tickets.filter(t => t.statut === 'En attente').slice(0, 4).map(t => {
+                      const shop = boutiques.find(b => b.id === t.boutiqueId) || { name: 'Inconnue' };
+                      return (
+                        <div key={t.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm text-slate-200 truncate">{t.sujet}</p>
+                            <p className="text-[10px] text-slate-500 truncate">{shop.name}</p>
+                          </div>
+                          <button onClick={() => { resolveTicket(t.id); }}
+                            className="px-2.5 py-1 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20 text-[10px] font-bold hover:bg-teal-500/20 transition-all shrink-0">
+                            Résolu
                           </button>
-                        )}
+                        </div>
+                      );
+                    })}
+                    {pendingTickets === 0 && <p className="py-8 text-center text-slate-500 text-sm">Aucun ticket en attente. 🎉</p>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── BOUTIQUES ─────────────────────────────────────────────── */}
+          {activeTab === 'boutiques' && (
+            <div className="space-y-3">
+              {boutiques.map(b => (
+                <div key={b.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                  <div className="flex flex-wrap items-center gap-4">
+                    {/* Logo + nom */}
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="w-11 h-11 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">{logoOf(b)}</div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-200 truncate">{b.name}</p>
+                        <Link to={`/shop/${b.slug}`} target="_blank" className="text-xs text-teal-400 hover:underline font-mono flex items-center gap-1">
+                          /{b.slug} <ExternalLink className="w-3 h-3" />
+                        </Link>
+                        <p className="text-[10px] text-slate-500 mt-0.5">{b.whatsapp}</p>
                       </div>
                     </div>
 
-                    <p className="text-sm text-slate-400 leading-relaxed bg-slate-950/40 p-4 rounded-xl border border-slate-850">{t.message}</p>
-                    
+                    {/* Plan */}
+                    <select value={b.abonnement?.plan || 'Découverte'} onChange={e => handlePlanChange(b.id, e.target.value)}
+                      className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 font-semibold focus:outline-none focus:border-teal-500 cursor-pointer">
+                      <option value="Découverte">Découverte</option>
+                      <option value="Pro">Pro · 5 000</option>
+                      <option value="Premium">Premium · 15 000</option>
+                    </select>
+
+                    {/* Statut */}
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${b.abonnement?.statut === 'Actif' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                      {b.abonnement?.statut || 'Actif'}
+                    </span>
+
+                    {/* Actions */}
+                    <div className="flex gap-2">
+                      <button onClick={() => handleToggleSuspension(b)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all border ${
+                          b.abonnement?.statut === 'Actif'
+                          ? 'bg-red-500/5 text-red-400 border-red-500/10 hover:bg-red-500/10'
+                          : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                        }`}>
+                        {b.abonnement?.statut === 'Actif' ? <><Lock className="w-3.5 h-3.5" />Suspendre</> : <><Unlock className="w-3.5 h-3.5" />Réactiver</>}
+                      </button>
+                      <button onClick={() => {
+                        if (confirm(`Supprimer définitivement "${b.name}" et toutes ses données ?`)) { deleteBoutique(b.id); }
+                      }} className="px-2.5 py-1.5 rounded-lg bg-red-500/5 text-red-400 border border-red-500/10 hover:bg-red-500 hover:text-slate-950 transition-all">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {boutiques.length === 0 && (
+                <div className="bg-slate-900 border border-dashed border-slate-700 rounded-xl py-16 text-center">
+                  <Store className="w-10 h-10 text-slate-700 mx-auto mb-3" />
+                  <p className="text-slate-400 font-semibold">Aucune boutique hébergée</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── TICKETS ───────────────────────────────────────────────── */}
+          {activeTab === 'tickets' && (
+            <div className="space-y-3">
+              {tickets.map(t => {
+                const shop = boutiques.find(b => b.id === t.boutiqueId) || { name: 'Inconnue', logo: '🛍️' };
+                return (
+                  <div key={t.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-slate-200">{t.sujet}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            t.statut === 'En attente' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                            t.statut === 'En cours' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                            'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                          }`}>{t.statut}</span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5">{shop.name} · {new Date(t.date).toLocaleDateString('fr-FR')}</p>
+                      </div>
+                      {t.statut !== 'Résolu' && (
+                        <button onClick={() => resolveTicket(t.id)}
+                          className="px-3 py-1.5 rounded-lg bg-teal-500 text-slate-950 hover:bg-teal-400 text-xs font-bold flex items-center gap-1.5 transition-all shrink-0">
+                          <Check className="w-3.5 h-3.5 stroke-[3]" /> Résoudre
+                        </button>
+                      )}
+                    </div>
+
+                    <p className="text-sm text-slate-400 bg-slate-800/50 rounded-lg p-3">{t.message}</p>
+
                     {t.reponse && (
-                      <div className="bg-teal-950/20 border border-teal-500/20 p-4 rounded-xl space-y-1">
-                        <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wide">Réponse technique apportée :</span>
+                      <div className="bg-teal-500/5 border border-teal-500/10 rounded-lg p-3">
+                        <p className="text-[10px] font-bold text-teal-400 mb-1">RÉPONSE TECHNIQUE</p>
                         <p className="text-xs text-slate-300 italic">"{t.reponse}"</p>
                       </div>
                     )}
 
                     {t.statut !== 'Résolu' && (
-                      <div className="pt-2 border-t border-slate-850 mt-3 space-y-2">
-                        <label className="block text-[10px] uppercase font-bold text-slate-500">Répondre au marchand :</label>
-                        <div className="flex gap-2">
-                          <textarea
-                            value={replyTextMap[t.id] || ''}
-                            onChange={(e) => setReplyTextMap({ ...replyTextMap, [t.id]: e.target.value })}
-                            placeholder="Entrez des instructions de résolution, questions ou message technique..."
-                            className="flex-1 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-teal-500 min-h-[40px] resize-y"
-                          />
-                          <button
-                            onClick={() => {
-                              if (!replyTextMap[t.id]?.trim()) return;
-                              replyToTicket(t.id, replyTextMap[t.id]);
-                              setReplyTextMap({ ...replyTextMap, [t.id]: '' });
-                              alert('Réponse technique envoyée ! Le statut passe à "En cours".');
-                            }}
-                            className="px-4 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs transition-all flex items-center justify-center cursor-pointer shrink-0"
-                          >
-                            Envoyer la réponse
-                          </button>
-                        </div>
+                      <div className="flex gap-2">
+                        <textarea value={replyTextMap[t.id] || ''}
+                          onChange={e => setReplyTextMap({ ...replyTextMap, [t.id]: e.target.value })}
+                          placeholder="Répondre au marchand..."
+                          className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-teal-500 resize-y min-h-[40px]" />
+                        <button onClick={() => {
+                          if (!replyTextMap[t.id]?.trim()) return;
+                          replyToTicket(t.id, replyTextMap[t.id]);
+                          setReplyTextMap({ ...replyTextMap, [t.id]: '' });
+                        }} className="px-4 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs transition-all shrink-0">
+                          Envoyer
+                        </button>
                       </div>
                     )}
+                  </div>
+                );
+              })}
+              {tickets.length === 0 && (
+                <div className="bg-slate-900 border border-dashed border-slate-700 rounded-xl py-16 text-center">
+                  <MessageSquare className="w-10 h-10 text-slate-700 mx-auto mb-3" />
+                  <p className="text-slate-400 font-semibold">Aucun ticket de support</p>
+                </div>
+              )}
+            </div>
+          )}
 
-                    <div className="text-[10px] text-slate-500 flex justify-between pt-1">
-                      <span>Signalé le {new Date(t.date).toLocaleDateString('fr-FR')} à {new Date(t.date).toLocaleTimeString('fr-FR')}</span>
+          {/* ── ACTIVATIONS ───────────────────────────────────────────── */}
+          {activeTab === 'activations' && (
+            <div className="space-y-3">
+              {upgradeRequests.map(req => {
+                const shop = boutiques.find(b => b.id === req.boutiqueId) || { name: 'Inconnue', logo: '🛍️' };
+                return (
+                  <div key={req.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                    <div className="flex flex-wrap items-center gap-4">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="w-11 h-11 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">{logoOf(shop)}</div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-slate-200 truncate">{shop.name}</p>
+                          <p className="text-xs text-slate-500">{req.paymentMethod} · <span className="font-mono">{req.phoneNumber}</span></p>
+                          <p className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1"><Clock className="w-3 h-3" />{new Date(req.date).toLocaleString('fr-FR')}</p>
+                        </div>
+                      </div>
+
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${req.planName === 'Premium' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 'bg-teal-500/10 text-teal-400 border-teal-500/20'}`}>
+                        {req.planName}
+                      </span>
+
+                      {req.statut === 'En attente' ? (
+                        <div className="flex gap-2">
+                          <button onClick={() => { if (confirm(`Confirmer le paiement et débloquer "${shop.name}" ?`)) approveUpgradeRequest(req.id); }}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 text-xs font-bold flex items-center gap-1.5 transition-all">
+                            <Check className="w-3.5 h-3.5" /> Valider
+                          </button>
+                          <button onClick={() => { if (confirm('Rejeter cette demande ?')) rejectUpgradeRequest(req.id); }}
+                            className="px-3 py-1.5 rounded-lg bg-red-500/5 text-red-400 border border-red-500/10 hover:bg-red-500/10 text-xs font-bold transition-all">
+                            Refuser
+                          </button>
+                        </div>
+                      ) : (
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${req.statut === 'Validé' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                          {req.statut}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
               })}
-
-              {tickets.length === 0 && (
-                <div className="py-20 text-center border border-dashed border-slate-800 rounded-3xl bg-slate-900/40">
-                  <MessageSquare className="w-16 h-16 mx-auto text-slate-700 mb-3" />
-                  <p className="font-bold text-slate-400">Aucun ticket disponible</p>
+              {upgradeRequests.length === 0 && (
+                <div className="bg-slate-900 border border-dashed border-slate-700 rounded-xl py-16 text-center">
+                  <DollarSign className="w-10 h-10 text-slate-700 mx-auto mb-3" />
+                  <p className="text-slate-400 font-semibold">Aucune demande d'activation</p>
                 </div>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* 3.5. ACTIVATIONS TAB */}
-        {activeTab === 'activations' && (
-          <div className="space-y-6">
-            <div>
-              <h3 className="font-extrabold text-xl text-slate-100">Demandes de Paiement & Activations ({upgradeRequests.length})</h3>
-              <p className="text-slate-500 text-xs mt-0.5">Vérifiez les transactions Mobile Money soumises par les marchands et activez leurs forfaits.</p>
-            </div>
-            
-            <div className="overflow-x-auto bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
-              <table className="w-full text-left border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-slate-800 bg-slate-850 text-slate-400">
-                    <th className="py-3 px-4 font-bold text-xs">Boutique</th>
-                    <th className="py-3 px-4 font-bold text-xs">Plan Demandé</th>
-                    <th className="py-3 px-4 font-bold text-xs">Mode de Paiement</th>
-                    <th className="py-3 px-4 font-bold text-xs">Numéro de Téléphone</th>
-                    <th className="py-3 px-4 font-bold text-xs">Date</th>
-                    <th className="py-3 px-4 font-bold text-xs">Statut</th>
-                    <th className="py-3 px-4 font-bold text-xs text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-850">
-                  {upgradeRequests.map((req) => {
-                    const shop = boutiques.find(b => b.id === req.boutiqueId) || { name: 'Boutique Inconnue', logo: '🛍️' };
-                    return (
-                      <tr key={req.id} className="hover:bg-slate-850/30">
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-lg bg-slate-950 border border-slate-850 flex items-center justify-center text-xl overflow-hidden shrink-0">
-                              {shop.logo && (shop.logo.startsWith('/') || shop.logo.startsWith('http') || shop.logo.startsWith('data:image')) ? (
-                                <img src={shop.logo} alt="Logo" className="w-full h-full object-contain" />
-                              ) : (
-                                shop.logo || '🛍️'
-                              )}
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-200 block leading-snug">{shop.name}</span>
-                              <span className="text-[10px] text-slate-500 font-mono">ID: {req.boutiqueId}</span>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="py-4 px-4">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                            req.planName === 'Premium' 
-                            ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' 
-                            : 'bg-teal-500/10 text-teal-400 border border-teal-500/20'
-                          }`}>
-                            {req.planName}
-                          </span>
-                        </td>
-
-                        <td className="py-4 px-4 text-xs font-semibold">
-                          {req.paymentMethod}
-                        </td>
-
-                        <td className="py-4 px-4 text-xs font-mono text-slate-300">
-                          {req.phoneNumber}
-                        </td>
-
-                        <td className="py-4 px-4 text-xs text-slate-400">
-                          {new Date(req.date).toLocaleDateString('fr-FR')} {new Date(req.date).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}
-                        </td>
-
-                        <td className="py-4 px-4">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            req.statut === 'En attente'
-                            ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                            : req.statut === 'Validé'
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                            : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                          }`}>
-                            {req.statut}
-                          </span>
-                        </td>
-
-                        <td className="py-4 px-4 text-right flex justify-end gap-2 items-center">
-                          {req.statut === 'En attente' ? (
-                            <>
-                              <button
-                                onClick={() => {
-                                  if (confirm(`Confirmez-vous la réception du paiement Mobile Money et le déblocage de "${shop.name}" ?`)) {
-                                    approveUpgradeRequest(req.id);
-                                    alert('Boutique débloquée avec succès !');
-                                  }
-                                }}
-                                className="py-1.5 px-3 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 text-xs font-semibold cursor-pointer transition-all flex items-center gap-1"
-                              >
-                                <Check className="w-3.5 h-3.5" /> Valider & Activer
-                              </button>
-                              <button
-                                onClick={() => {
-                                  if (confirm(`Voulez-vous rejeter cette demande d'activation ?`)) {
-                                    rejectUpgradeRequest(req.id);
-                                    alert('Demande rejetée.');
-                                  }
-                                }}
-                                className="py-1.5 px-3 rounded-lg bg-red-950/20 text-red-400 hover:bg-red-950/40 border border-red-500/10 text-xs font-semibold cursor-pointer transition-all flex items-center gap-1"
-                              >
-                                Refuser
-                              </button>
-                            </>
-                          ) : (
-                            <span className="text-xs text-slate-500 font-medium">Aucune action requise</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {upgradeRequests.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-500 text-xs">
-                        Aucune demande d'activation soumise pour le moment.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* 4. CONFIG TAB (Accès & Sécurité) */}
-        {activeTab === 'config' && (
-          <div className="p-6 rounded-2xl bg-slate-900/50 border border-slate-800 shadow-xl space-y-6 max-w-xl">
-            <div>
-              <h3 className="font-extrabold text-xl text-slate-100 flex items-center gap-2">
-                <Lock className="w-5 h-5 text-teal-400" /> Sécurité d'Accès Admin
-              </h3>
-              <p className="text-slate-400 text-xs mt-0.5">Modifiez le mot de passe requis pour accéder à cette console d'administration centrale.</p>
-            </div>
-
-            <form onSubmit={handleChangePassword} className="space-y-4 font-sans">
-              {passError && (
-                <div className="p-3 bg-red-950/20 border border-red-500/20 rounded-xl text-red-400 text-xs font-semibold">
-                  {passError}
+          {/* ── CONFIG ────────────────────────────────────────────────── */}
+          {activeTab === 'config' && (
+            <div className="max-w-md">
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-5">
+                <div>
+                  <h3 className="font-semibold text-white flex items-center gap-2"><Lock className="w-4 h-4 text-teal-400" /> Sécurité d'accès</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Modifiez le code d'accès à cette console.</p>
                 </div>
-              )}
-              {passSuccess && (
-                <div className="p-3 bg-emerald-950/20 border border-emerald-500/20 rounded-xl text-emerald-400 text-xs font-semibold">
-                  {passSuccess}
-                </div>
-              )}
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Mot de passe actuel</label>
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  value={currentPass}
-                  onChange={(e) => setCurrentPass(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-teal-500 focus:outline-none text-slate-200 text-sm font-mono"
-                />
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  {passError && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">{passError}</div>}
+                  {passSuccess && <div className="p-3 bg-teal-500/10 border border-teal-500/20 rounded-xl text-teal-400 text-sm">{passSuccess}</div>}
+
+                  {[
+                    { label:'Mot de passe actuel', val: currentPass, set: setCurrentPass, ph:'••••••••' },
+                    { label:'Nouveau mot de passe', val: newPass, set: setNewPass, ph:'Minimum 4 caractères' },
+                    { label:'Confirmer', val: confirmPass, set: setConfirmPass, ph:'Re-saisir' },
+                  ].map(({ label, val, set, ph }) => (
+                    <div key={label}>
+                      <label className="block text-xs font-medium text-slate-400 mb-1.5">{label}</label>
+                      <input type="password" required value={val} onChange={e => set(e.target.value)} placeholder={ph}
+                        className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 font-mono focus:border-teal-500 focus:outline-none" />
+                    </div>
+                  ))}
+
+                  <button type="submit" className="w-full py-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm transition-all">
+                    Mettre à jour
+                  </button>
+                </form>
               </div>
+            </div>
+          )}
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Nouveau mot de passe</label>
-                <input
-                  type="password"
-                  required
-                  placeholder="Minimum 4 caractères"
-                  value={newPass}
-                  onChange={(e) => setNewPass(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-teal-500 focus:outline-none text-slate-200 text-sm font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Confirmer le nouveau mot de passe</label>
-                <input
-                  type="password"
-                  required
-                  placeholder="Re-saisir le nouveau mot de passe"
-                  value={confirmPass}
-                  onChange={(e) => setConfirmPass(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-teal-500 focus:outline-none text-slate-200 text-sm font-mono"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-400 text-slate-950 font-bold hover:shadow-lg hover:shadow-teal-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
-              >
-                Mettre à jour le mot de passe
-              </button>
-            </form>
-          </div>
-        )}
+        </div>
       </main>
 
-      {/* CREATE BOUTIQUE MODAL */}
+      {/* ── MODAL CRÉER BOUTIQUE ──────────────────────────────────────── */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="w-full max-w-md p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl relative">
-            <h3 className="text-lg font-bold text-white mb-1">Créer une Nouvelle Boutique</h3>
-            <p className="text-slate-400 text-xs mb-5">Configurez et lancez une boutique manuellement.</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+              <h3 className="font-bold text-white">Nouvelle boutique</h3>
+              <button onClick={() => setShowCreateModal(false)} className="text-slate-500 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
 
-            <form onSubmit={handleCreateBoutiqueSubmit} className="space-y-4 font-sans">
+            <form onSubmit={handleCreateBoutiqueSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Nom de la boutique</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Sunu Boutik, Dakar Couture"
-                  value={newBoutiqueForm.name}
-                  onChange={(e) => setNewBoutiqueForm({ ...newBoutiqueForm, name: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-teal-500 focus:outline-none text-slate-200 text-xs"
-                />
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Nom de la boutique *</label>
+                <input required value={newBoutiqueForm.name} onChange={e => setNewBoutiqueForm({...newBoutiqueForm, name:e.target.value})}
+                  placeholder="Ex: Sunu Boutik"
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none" />
               </div>
-
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">WhatsApp (Ex: 780178444)</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Numéro du vendeur"
-                  value={newBoutiqueForm.whatsapp}
-                  onChange={(e) => setNewBoutiqueForm({ ...newBoutiqueForm, whatsapp: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-teal-500 focus:outline-none text-slate-200 text-xs font-mono"
-                />
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">WhatsApp *</label>
+                <input required value={newBoutiqueForm.whatsapp} onChange={e => setNewBoutiqueForm({...newBoutiqueForm, whatsapp:e.target.value})}
+                  placeholder="780178444"
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 font-mono focus:border-teal-500 focus:outline-none" />
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Email du Propriétaire</label>
-                  <input
-                    type="email"
-                    placeholder="vendeur@exemple.com"
-                    value={newBoutiqueForm.ownerEmail}
-                    onChange={(e) => setNewBoutiqueForm({ ...newBoutiqueForm, ownerEmail: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-teal-500 focus:outline-none text-slate-200 text-xs"
-                  />
+                  <label className="block text-xs font-medium text-slate-400 mb-1.5">Email propriétaire</label>
+                  <input type="email" value={newBoutiqueForm.ownerEmail} onChange={e => setNewBoutiqueForm({...newBoutiqueForm, ownerEmail:e.target.value})}
+                    placeholder="vendeur@..."
+                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none" />
                 </div>
-
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Mot de passe temporaire</label>
-                  <input
-                    type="password"
-                    placeholder="Par défaut: 123456"
-                    value={newBoutiqueForm.password}
-                    onChange={(e) => setNewBoutiqueForm({ ...newBoutiqueForm, password: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-teal-500 focus:outline-none text-slate-200 text-xs"
-                  />
+                  <label className="block text-xs font-medium text-slate-400 mb-1.5">Mot de passe</label>
+                  <input type="password" value={newBoutiqueForm.password} onChange={e => setNewBoutiqueForm({...newBoutiqueForm, password:e.target.value})}
+                    placeholder="Déf: 123456"
+                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none" />
                 </div>
               </div>
-
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Slogan / Description</label>
-                <textarea
-                  placeholder="Ex: Prêt-à-porter sénégalais haut de gamme..."
-                  value={newBoutiqueForm.description}
-                  onChange={(e) => setNewBoutiqueForm({ ...newBoutiqueForm, description: e.target.value })}
-                  rows={2}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-teal-500 focus:outline-none text-slate-200 text-xs"
-                />
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Description</label>
+                <textarea value={newBoutiqueForm.description} onChange={e => setNewBoutiqueForm({...newBoutiqueForm, description:e.target.value})} rows={2}
+                  placeholder="Slogan de la boutique..."
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none resize-none" />
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Plan initial</label>
-                  <select
-                    value={newBoutiqueForm.plan}
-                    onChange={(e) => setNewBoutiqueForm({ ...newBoutiqueForm, plan: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-teal-500 focus:outline-none text-slate-200 text-xs cursor-pointer font-semibold"
-                  >
-                    <option value="Découverte">Découverte (Gratuit)</option>
-                    <option value="Pro">Pro (5 000 FCFA/m)</option>
-                    <option value="Premium">Premium (15 000 FCFA/m)</option>
+                  <label className="block text-xs font-medium text-slate-400 mb-1.5">Plan initial</label>
+                  <select value={newBoutiqueForm.plan} onChange={e => setNewBoutiqueForm({...newBoutiqueForm, plan:e.target.value})}
+                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 font-semibold focus:border-teal-500 focus:outline-none cursor-pointer">
+                    <option value="Découverte">Découverte</option>
+                    <option value="Pro">Pro · 5 000</option>
+                    <option value="Premium">Premium · 15 000</option>
                   </select>
                 </div>
-
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Couleur du thème</label>
-                  <div className="flex gap-2 items-center mt-1">
-                    <input
-                      type="color"
-                      value={newBoutiqueForm.couleurMarque}
-                      onChange={(e) => setNewBoutiqueForm({ ...newBoutiqueForm, couleurMarque: e.target.value })}
-                      className="w-9 h-9 bg-transparent border-0 rounded cursor-pointer p-0"
-                    />
-                    <input
-                      type="text"
-                      value={newBoutiqueForm.couleurMarque}
-                      onChange={(e) => setNewBoutiqueForm({ ...newBoutiqueForm, couleurMarque: e.target.value })}
-                      className="w-24 px-2 py-1.5 bg-slate-950 border border-slate-850 rounded text-[10px] font-mono focus:outline-none"
-                    />
+                  <label className="block text-xs font-medium text-slate-400 mb-1.5">Couleur thème</label>
+                  <div className="flex gap-2 items-center">
+                    <input type="color" value={newBoutiqueForm.couleurMarque} onChange={e => setNewBoutiqueForm({...newBoutiqueForm, couleurMarque:e.target.value})}
+                      className="w-10 h-10 bg-transparent border-0 rounded cursor-pointer p-0" />
+                    <input type="text" value={newBoutiqueForm.couleurMarque} onChange={e => setNewBoutiqueForm({...newBoutiqueForm, couleurMarque:e.target.value})}
+                      className="flex-1 px-2 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs font-mono text-slate-200 focus:outline-none focus:border-teal-500" />
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-800 text-slate-400 hover:bg-slate-850 hover:text-white transition-colors cursor-pointer text-xs font-bold"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold transition-colors cursor-pointer text-xs"
-                >
-                  Créer la boutique
-                </button>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowCreateModal(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-400 hover:text-white font-medium text-sm transition-colors">Annuler</button>
+                <button type="submit" className="flex-1 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm transition-all">Créer</button>
               </div>
             </form>
           </div>
