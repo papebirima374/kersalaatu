@@ -208,11 +208,12 @@ function MerchantDashboard() {
   // Product modal
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProduct, setEditingProduct]     = useState(null);
-  const [productSaving, setProductSaving]       = useState(false);
-  const [productError, setProductError]         = useState('');
-  const [productPhotoFile, setProductPhotoFile] = useState(null);
-  const [productForm, setProductForm]           = useState({
-    name:'', price:'', stock:'', category:'Vêtements', photo:'', description:''
+  const [productSaving, setProductSaving]         = useState(false);
+  const [productError, setProductError]           = useState('');
+  const [productPhotoFile, setProductPhotoFile]   = useState(null);
+  const [photosUploading, setPhotosUploading]     = useState([]); // indices en cours d'upload
+  const [productForm, setProductForm]             = useState({
+    name:'', price:'', stock:'', category:'Vêtements', photo:'', photos:[], description:''
   });
 
   // Settings
@@ -318,16 +319,19 @@ function MerchantDashboard() {
     const isFree = !activeBoutique.abonnement?.plan || activeBoutique.abonnement.plan === 'Découverte';
     if (isFree && activeProducts.length >= 5) { setShowUpgradeModal(true); return; }
     setEditingProduct(null);
-    setProductForm({ name:'', price:'', stock:'', category:'Vêtements', photo:'', description:'', variantes:[] });
+    setProductForm({ name:'', price:'', stock:'', category:'Vêtements', photo:'', photos:[], description:'', variantes:[] });
     setProductPhotoFile(null);
+    setPhotosUploading([]);
     setProductError('');
     setShowProductModal(true);
   };
 
   const openEditProduct = (p) => {
     setEditingProduct(p);
-    setProductForm({ name:p.name, price:p.price, stock:p.stock, category:p.category, photo:p.photo, description:p.description, variantes: p.variantes || [] });
+    const existingPhotos = p.photos && p.photos.length > 0 ? p.photos : (p.photo ? [p.photo] : []);
+    setProductForm({ name:p.name, price:p.price, stock:p.stock, category:p.category, photo:p.photo, photos: existingPhotos, description:p.description, variantes: p.variantes || [] });
     setProductPhotoFile(null);
+    setPhotosUploading([]);
     setProductError('');
     setShowProductModal(true);
   };
@@ -366,17 +370,14 @@ function MerchantDashboard() {
     setProductSaving(true);
     setProductError('');
     try {
-      let photoUrl = productForm.photo;
+      const DEFAULT_IMG = 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600&auto=format&fit=crop&q=80';
 
-      // Si un fichier a été sélectionné, on l'upload d'abord sur Firebase Storage
-      if (productPhotoFile) {
-        photoUrl = await uploadProductPhoto(activeBoutique.id, productPhotoFile);
-      }
-
-      // Si photo en base64 (pas de Storage dispo), on met une image par défaut
-      if (photoUrl && photoUrl.startsWith('data:') && isConfigured) {
-        photoUrl = 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600&auto=format&fit=crop&q=80';
-      }
+      // Photos : nettoyer les base64 restants (si Storage pas dispo)
+      const cleanedPhotos = (productForm.photos || []).filter(u => u && u.trim()).map(u =>
+        (u.startsWith('data:') && isConfigured) ? DEFAULT_IMG : u
+      );
+      const finalPhotos = cleanedPhotos.length > 0 ? cleanedPhotos : [DEFAULT_IMG];
+      const mainPhoto = finalPhotos[0];
 
       // Variantes : ne garder que celles avec un nom, nettoyer les base64
       const variantes = (productForm.variantes || [])
@@ -398,7 +399,8 @@ function MerchantDashboard() {
         price: Number(productForm.price),
         stock: globalStock,
         category: productForm.category,
-        photo: photoUrl || 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600&auto=format&fit=crop&q=80',
+        photo: mainPhoto,
+        photos: finalPhotos,
         description: productForm.description,
         variantes
       };
@@ -424,15 +426,59 @@ function MerchantDashboard() {
     try { await deleteProduct(id); } catch(e) { alert('Erreur lors de la suppression.'); }
   };
 
-  const handlePhotoUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { alert('Image trop lourde (max 5 Mo).'); return; }
-    // Stocker le fichier pour upload ultérieur, aperçu local en base64
-    setProductPhotoFile(file);
-    const reader = new FileReader();
-    reader.onloadend = () => setProductForm(p => ({ ...p, photo: reader.result }));
-    reader.readAsDataURL(file);
+  // Upload multiple photos (max 5)
+  const handlePhotoUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const currentCount = (productForm.photos || []).length;
+    const canAdd = 5 - currentCount;
+    if (canAdd <= 0) { alert('Maximum 5 photos atteint.'); return; }
+
+    const toProcess = files.slice(0, canAdd);
+    const oversized = toProcess.filter(f => f.size > 5 * 1024 * 1024);
+    if (oversized.length) { alert('Certaines images dépassent 5 Mo et seront ignorées.'); }
+    const validFiles = toProcess.filter(f => f.size <= 5 * 1024 * 1024);
+    if (!validFiles.length) return;
+
+    // Indices des slots en cours d'upload
+    const startIdx = currentCount;
+    const uploadingIdxs = validFiles.map((_, i) => startIdx + i);
+    setPhotosUploading(uploadingIdxs);
+
+    try {
+      if (isConfigured) {
+        // Upload Firebase Storage en parallèle
+        const urls = await Promise.all(validFiles.map(f => uploadProductPhoto(activeBoutique.id, f)));
+        setProductForm(p => ({ ...p, photos: [...(p.photos || []), ...urls] }));
+      } else {
+        // Mode local : base64 preview
+        const urls = await Promise.all(validFiles.map(f => new Promise(res => {
+          const r = new FileReader();
+          r.onloadend = () => res(r.result);
+          r.readAsDataURL(f);
+        })));
+        setProductForm(p => ({ ...p, photos: [...(p.photos || []), ...urls] }));
+      }
+    } catch (err) {
+      alert('Erreur upload : ' + (err.message || ''));
+    } finally {
+      setPhotosUploading([]);
+      // Reset input pour permettre re-sélection des mêmes fichiers
+      e.target.value = '';
+    }
+  };
+
+  const removePhoto = (idx) => {
+    setProductForm(p => ({ ...p, photos: p.photos.filter((_, i) => i !== idx) }));
+  };
+
+  const movePhotoFirst = (idx) => {
+    setProductForm(p => {
+      const arr = [...p.photos];
+      const [item] = arr.splice(idx, 1);
+      return { ...p, photos: [item, ...arr] };
+    });
   };
 
   // ── Handlers settings ────────────────────────────────────────────────────
@@ -1422,17 +1468,68 @@ function MerchantDashboard() {
                 </select>
               </div>
 
-              {/* Photo */}
+              {/* Photos (max 5) */}
               <div className="space-y-3 p-4 bg-slate-800/50 rounded-xl border border-slate-700">
-                <label className="block text-xs font-medium text-slate-400">Photo du produit</label>
-                {productForm.photo && (
-                  <img src={productForm.photo} alt="Aperçu" className="w-full h-32 object-cover rounded-lg" />
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-medium text-slate-400">
+                    Photos du produit <span className="text-slate-500">({(productForm.photos||[]).length}/5)</span>
+                  </label>
+                  {(productForm.photos||[]).length > 0 && (
+                    <span className="text-[10px] text-slate-500">1ʳᵉ photo = photo principale</span>
+                  )}
+                </div>
+
+                {/* Grille d'aperçus */}
+                {(productForm.photos||[]).length > 0 && (
+                  <div className="grid grid-cols-5 gap-2">
+                    {(productForm.photos||[]).map((url, idx) => (
+                      <div key={idx} className="relative group">
+                        <img src={url} alt={`Photo ${idx+1}`}
+                          className={`w-full aspect-square object-cover rounded-lg border-2 transition-all ${idx===0 ? 'border-teal-500' : 'border-slate-700'}`} />
+                        {/* Badge "principale" */}
+                        {idx === 0 && (
+                          <span className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold bg-teal-500 text-slate-950 py-0.5 rounded-b-lg">
+                            Principale
+                          </span>
+                        )}
+                        {/* Actions au survol */}
+                        <div className="absolute inset-0 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                          {idx !== 0 && (
+                            <button type="button" onClick={() => movePhotoFirst(idx)}
+                              title="Mettre en principale"
+                              className="w-6 h-6 bg-teal-500 text-slate-950 rounded-full flex items-center justify-center text-[9px] font-bold">
+                              1
+                            </button>
+                          )}
+                          <button type="button" onClick={() => removePhoto(idx)}
+                            className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {/* Slots vides + uploading */}
+                    {photosUploading.map(i => (
+                      <div key={`up-${i}`} className="aspect-square rounded-lg bg-slate-700 border-2 border-slate-600 flex items-center justify-center">
+                        <span className="w-5 h-5 border-2 border-teal-400 border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    ))}
+                  </div>
                 )}
-                <input type="file" accept="image/*" onChange={handlePhotoUpload}
-                  className="text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-teal-500/10 file:text-teal-400 hover:file:bg-teal-500/20 file:cursor-pointer" />
-                <input value={productForm.photo} onChange={e => setProductForm(p=>({...p, photo:e.target.value}))}
-                  placeholder="Ou coller un lien URL d'image"
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-300 placeholder-slate-600 focus:border-teal-500 focus:outline-none" />
+
+                {/* Bouton ajouter */}
+                {(productForm.photos||[]).length < 5 && photosUploading.length === 0 && (
+                  <label className="cursor-pointer flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 border-dashed border-slate-600 hover:border-teal-500 text-slate-400 hover:text-teal-400 transition-all text-sm font-medium">
+                    <Plus className="w-4 h-4 stroke-[3]" />
+                    {(productForm.photos||[]).length === 0 ? 'Ajouter des photos (max 5)' : `Ajouter encore ${5-(productForm.photos||[]).length} photo(s)`}
+                    <input type="file" accept="image/*" multiple className="hidden"
+                      onChange={handlePhotoUpload} />
+                  </label>
+                )}
+
+                {(productForm.photos||[]).length >= 5 && (
+                  <p className="text-xs text-amber-400 text-center">Maximum de 5 photos atteint.</p>
+                )}
               </div>
 
               <div>

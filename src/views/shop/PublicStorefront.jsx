@@ -1202,7 +1202,13 @@ export default function PublicStorefront() {
       {/* Product Detail Modal */}
       {selectedProduct && (() => {
         const hasVariants = selectedProduct.variantes && selectedProduct.variantes.length > 0;
-        const displayPhoto = selectedVariant?.photo || selectedProduct.photo;
+        // Photos du produit (tableau ou photo unique)
+        const productPhotos = (selectedProduct.photos && selectedProduct.photos.length > 0)
+          ? selectedProduct.photos
+          : selectedProduct.photo ? [selectedProduct.photo] : [];
+        const [activePhotoIdx, setActivePhotoIdx] = React.useState(0);
+        // Si variante sélectionnée avec photo, on l'affiche en priorité
+        const displayPhoto = selectedVariant?.photo || productPhotos[activePhotoIdx] || selectedProduct.photo;
         const needsChoice = hasVariants && !selectedVariant;
         const closeModal = () => { setSelectedProduct(null); setSelectedVariant(null); };
         return (
@@ -1217,14 +1223,46 @@ export default function PublicStorefront() {
               <X className="w-4 h-4" />
             </button>
 
-            {/* Photo principale (change selon variante) */}
+            {/* Photo principale + navigation flèches */}
             <div className="w-full h-64 sm:h-80 bg-slate-100 relative">
               <img
                 src={displayPhoto}
                 alt={selectedProduct.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-all duration-300"
               />
+              {/* Flèches navigation (seulement si pas de variante affichée et plusieurs photos) */}
+              {!selectedVariant?.photo && productPhotos.length > 1 && (
+                <>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setActivePhotoIdx(i => (i - 1 + productPhotos.length) % productPhotos.length); }}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center text-white transition-all">
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setActivePhotoIdx(i => (i + 1) % productPhotos.length); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center text-white transition-all">
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                  {/* Indicateurs points */}
+                  <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1">
+                    {productPhotos.map((_, i) => (
+                      <button key={i} type="button" onClick={(e) => { e.stopPropagation(); setActivePhotoIdx(i); }}
+                        className={`w-1.5 h-1.5 rounded-full transition-all ${i === activePhotoIdx ? 'bg-white scale-125' : 'bg-white/50'}`} />
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
+
+            {/* Miniatures en bas de la photo */}
+            {!selectedVariant?.photo && productPhotos.length > 1 && (
+              <div className="flex gap-2 p-3 bg-slate-50 border-b border-slate-100 overflow-x-auto">
+                {productPhotos.map((url, i) => (
+                  <button key={i} type="button" onClick={() => setActivePhotoIdx(i)}
+                    className={`w-14 h-14 rounded-lg overflow-hidden shrink-0 border-2 transition-all ${i === activePhotoIdx ? 'border-[var(--tenant-color)]' : 'border-transparent opacity-60 hover:opacity-100'}`}>
+                    <img src={url} alt={`${i+1}`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Core Info */}
             <div className="p-6 space-y-4">
