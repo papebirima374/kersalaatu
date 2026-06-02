@@ -24,3 +24,9 @@ dist-ssr
 *.sw?
 
 .vercel
+
+# Claude Code / éditeur
+.claude/
+
+# Fichier source logo d'origine (remplacé par public/logo-jappandal.png)
+logoj.png

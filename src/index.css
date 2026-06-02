@@ -2,9 +2,9 @@
 
 :root {
   /* Dynamic brand theme colors */
-  --color-brand: var(--tenant-color, #0d9488);
-  --color-brand-hover: var(--tenant-color-hover, #14b8a6);
-  --color-brand-light: var(--tenant-color-light, rgba(13, 148, 136, 0.1));
+  --color-brand: var(--tenant-color, #2563eb);
+  --color-brand-hover: var(--tenant-color-hover, #3b82f6);
+  --color-brand-light: var(--tenant-color-light, rgba(37, 99, 235, 0.1));
 }
 
 html, body, #root {
@@ -14,6 +14,45 @@ html, body, #root {
   touch-action: manipulation;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+}
+
+/* PWA — décale les en-têtes sous la barre d'état du téléphone (encoche / status bar).
+   env(safe-area-inset-top) vaut 0 sur desktop, donc aucun impact hors mobile plein écran. */
+.pt-safe { padding-top: calc(env(safe-area-inset-top) + 1rem) !important; }
+.pt-safe-sm { padding-top: calc(env(safe-area-inset-top) + 0.75rem) !important; }
+
+/* ── Animations ─────────────────────────────────────────────── */
+
+/* Marquee : défilement horizontal du nom de marque (logo → bouton) */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.animate-marquee { animation: marquee 16s linear infinite; }
+
+/* Fondu des bords (pour le marquee de l'en-tête) */
+.mask-fade {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
+}
+
+/* Entrée en fondu + montée (hero) */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fadeInUp 0.7s ease-out both; }
+
+/* Flottement doux (éléments décoratifs) */
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+.animate-floaty { animation: floaty 4.5s ease-in-out infinite; }
+
+/* Respecte les préférences d'accessibilité */
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee, .animate-fade-up, .animate-floaty { animation: none !important; }
 }
 
 body {

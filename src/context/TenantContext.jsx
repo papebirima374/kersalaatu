@@ -124,6 +124,8 @@ export const TenantProvider = ({ children }) => {
 
   // true tant que Firebase n'a pas résolu l'état d'auth (évite la page blanche)
   const [authReady, setAuthReady] = useState(!isConfigured);
+  // true quand Firestore a répondu au moins une fois (évite "Boutique Introuvable" au refresh)
+  const [dataReady, setDataReady] = useState(!isConfigured);
 
   // Sync to local storage
   useEffect(() => {
@@ -192,7 +194,11 @@ export const TenantProvider = ({ children }) => {
         DEFAULT_BOUTIQUES.forEach(b => setDoc(doc(db, 'boutiques', b.id), b).catch(() => {}));
         setBoutiques(DEFAULT_BOUTIQUES);
       }
-    }, err => console.error('boutiques listener:', err)));
+      setDataReady(true);
+    }, err => {
+      console.error('boutiques listener:', err);
+      setDataReady(true);
+    }));
 
     // Products
     unsubs.push(onSnapshot(collection(db, 'products'), snap => {
@@ -243,8 +249,8 @@ export const TenantProvider = ({ children }) => {
       id: `boutique-${Date.now()}`,
       slug: newBoutique.name.toLowerCase().replace(/[^a-z0-9]/g, ''),
       devise: 'FCFA',
-      couleurMarque: '#0d9488',
-      couleurMarqueHover: '#0f766e',
+      couleurMarque: '#2563eb',
+      couleurMarqueHover: '#1d4ed8',
       zonesLivraison: [
         { id: 'z1', label: 'Dakar Centre', price: 1500, delai: 'Sous 24h' },
         { id: 'z2', label: 'Banlieue Dakar', price: 2500, delai: 'Sous 48h' },
@@ -288,8 +294,8 @@ export const TenantProvider = ({ children }) => {
       id: `boutique-${Date.now()}`,
       slug: newBoutique.name.toLowerCase().replace(/[^a-z0-9]/g, ''),
       devise: 'FCFA',
-      couleurMarque: '#0d9488',
-      couleurMarqueHover: '#0f766e',
+      couleurMarque: '#2563eb',
+      couleurMarqueHover: '#1d4ed8',
       zonesLivraison: [
         { id: 'z1', label: 'Dakar Centre', price: 1500, delai: 'Sous 24h' },
         { id: 'z2', label: 'Banlieue Dakar', price: 2500, delai: 'Sous 48h' },
@@ -564,7 +570,8 @@ export const TenantProvider = ({ children }) => {
   };
 
   const getBoutiqueBySlug = (slug) => {
-    return boutiques.find(b => b.slug.toLowerCase() === slug.toLowerCase()) || null;
+    if (!slug) return null;
+    return boutiques.find(b => b.slug && b.slug.toLowerCase() === slug.toLowerCase()) || null;
   };
 
   const getBoutiqueById = (id) => {
@@ -790,9 +797,9 @@ export const TenantProvider = ({ children }) => {
       ownerEmail: email,
       ownerUid: newUser.uid,
       logo: '🛍️',
-      description: `Boutique en ligne ${boutiqueName} propulsée par Kër Salaatu Tech.`,
-      couleurMarque: '#0d9488',
-      couleurMarqueHover: '#0f766e',
+      description: `Boutique en ligne ${boutiqueName} propulsée par Jappandal Tech.`,
+      couleurMarque: '#2563eb',
+      couleurMarqueHover: '#1d4ed8',
       devise: 'FCFA',
       zonesLivraison: [
         { id: 'z1', label: 'Dakar Centre', price: 1500 },
@@ -836,6 +843,7 @@ export const TenantProvider = ({ children }) => {
       setCurrentMerchantBoutiqueId,
       merchantUser,
       authReady,
+      dataReady,
       loginMerchant,
       signupMerchant,
       resetMerchantPassword,

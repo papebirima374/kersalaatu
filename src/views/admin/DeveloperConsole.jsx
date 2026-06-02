@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import { Link } from 'react-router-dom';
+import RefreshButton from '../../components/RefreshButton';
 import {
   Shield, Store, ClipboardList, Settings, LogOut, Check, AlertTriangle,
   DollarSign, TrendingUp, Users, Lock, Unlock, MessageSquare, Trash2,
@@ -11,7 +12,7 @@ const fmt = (n) => new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
 
 const logoOf = (entity) => {
   const l = entity?.logo;
-  if (l && (l.startsWith('/') || l.startsWith('http') || l.startsWith('data:image'))) {
+  if (l && typeof l === 'string' && (l.startsWith('/') || l.startsWith('http') || l.startsWith('data:image'))) {
     return <img src={l} alt="" className="w-full h-full object-contain" />;
   }
   return <span className="text-lg">{l || '🛍️'}</span>;
@@ -21,10 +22,29 @@ export default function DeveloperConsole() {
   const {
     boutiques, tickets, updateBoutique, deleteBoutique,
     resolveTicket, replyToTicket, addBoutiqueWithAuth,
-    upgradeRequests, approveUpgradeRequest, rejectUpgradeRequest
+    upgradeRequests, approveUpgradeRequest, rejectUpgradeRequest,
+    dataReady
   } = useTenant();
 
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('tab') || 'dashboard';
+    }
+    return 'dashboard';
+  });
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('tab') !== activeTab) {
+        params.set('tab', activeTab);
+        const newUrl = `${window.location.pathname}?${params.toString()}`;
+        window.history.replaceState(null, '', newUrl);
+      }
+    }
+  }, [activeTab]);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [replyTextMap, setReplyTextMap] = useState({});
 
@@ -43,7 +63,7 @@ export default function DeveloperConsole() {
   // Create boutique modal
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newBoutiqueForm, setNewBoutiqueForm] = useState({
-    name: '', whatsapp: '', description: '', ownerEmail: '', password: '', plan: 'Pro', couleurMarque: '#0d9488'
+    name: '', whatsapp: '', description: '', ownerEmail: '', password: '', plan: 'Pro', couleurMarque: '#2563eb'
   });
 
   const getStoredAdminPassword = () => {
@@ -60,12 +80,12 @@ export default function DeveloperConsole() {
     if (!cleanWhatsapp.startsWith('+')) {
       cleanWhatsapp = cleanWhatsapp.startsWith('221') ? '+' + cleanWhatsapp : '+221' + cleanWhatsapp;
     }
-    const ownerEmail = newBoutiqueForm.ownerEmail.trim() || 'vendeur@kersalaatu.sn';
+    const ownerEmail = newBoutiqueForm.ownerEmail.trim() || 'vendeur@jappandal.sn';
     const tempPassword = newBoutiqueForm.password || '123456';
     try {
       await addBoutiqueWithAuth({
         name: newBoutiqueForm.name,
-        description: newBoutiqueForm.description || `Boutique en ligne ${newBoutiqueForm.name} propulsée par Kër Salaatu Tech.`,
+        description: newBoutiqueForm.description || `Boutique en ligne ${newBoutiqueForm.name} propulsée par Jappandal Tech.`,
         whatsapp: cleanWhatsapp,
         ownerEmail,
         couleurMarque: newBoutiqueForm.couleurMarque,
@@ -76,7 +96,7 @@ export default function DeveloperConsole() {
         }
       }, tempPassword);
       setShowCreateModal(false);
-      setNewBoutiqueForm({ name:'', whatsapp:'', description:'', ownerEmail:'', password:'', plan:'Pro', couleurMarque:'#0d9488' });
+      setNewBoutiqueForm({ name:'', whatsapp:'', description:'', ownerEmail:'', password:'', plan:'Pro', couleurMarque:'#2563eb' });
       alert(`Boutique créée !\n\nIdentifiants du marchand :\nEmail : ${ownerEmail}\nMot de passe : ${tempPassword}`);
     } catch (error) {
       alert(`Erreur : ${error.message || error}`);
@@ -110,11 +130,11 @@ export default function DeveloperConsole() {
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
-            <div className="w-14 h-14 rounded-2xl bg-teal-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-teal-500/20">
+            <div className="w-14 h-14 rounded-2xl bg-blue-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">
               <Shield className="w-7 h-7 text-slate-950 stroke-[2.5]" />
             </div>
             <h1 className="text-xl font-bold text-white">Console Développeur</h1>
-            <p className="text-sm text-slate-500 mt-1">Administration centrale Kër Salaatu Tech</p>
+            <p className="text-sm text-slate-500 mt-1">Administration centrale Jappandal Tech</p>
           </div>
 
           <form onSubmit={(e) => {
@@ -125,10 +145,10 @@ export default function DeveloperConsole() {
             <input type="password" required placeholder="Code d'accès secret"
               value={adminPassword}
               onChange={(e) => { setAdminPassword(e.target.value); setAuthError(''); }}
-              className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-center text-sm font-mono tracking-widest text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none" />
+              className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-center text-sm font-mono tracking-widest text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none" />
             {authError && <p className="text-red-400 text-xs text-center font-medium">{authError}</p>}
             <button type="submit"
-              className="w-full py-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm transition-all">
+              className="w-full py-3 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-sm transition-all">
               Déverrouiller
             </button>
           </form>
@@ -137,6 +157,13 @@ export default function DeveloperConsole() {
             <Link to="/" className="text-sm text-slate-500 hover:text-slate-300 transition-colors">← Retour à l'accueil</Link>
           </div>
         </div>
+      </div>
+    );
+  }
+  if (!dataReady) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -165,12 +192,12 @@ export default function DeveloperConsole() {
     <aside className="w-60 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col h-[100dvh] sticky top-0">
       <div className="p-5 border-b border-slate-800">
         <Link to="/" className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-teal-500 flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center shrink-0">
             <Shield className="w-4 h-4 text-slate-950 stroke-[2.5]" />
           </div>
           <div>
-            <p className="font-bold text-white text-sm leading-tight">Kër Salaatu Tech</p>
-            <p className="text-[9px] uppercase tracking-widest text-teal-400 font-semibold">Console Admin</p>
+            <p className="font-bold text-white text-sm leading-tight">Jappandal Tech</p>
+            <p className="text-[9px] uppercase tracking-widest text-blue-400 font-semibold">Console Admin</p>
           </div>
         </Link>
       </div>
@@ -179,7 +206,7 @@ export default function DeveloperConsole() {
         {NAV.map(({ id, label, icon: Icon, badge }) => (
           <button key={id} onClick={() => { setActiveTab(id); setSidebarOpen(false); }}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-              activeTab === id ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20'
+              activeTab === id ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent'
             }`}>
             <Icon className="w-4 h-4 shrink-0" />
@@ -212,7 +239,7 @@ export default function DeveloperConsole() {
 
       <main className="flex-1 flex flex-col min-h-screen overflow-x-hidden">
         {/* Topbar */}
-        <div className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur border-b border-slate-800 px-6 py-3 flex items-center justify-between">
+        <div className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur border-b border-slate-800 px-6 py-3 pt-safe-sm flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={() => setSidebarOpen(true)} className="md:hidden p-2 text-slate-400">☰</button>
             <div>
@@ -220,12 +247,15 @@ export default function DeveloperConsole() {
               <p className="text-xs text-slate-500">Administration centrale · v1.0</p>
             </div>
           </div>
-          {activeTab === 'boutiques' && (
-            <button onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 text-sm font-bold transition-all">
-              <Plus className="w-4 h-4 stroke-[3]" /> Boutique
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            <RefreshButton variant="dark" />
+            {activeTab === 'boutiques' && (
+              <button onClick={() => setShowCreateModal(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 text-slate-950 text-sm font-bold transition-all">
+                <Plus className="w-4 h-4 stroke-[3]" /> Boutique
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
@@ -270,8 +300,8 @@ export default function DeveloperConsole() {
                 {/* Boutiques récentes */}
                 <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
                   <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-                    <h3 className="font-semibold text-white flex items-center gap-2"><Store className="w-4 h-4 text-teal-400" /> Boutiques récentes</h3>
-                    <button onClick={() => setActiveTab('boutiques')} className="text-xs text-teal-400 hover:text-teal-300">Gérer →</button>
+                    <h3 className="font-semibold text-white flex items-center gap-2"><Store className="w-4 h-4 text-blue-400" /> Boutiques récentes</h3>
+                    <button onClick={() => setActiveTab('boutiques')} className="text-xs text-blue-400 hover:text-blue-300">Gérer →</button>
                   </div>
                   <div className="divide-y divide-slate-800">
                     {boutiques.slice(0, 5).map(b => (
@@ -295,8 +325,8 @@ export default function DeveloperConsole() {
                 {/* Tickets en attente */}
                 <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
                   <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-                    <h3 className="font-semibold text-white flex items-center gap-2"><MessageSquare className="w-4 h-4 text-teal-400" /> Tickets en attente</h3>
-                    <button onClick={() => setActiveTab('tickets')} className="text-xs text-teal-400 hover:text-teal-300">Résoudre →</button>
+                    <h3 className="font-semibold text-white flex items-center gap-2"><MessageSquare className="w-4 h-4 text-blue-400" /> Tickets en attente</h3>
+                    <button onClick={() => setActiveTab('tickets')} className="text-xs text-blue-400 hover:text-blue-300">Résoudre →</button>
                   </div>
                   <div className="divide-y divide-slate-800">
                     {tickets.filter(t => t.statut === 'En attente').slice(0, 4).map(t => {
@@ -308,7 +338,7 @@ export default function DeveloperConsole() {
                             <p className="text-[10px] text-slate-500 truncate">{shop.name}</p>
                           </div>
                           <button onClick={() => { resolveTicket(t.id); }}
-                            className="px-2.5 py-1 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20 text-[10px] font-bold hover:bg-teal-500/20 transition-all shrink-0">
+                            className="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px] font-bold hover:bg-blue-500/20 transition-all shrink-0">
                             Résolu
                           </button>
                         </div>
@@ -332,7 +362,7 @@ export default function DeveloperConsole() {
                       <div className="w-11 h-11 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">{logoOf(b)}</div>
                       <div className="min-w-0">
                         <p className="font-bold text-slate-200 truncate">{b.name}</p>
-                        <Link to={`/shop/${b.slug}`} target="_blank" className="text-xs text-teal-400 hover:underline font-mono flex items-center gap-1">
+                        <Link to={`/shop/${b.slug}`} target="_blank" className="text-xs text-blue-400 hover:underline font-mono flex items-center gap-1">
                           /{b.slug} <ExternalLink className="w-3 h-3" />
                         </Link>
                         <p className="text-[10px] text-slate-500 mt-0.5">{b.whatsapp}</p>
@@ -341,7 +371,7 @@ export default function DeveloperConsole() {
 
                     {/* Plan */}
                     <select value={b.abonnement?.plan || 'Découverte'} onChange={e => handlePlanChange(b.id, e.target.value)}
-                      className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 font-semibold focus:outline-none focus:border-teal-500 cursor-pointer">
+                      className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 font-semibold focus:outline-none focus:border-blue-500 cursor-pointer">
                       <option value="Découverte">Découverte</option>
                       <option value="Pro">Pro · 5 000</option>
                       <option value="Premium">Premium · 15 000</option>
@@ -401,7 +431,7 @@ export default function DeveloperConsole() {
                       </div>
                       {t.statut !== 'Résolu' && (
                         <button onClick={() => resolveTicket(t.id)}
-                          className="px-3 py-1.5 rounded-lg bg-teal-500 text-slate-950 hover:bg-teal-400 text-xs font-bold flex items-center gap-1.5 transition-all shrink-0">
+                          className="px-3 py-1.5 rounded-lg bg-blue-500 text-slate-950 hover:bg-blue-400 text-xs font-bold flex items-center gap-1.5 transition-all shrink-0">
                           <Check className="w-3.5 h-3.5 stroke-[3]" /> Résoudre
                         </button>
                       )}
@@ -410,8 +440,8 @@ export default function DeveloperConsole() {
                     <p className="text-sm text-slate-400 bg-slate-800/50 rounded-lg p-3">{t.message}</p>
 
                     {t.reponse && (
-                      <div className="bg-teal-500/5 border border-teal-500/10 rounded-lg p-3">
-                        <p className="text-[10px] font-bold text-teal-400 mb-1">RÉPONSE TECHNIQUE</p>
+                      <div className="bg-blue-500/5 border border-blue-500/10 rounded-lg p-3">
+                        <p className="text-[10px] font-bold text-blue-400 mb-1">RÉPONSE TECHNIQUE</p>
                         <p className="text-xs text-slate-300 italic">"{t.reponse}"</p>
                       </div>
                     )}
@@ -421,12 +451,12 @@ export default function DeveloperConsole() {
                         <textarea value={replyTextMap[t.id] || ''}
                           onChange={e => setReplyTextMap({ ...replyTextMap, [t.id]: e.target.value })}
                           placeholder="Répondre au marchand..."
-                          className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-teal-500 resize-y min-h-[40px]" />
+                          className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-blue-500 resize-y min-h-[40px]" />
                         <button onClick={() => {
                           if (!replyTextMap[t.id]?.trim()) return;
                           replyToTicket(t.id, replyTextMap[t.id]);
                           setReplyTextMap({ ...replyTextMap, [t.id]: '' });
-                        }} className="px-4 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs transition-all shrink-0">
+                        }} className="px-4 rounded-lg bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-xs transition-all shrink-0">
                           Envoyer
                         </button>
                       </div>
@@ -460,7 +490,7 @@ export default function DeveloperConsole() {
                         </div>
                       </div>
 
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${req.planName === 'Premium' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 'bg-teal-500/10 text-teal-400 border-teal-500/20'}`}>
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${req.planName === 'Premium' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
                         {req.planName}
                       </span>
 
@@ -498,13 +528,13 @@ export default function DeveloperConsole() {
             <div className="max-w-md">
               <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-5">
                 <div>
-                  <h3 className="font-semibold text-white flex items-center gap-2"><Lock className="w-4 h-4 text-teal-400" /> Sécurité d'accès</h3>
+                  <h3 className="font-semibold text-white flex items-center gap-2"><Lock className="w-4 h-4 text-blue-400" /> Sécurité d'accès</h3>
                   <p className="text-xs text-slate-500 mt-0.5">Modifiez le code d'accès à cette console.</p>
                 </div>
 
                 <form onSubmit={handleChangePassword} className="space-y-4">
                   {passError && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">{passError}</div>}
-                  {passSuccess && <div className="p-3 bg-teal-500/10 border border-teal-500/20 rounded-xl text-teal-400 text-sm">{passSuccess}</div>}
+                  {passSuccess && <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 text-sm">{passSuccess}</div>}
 
                   {[
                     { label:'Mot de passe actuel', val: currentPass, set: setCurrentPass, ph:'••••••••' },
@@ -514,11 +544,11 @@ export default function DeveloperConsole() {
                     <div key={label}>
                       <label className="block text-xs font-medium text-slate-400 mb-1.5">{label}</label>
                       <input type="password" required value={val} onChange={e => set(e.target.value)} placeholder={ph}
-                        className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 font-mono focus:border-teal-500 focus:outline-none" />
+                        className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 font-mono focus:border-blue-500 focus:outline-none" />
                     </div>
                   ))}
 
-                  <button type="submit" className="w-full py-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm transition-all">
+                  <button type="submit" className="w-full py-3 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-sm transition-all">
                     Mettre à jour
                   </button>
                 </form>
@@ -543,39 +573,39 @@ export default function DeveloperConsole() {
                 <label className="block text-xs font-medium text-slate-400 mb-1.5">Nom de la boutique *</label>
                 <input required value={newBoutiqueForm.name} onChange={e => setNewBoutiqueForm({...newBoutiqueForm, name:e.target.value})}
                   placeholder="Ex: Sunu Boutik"
-                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none" />
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1.5">WhatsApp *</label>
                 <input required value={newBoutiqueForm.whatsapp} onChange={e => setNewBoutiqueForm({...newBoutiqueForm, whatsapp:e.target.value})}
                   placeholder="780178444"
-                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 font-mono focus:border-teal-500 focus:outline-none" />
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 font-mono focus:border-blue-500 focus:outline-none" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1.5">Email propriétaire</label>
                   <input type="email" value={newBoutiqueForm.ownerEmail} onChange={e => setNewBoutiqueForm({...newBoutiqueForm, ownerEmail:e.target.value})}
                     placeholder="vendeur@..."
-                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none" />
+                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1.5">Mot de passe</label>
                   <input type="password" value={newBoutiqueForm.password} onChange={e => setNewBoutiqueForm({...newBoutiqueForm, password:e.target.value})}
                     placeholder="Déf: 123456"
-                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none" />
+                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1.5">Description</label>
                 <textarea value={newBoutiqueForm.description} onChange={e => setNewBoutiqueForm({...newBoutiqueForm, description:e.target.value})} rows={2}
                   placeholder="Slogan de la boutique..."
-                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none resize-none" />
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none resize-none" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1.5">Plan initial</label>
                   <select value={newBoutiqueForm.plan} onChange={e => setNewBoutiqueForm({...newBoutiqueForm, plan:e.target.value})}
-                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 font-semibold focus:border-teal-500 focus:outline-none cursor-pointer">
+                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 font-semibold focus:border-blue-500 focus:outline-none cursor-pointer">
                     <option value="Découverte">Découverte</option>
                     <option value="Pro">Pro · 5 000</option>
                     <option value="Premium">Premium · 15 000</option>
@@ -587,7 +617,7 @@ export default function DeveloperConsole() {
                     <input type="color" value={newBoutiqueForm.couleurMarque} onChange={e => setNewBoutiqueForm({...newBoutiqueForm, couleurMarque:e.target.value})}
                       className="w-10 h-10 bg-transparent border-0 rounded cursor-pointer p-0" />
                     <input type="text" value={newBoutiqueForm.couleurMarque} onChange={e => setNewBoutiqueForm({...newBoutiqueForm, couleurMarque:e.target.value})}
-                      className="flex-1 px-2 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs font-mono text-slate-200 focus:outline-none focus:border-teal-500" />
+                      className="flex-1 px-2 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs font-mono text-slate-200 focus:outline-none focus:border-blue-500" />
                   </div>
                 </div>
               </div>
@@ -595,7 +625,7 @@ export default function DeveloperConsole() {
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowCreateModal(false)}
                   className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-400 hover:text-white font-medium text-sm transition-colors">Annuler</button>
-                <button type="submit" className="flex-1 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm transition-all">Créer</button>
+                <button type="submit" className="flex-1 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-sm transition-all">Créer</button>
               </div>
             </form>
           </div>

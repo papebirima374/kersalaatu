@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import { Link } from 'react-router-dom';
 import { isConfigured } from '../../firebase/config';
+import RefreshButton from '../../components/RefreshButton';
 import {
   LayoutDashboard, ShoppingBag, ClipboardList, Settings, LogOut,
   Plus, Trash2, Edit3, Check, Clock, AlertTriangle, DollarSign,
@@ -17,13 +18,13 @@ const STATUT_COLORS = {
   Reçue:   'bg-blue-500/10 text-blue-400 border-blue-500/20',
   Préparée:'bg-amber-500/10 text-amber-400 border-amber-500/20',
   Livrée:  'bg-purple-500/10 text-purple-400 border-purple-500/20',
-  Payée:   'bg-teal-500/10 text-teal-400 border-teal-500/20',
+  Payée:   'bg-blue-500/10 text-blue-400 border-blue-500/20',
   Annulée: 'bg-red-500/10 text-red-400 border-red-500/20',
 };
 
 // ─── Auth Shell ──────────────────────────────────────────────────────────────
 export default function MerchantConsole() {
-  const { merchantUser, authReady, loginMerchant, signupMerchant, resetMerchantPassword } = useTenant();
+  const { merchantUser, authReady, dataReady, loginMerchant, signupMerchant, resetMerchantPassword } = useTenant();
 
   const [tab, setTab]       = useState(() => {
     if (typeof window !== 'undefined' && window.location.search.includes('creer')) return 'register';
@@ -61,9 +62,9 @@ export default function MerchantConsole() {
     }
   };
 
-  if (!authReady) return (
+  if (!authReady || !dataReady) return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -72,12 +73,12 @@ export default function MerchantConsole() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src="/logo-kersalaatu.png" alt="Kër Salaatu" className="h-12 mx-auto mb-4 object-contain" />
+          <img src="/logo-jappandal.png" alt="Jappandal" className="h-12 mx-auto mb-4 object-contain" />
           <h1 className="text-xl font-bold text-white">Espace Commerçant</h1>
           <p className="text-sm text-slate-500 mt-1">Gérez votre boutique en ligne</p>
           {isConfigured && (
-            <span className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-xs font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-teal-400" />Firebase actif
+            <span className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />Firebase actif
             </span>
           )}
         </div>
@@ -107,13 +108,13 @@ export default function MerchantConsole() {
                 <label className="block text-xs font-medium text-slate-400 mb-1.5">Nom de la boutique</label>
                 <input value={name} onChange={e => setName(e.target.value)} required
                   placeholder="Ex: Sunu Boutik" type="text"
-                  className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none transition-colors" />
+                  className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none transition-colors" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1.5">WhatsApp</label>
                 <input value={wa} onChange={e => setWa(e.target.value)} required
                   placeholder="Ex: 780178444" type="text"
-                  className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none transition-colors font-mono" />
+                  className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none transition-colors font-mono" />
               </div>
             </>
           )}
@@ -122,18 +123,18 @@ export default function MerchantConsole() {
             <label className="block text-xs font-medium text-slate-400 mb-1.5">Adresse email</label>
             <input value={email} onChange={e => setEmail(e.target.value)} required
               type="email" placeholder="nom@exemple.com"
-              className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none transition-colors" />
+              className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none transition-colors" />
           </div>
 
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1.5">Mot de passe</label>
             <input value={pw} onChange={e => setPw(e.target.value)} required
               type="password" placeholder="••••••••"
-              className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none transition-colors" />
+              className="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none transition-colors" />
           </div>
 
           <button type="submit" disabled={loading}
-            className="w-full py-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+            className="w-full py-3 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2">
             {loading ? <><span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />Chargement...</>
               : tab === 'login' ? 'Se connecter' : 'Créer ma boutique'}
           </button>
@@ -144,7 +145,7 @@ export default function MerchantConsole() {
             if (!email.trim()) { alert('Saisissez votre email ci-dessus.'); return; }
             try { await resetMerchantPassword(email); alert('Email de réinitialisation envoyé !'); }
             catch(e) { alert(e.message); }
-          }} className="w-full mt-4 text-sm text-teal-500 hover:text-teal-300 transition-colors text-center">
+          }} className="w-full mt-4 text-sm text-blue-500 hover:text-blue-300 transition-colors text-center">
             Mot de passe oublié ?
           </button>
         )}
@@ -174,7 +175,25 @@ function MerchantDashboard() {
     upgradeRequests, createUpgradeRequest, createOrder
   } = useTenant();
 
-  const [activeTab, setActiveTab]   = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('tab') || 'dashboard';
+    }
+    return 'dashboard';
+  });
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('tab') !== activeTab) {
+        params.set('tab', activeTab);
+        const newUrl = `${window.location.pathname}?${params.toString()}`;
+        window.history.replaceState(null, '', newUrl);
+      }
+    }
+  }, [activeTab]);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // POS
@@ -221,7 +240,7 @@ function MerchantDashboard() {
     name: activeBoutique?.name || '',
     description: activeBoutique?.description || '',
     whatsapp: activeBoutique?.whatsapp || '',
-    couleurMarque: activeBoutique?.couleurMarque || '#0d9488',
+    couleurMarque: activeBoutique?.couleurMarque || '#2563eb',
     logo: activeBoutique?.logo || '🛍️',
     adresse: activeBoutique?.adresse || '',
     emailContact: activeBoutique?.emailContact || '',
@@ -290,7 +309,7 @@ function MerchantDashboard() {
         name: activeBoutique.name || '',
         description: activeBoutique.description || '',
         whatsapp: activeBoutique.whatsapp || '',
-        couleurMarque: activeBoutique.couleurMarque || '#0d9488',
+        couleurMarque: activeBoutique.couleurMarque || '#2563eb',
         logo: activeBoutique.logo || '🛍️',
         adresse: activeBoutique.adresse || '',
         emailContact: activeBoutique.emailContact || '',
@@ -499,6 +518,8 @@ function MerchantDashboard() {
     updateBoutique(activeBoutique.id, settingsForm);
     setSettingsSaved(true);
     setTimeout(() => setSettingsSaved(false), 3000);
+    alert('Modifications enregistrées avec succès !');
+    setActiveTab('dashboard');
   };
 
   // ── Handlers tickets ─────────────────────────────────────────────────────
@@ -602,7 +623,7 @@ function MerchantDashboard() {
       // ── Logo : data URL (local) ou URL distante via canvas ──
       const logo = activeBoutique.logo;
       let logoData = null;
-      if (logo) {
+      if (logo && typeof logo === 'string') {
         if (logo.startsWith('data:image')) {
           logoData = logo;
         } else if (logo.startsWith('http')) {
@@ -690,13 +711,13 @@ function MerchantDashboard() {
       pdf.line(pageW - m - 60, y, pageW - m, y); y += 6;
       pdf.setFontSize(13); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0,0,0);
       pdf.text('TOTAL', pageW - m - 55, y);
-      pdf.setTextColor(13,148,136);
+      pdf.setTextColor(37,99,235);
       pdf.text(fmtNum(activePrintInvoice.total), pageW - m - 3, y, { align: 'right' });
       y += 18;
 
       // ── Footer ──
       pdf.setFontSize(8); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(160,160,160);
-      pdf.text(`Merci pour votre achat chez ${activeBoutique.name} · Kër Salaatu Tech`, pageW / 2, y, { align: 'center' });
+      pdf.text(`Merci pour votre achat chez ${activeBoutique.name} · Jappandal Tech`, pageW / 2, y, { align: 'center' });
 
       const filename = `Facture_${activePrintInvoice.id}_${activeBoutique.name.replace(/\s+/g,'_')}.pdf`;
       pdf.save(filename);
@@ -735,7 +756,7 @@ function MerchantDashboard() {
       {/* Logo */}
       <div className="p-5 border-b border-slate-800">
         <Link to="/">
-          <img src="/logo-kersalaatu.png" alt="Kër Salaatu" className="h-8 object-contain" />
+          <img src="/logo-jappandal.png" alt="Jappandal" className="h-8 object-contain" />
         </Link>
       </div>
 
@@ -743,7 +764,7 @@ function MerchantDashboard() {
       {myBoutiques.length > 1 && (
         <div className="p-3 border-b border-slate-800">
           <select value={currentMerchantBoutiqueId} onChange={e => setCurrentMerchantBoutiqueId(e.target.value)}
-            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-teal-500 cursor-pointer">
+            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer">
             {myBoutiques.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
         </div>
@@ -755,13 +776,13 @@ function MerchantDashboard() {
           <button key={id} onClick={() => { setActiveTab(id); setSidebarOpen(false); }}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
               activeTab === id
-                ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20'
+                ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent'
             }`}>
             <Icon className="w-4 h-4 shrink-0" />
             <span className="flex-1 text-left">{label}</span>
             {badge ? (
-              <span className="bg-teal-500 text-slate-950 text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+              <span className="bg-blue-500 text-slate-950 text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                 {badge}
               </span>
             ) : null}
@@ -772,7 +793,7 @@ function MerchantDashboard() {
       {/* Vitrine link */}
       <div className="px-3 pb-2">
         <Link to={`/shop/${activeBoutique.slug}`} target="_blank"
-          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-500 hover:text-teal-400 transition-colors">
+          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-500 hover:text-blue-400 transition-colors">
           <ExternalLink className="w-3.5 h-3.5" /> Voir la vitrine
         </Link>
       </div>
@@ -780,7 +801,7 @@ function MerchantDashboard() {
       {/* User + logout */}
       <div className="p-3 border-t border-slate-800 space-y-2" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <div className="flex items-center gap-2.5 px-3 py-2 bg-slate-800 rounded-lg">
-          <div className="w-7 h-7 rounded-lg bg-teal-500/20 flex items-center justify-center text-teal-400 text-xs font-bold shrink-0">
+          <div className="w-7 h-7 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 text-xs font-bold shrink-0">
             {merchantUser?.email?.[0]?.toUpperCase()}
           </div>
           <div className="min-w-0">
@@ -816,7 +837,7 @@ function MerchantDashboard() {
       {/* Main */}
       <main className="flex-1 flex flex-col min-h-screen overflow-x-hidden">
         {/* Top bar */}
-        <div className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur border-b border-slate-800 px-6 py-3 flex items-center justify-between">
+        <div className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur border-b border-slate-800 px-6 py-3 pt-safe-sm flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={() => setSidebarOpen(true)} className="md:hidden p-2 text-slate-400 hover:text-white">
               ☰
@@ -827,9 +848,10 @@ function MerchantDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <RefreshButton variant="dark" />
             {activeTab === 'products' && (
               <button onClick={openAddProduct}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 text-sm font-bold transition-all">
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 text-slate-950 text-sm font-bold transition-all">
                 <Plus className="w-4 h-4 stroke-[3]" /> Ajouter
               </button>
             )}
@@ -873,9 +895,9 @@ function MerchantDashboard() {
               <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
                 <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
                   <h3 className="font-semibold text-white flex items-center gap-2">
-                    <ClipboardList className="w-4 h-4 text-teal-400" /> Commandes récentes
+                    <ClipboardList className="w-4 h-4 text-blue-400" /> Commandes récentes
                   </h3>
-                  <button onClick={() => setActiveTab('orders')} className="text-xs text-teal-400 hover:text-teal-300">Voir tout →</button>
+                  <button onClick={() => setActiveTab('orders')} className="text-xs text-blue-400 hover:text-blue-300">Voir tout →</button>
                 </div>
                 {activeOrders.length === 0 ? (
                   <div className="py-12 text-center text-slate-500 text-sm">Aucune commande reçue pour le moment.</div>
@@ -908,7 +930,7 @@ function MerchantDashboard() {
                   <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
                     <div className="px-5 py-4 border-b border-slate-800">
                       <h3 className="font-semibold text-white flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-teal-400" /> Top produits vendus
+                        <TrendingUp className="w-4 h-4 text-blue-400" /> Top produits vendus
                       </h3>
                     </div>
                     <div className="divide-y divide-slate-800">
@@ -916,7 +938,7 @@ function MerchantDashboard() {
                         <div key={name} className="px-5 py-3 flex items-center gap-3">
                           <span className="w-6 h-6 rounded-full bg-slate-800 text-slate-400 text-xs font-bold flex items-center justify-center">#{i+1}</span>
                           <span className="flex-1 text-sm text-slate-200">{name}</span>
-                          <span className="text-sm font-semibold text-teal-400">{qty} vendus</span>
+                          <span className="text-sm font-semibold text-blue-400">{qty} vendus</span>
                         </div>
                       ))}
                     </div>
@@ -944,7 +966,7 @@ function MerchantDashboard() {
                   <p className="font-semibold text-slate-400">Aucun produit dans votre catalogue</p>
                   <p className="text-sm text-slate-600 mt-1 mb-5">Ajoutez votre premier produit pour qu'il apparaisse sur votre vitrine.</p>
                   <button onClick={openAddProduct}
-                    className="px-6 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm transition-all">
+                    className="px-6 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-sm transition-all">
                     <Plus className="inline w-4 h-4 mr-1.5" />Ajouter un produit
                   </button>
                 </div>
@@ -971,7 +993,7 @@ function MerchantDashboard() {
                         )}
                       </div>
                       <div className="p-2.5 flex flex-col flex-1">
-                        <span className="text-[9px] font-semibold text-teal-400 uppercase tracking-wider">{p.category}</span>
+                        <span className="text-[9px] font-semibold text-blue-400 uppercase tracking-wider">{p.category}</span>
                         <h4 className="font-semibold text-slate-200 text-xs mt-0.5 line-clamp-2 leading-tight flex-1">{p.name}</h4>
                         <div className="flex items-center justify-between mt-2">
                           <span className="font-bold text-white text-sm">{fmt(p.price)}</span>
@@ -1045,7 +1067,7 @@ function MerchantDashboard() {
                       <div className="bg-slate-800/50 rounded-lg p-3 mb-3">
                         {o.items.map((it, i) => (
                           <div key={i} className="flex justify-between gap-2 text-sm py-1">
-                            <span className="text-slate-300 min-w-0 truncate"><span className="text-teal-400 font-bold">{it.quantity}×</span> {it.name}</span>
+                            <span className="text-slate-300 min-w-0 truncate"><span className="text-blue-400 font-bold">{it.quantity}×</span> {it.name}</span>
                             <span className="text-slate-400 font-mono shrink-0">{fmt(it.price * it.quantity)}</span>
                           </div>
                         ))}
@@ -1125,23 +1147,23 @@ function MerchantDashboard() {
                   {/* Catalogue */}
                   <div className="lg:col-span-3 bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
                     <h3 className="font-semibold text-slate-200 text-sm flex items-center gap-2">
-                      <ShoppingBag className="w-4 h-4 text-teal-400" /> Catalogue
+                      <ShoppingBag className="w-4 h-4 text-blue-400" /> Catalogue
                     </h3>
                     <div className="relative">
                       <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
                       <input value={posSearch} onChange={e => setPosSearch(e.target.value)} placeholder="Rechercher un produit..."
-                        className="w-full pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-teal-500" />
+                        className="w-full pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500" />
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-80 overflow-y-auto">
                       {posProducts.map(p => {
                         const inCart = posCart.find(i => i.id === p.id);
                         return (
                           <button key={p.id} onClick={() => addToPos(p)} disabled={inCart?.quantity >= p.stock}
-                            className={`text-left rounded-xl border p-3 transition-all cursor-pointer ${inCart ? 'border-teal-500/50 bg-teal-500/5' : 'border-slate-700 bg-slate-800 hover:border-slate-600'} ${inCart?.quantity >= p.stock ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                            className={`text-left rounded-xl border p-3 transition-all cursor-pointer ${inCart ? 'border-blue-500/50 bg-blue-500/5' : 'border-slate-700 bg-slate-800 hover:border-slate-600'} ${inCart?.quantity >= p.stock ? 'opacity-40 cursor-not-allowed' : ''}`}>
                             <img src={p.photo} alt={p.name} className="w-full h-20 object-cover rounded-lg mb-2 bg-slate-700" />
                             <p className="text-xs font-semibold text-slate-200 line-clamp-1">{p.name}</p>
-                            <p className="text-xs font-bold text-teal-400 mt-1">{fmt(p.price)}</p>
-                            {inCart && <span className="text-[10px] text-teal-300">{inCart.quantity} au panier</span>}
+                            <p className="text-xs font-bold text-blue-400 mt-1">{fmt(p.price)}</p>
+                            {inCart && <span className="text-[10px] text-blue-300">{inCart.quantity} au panier</span>}
                           </button>
                         );
                       })}
@@ -1153,7 +1175,7 @@ function MerchantDashboard() {
                   <div className="lg:col-span-2 space-y-3">
                     <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
                       <h3 className="font-semibold text-slate-200 text-sm flex items-center gap-2 mb-3">
-                        <ShoppingCart className="w-4 h-4 text-teal-400" /> Panier
+                        <ShoppingCart className="w-4 h-4 text-blue-400" /> Panier
                         {posCart.length > 0 && <button onClick={() => setPosCart([])} className="ml-auto text-xs text-slate-500 hover:text-red-400">Vider</button>}
                       </h3>
                       {posCart.length === 0 ? <p className="text-xs text-slate-600 text-center py-4">Aucun article sélectionné</p> : (
@@ -1166,7 +1188,7 @@ function MerchantDashboard() {
                                 <span className="text-xs font-bold text-white w-4 text-center">{it.quantity}</span>
                                 <button onClick={() => updatePosQty(it.id,1)} disabled={it.quantity >= it.stock} className="w-5 h-5 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center disabled:opacity-40"><Plus className="w-3 h-3" /></button>
                               </div>
-                              <span className="text-xs font-bold text-teal-400 w-20 text-right">{fmt(it.price * it.quantity)}</span>
+                              <span className="text-xs font-bold text-blue-400 w-20 text-right">{fmt(it.price * it.quantity)}</span>
                             </div>
                           ))}
                         </div>
@@ -1174,7 +1196,7 @@ function MerchantDashboard() {
                       {posCart.length > 0 && (
                         <div className="flex justify-between border-t border-slate-800 pt-3 mt-3 font-bold">
                           <span className="text-slate-400 text-sm">Total</span>
-                          <span className="text-teal-400">{fmt(posSubtotal)}</span>
+                          <span className="text-blue-400">{fmt(posSubtotal)}</span>
                         </div>
                       )}
                     </div>
@@ -1186,7 +1208,7 @@ function MerchantDashboard() {
                         <div key={key} className="relative">
                           <Icon className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
                           <input value={posClient[key]} onChange={e => setPosClient(p => ({...p,[key]:e.target.value}))} placeholder={placeholder}
-                            className="w-full pl-9 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-teal-500" />
+                            className="w-full pl-9 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500" />
                         </div>
                       ))}
                     </div>
@@ -1197,7 +1219,7 @@ function MerchantDashboard() {
                       <div className="grid grid-cols-2 gap-2">
                         {['Espèces','Wave','Orange Money','Crédit'].map(m => (
                           <button key={m} onClick={() => setPosPayMethod(m)}
-                            className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all ${posPayMethod===m ? 'border-teal-500 bg-teal-500/10 text-teal-300' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'}`}>
+                            className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all ${posPayMethod===m ? 'border-blue-500 bg-blue-500/10 text-blue-300' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'}`}>
                             {m}
                           </button>
                         ))}
@@ -1213,7 +1235,7 @@ function MerchantDashboard() {
                     </div>
 
                     <button onClick={handlePosSell} disabled={!posCart.length || !posClient.nom || !posClient.telephone}
-                      className="w-full py-3.5 rounded-xl bg-teal-500 hover:bg-teal-400 disabled:bg-slate-800 disabled:text-slate-600 text-slate-950 font-bold text-sm transition-all flex items-center justify-center gap-2">
+                      className="w-full py-3.5 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:bg-slate-800 disabled:text-slate-600 text-slate-950 font-bold text-sm transition-all flex items-center justify-center gap-2">
                       <Receipt className="w-4 h-4" />
                       Enregistrer la vente{posCart.length > 0 ? ` — ${fmt(posSubtotal)}` : ''}
                     </button>
@@ -1227,7 +1249,7 @@ function MerchantDashboard() {
           {activeTab === 'settings' && (
             <div className="max-w-2xl space-y-6">
               {settingsSaved && (
-                <div className="p-3 bg-teal-500/10 border border-teal-500/20 rounded-xl text-teal-400 text-sm flex items-center gap-2">
+                <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 text-sm flex items-center gap-2">
                   <Check className="w-4 h-4" /> Modifications enregistrées avec succès.
                 </div>
               )}
@@ -1238,16 +1260,16 @@ function MerchantDashboard() {
                   <h3 className="font-semibold text-white text-sm">Logo de la boutique</h3>
                   <div className="flex items-center gap-4">
                     <div className="w-16 h-16 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-3xl overflow-hidden shrink-0">
-                      {settingsForm.logo?.startsWith('http') || settingsForm.logo?.startsWith('data:') || settingsForm.logo?.startsWith('/')
+                      {typeof settingsForm.logo === 'string' && (settingsForm.logo.startsWith('http') || settingsForm.logo.startsWith('data:') || settingsForm.logo.startsWith('/'))
                         ? <img src={settingsForm.logo} alt="Logo" className="w-full h-full object-contain" />
                         : settingsForm.logo}
                     </div>
                     <div className="flex-1 space-y-2">
                       <input type="file" accept="image/*" disabled={logoUploading} onChange={handleLogoUpload}
-                        className="text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-teal-500/10 file:text-teal-400 hover:file:bg-teal-500/20 file:cursor-pointer" />
-                      {logoUploading && <span className="text-xs text-teal-400 animate-pulse">Upload en cours…</span>}
+                        className="text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-500/10 file:text-blue-400 hover:file:bg-blue-500/20 file:cursor-pointer" />
+                      {logoUploading && <span className="text-xs text-blue-400 animate-pulse">Upload en cours…</span>}
                       <input type="text" value={settingsForm.logo} onChange={e => setSettingsForm(s => ({...s, logo:e.target.value}))}
-                        placeholder="Emoji ou URL image" className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-teal-500" />
+                        placeholder="Emoji ou URL image" className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500" />
                     </div>
                   </div>
                 </div>
@@ -1267,27 +1289,27 @@ function MerchantDashboard() {
                       <div key={key}>
                         <label className="block text-xs font-medium text-slate-500 mb-1.5">{label}</label>
                         <input type={type} value={settingsForm[key] || ''} onChange={e => setSettingsForm(s => ({...s,[key]:e.target.value}))}
-                          className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-teal-500 transition-colors" />
+                          className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors" />
                       </div>
                     ))}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-500 mb-1.5">Description / Slogan</label>
                     <textarea value={settingsForm.description || ''} onChange={e => setSettingsForm(s => ({...s, description:e.target.value}))} rows={2}
-                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-teal-500 transition-colors resize-none" />
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors resize-none" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-500 mb-1.5">Message de remerciement WhatsApp</label>
                     <textarea value={settingsForm.texteRemerciement || ''} onChange={e => setSettingsForm(s => ({...s, texteRemerciement:e.target.value}))} rows={2}
-                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-teal-500 transition-colors resize-none" />
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors resize-none" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-500 mb-1.5">Couleur de marque</label>
                     <div className="flex items-center gap-3">
-                      <input type="color" value={settingsForm.couleurMarque || '#0d9488'} onChange={e => setSettingsForm(s => ({...s, couleurMarque:e.target.value}))}
+                      <input type="color" value={settingsForm.couleurMarque || '#2563eb'} onChange={e => setSettingsForm(s => ({...s, couleurMarque:e.target.value}))}
                         className="w-10 h-10 bg-transparent border-0 rounded cursor-pointer p-0" />
-                      <input type="text" value={settingsForm.couleurMarque || '#0d9488'} onChange={e => setSettingsForm(s => ({...s, couleurMarque:e.target.value}))}
-                        className="w-32 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 font-mono focus:outline-none focus:border-teal-500" />
+                      <input type="text" value={settingsForm.couleurMarque || '#2563eb'} onChange={e => setSettingsForm(s => ({...s, couleurMarque:e.target.value}))}
+                        className="w-32 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 font-mono focus:outline-none focus:border-blue-500" />
                     </div>
                   </div>
                 </div>
@@ -1302,17 +1324,17 @@ function MerchantDashboard() {
                           const z = [...settingsForm.zonesLivraison];
                           z[i] = {...z[i], label:e.target.value};
                           setSettingsForm(s => ({...s, zonesLivraison:z}));
-                        }} placeholder="Nom de la zone" className="col-span-5 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-teal-500" />
+                        }} placeholder="Nom de la zone" className="col-span-5 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-blue-500" />
                         <input value={zone.delai||''} onChange={e => {
                           const z = [...settingsForm.zonesLivraison];
                           z[i] = {...z[i], delai:e.target.value};
                           setSettingsForm(s => ({...s, zonesLivraison:z}));
-                        }} placeholder="Délai" className="col-span-3 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-teal-500" />
+                        }} placeholder="Délai" className="col-span-3 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-blue-500" />
                         <input type="number" value={zone.price} onChange={e => {
                           const z = [...settingsForm.zonesLivraison];
                           z[i] = {...z[i], price:Number(e.target.value)};
                           setSettingsForm(s => ({...s, zonesLivraison:z}));
-                        }} placeholder="FCFA" className="col-span-3 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 font-mono text-right focus:outline-none focus:border-teal-500" />
+                        }} placeholder="FCFA" className="col-span-3 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 font-mono text-right focus:outline-none focus:border-blue-500" />
                         <button type="button" onClick={() => setSettingsForm(s => ({...s, zonesLivraison:s.zonesLivraison.filter((_,idx)=>idx!==i)}))}
                           className="col-span-1 w-8 h-8 rounded-lg bg-red-500/5 text-red-400 hover:bg-red-500/10 flex items-center justify-center">
                           <X className="w-3.5 h-3.5" />
@@ -1320,13 +1342,13 @@ function MerchantDashboard() {
                       </div>
                     ))}
                     <button type="button" onClick={() => setSettingsForm(s => ({...s, zonesLivraison:[...(s.zonesLivraison||[]), {id:`z-${Date.now()}`, label:'', price:1000, delai:'Sous 24h'}]}))}
-                      className="flex items-center gap-1.5 text-sm text-teal-400 hover:text-teal-300 transition-colors">
+                      className="flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 transition-colors">
                       <Plus className="w-4 h-4 stroke-[3]" /> Ajouter une zone
                     </button>
                   </div>
                 </div>
 
-                <button type="submit" className="flex items-center gap-2 px-6 py-3 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm transition-all">
+                <button type="submit" className="flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-sm transition-all">
                   <Save className="w-4 h-4" /> Enregistrer les modifications
                 </button>
               </form>
@@ -1336,14 +1358,14 @@ function MerchantDashboard() {
                 <h3 className="font-semibold text-white text-sm mb-3">Forfait actuel</h3>
                 <div className="flex items-center justify-between p-3 bg-slate-800 rounded-lg">
                   <div>
-                    <p className="font-bold text-teal-400">{activeBoutique.abonnement?.plan || 'Découverte'}</p>
+                    <p className="font-bold text-blue-400">{activeBoutique.abonnement?.plan || 'Découverte'}</p>
                     <p className="text-xs text-slate-500 mt-0.5">
                       {isFree ? 'Limité à 5 produits. Passez Pro pour débloquer tout.' : 'Accès complet à toutes les fonctionnalités.'}
                     </p>
                   </div>
                   {isFree && (
                     <button onClick={() => { setUpgradePaySuccess(false); setUpgradePayPhone(''); setShowUpgradeModal(true); }}
-                      className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-400 text-white font-bold text-xs transition-all">
+                      className="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 text-white font-bold text-xs transition-all">
                       Passer Pro
                     </button>
                   )}
@@ -1366,11 +1388,11 @@ function MerchantDashboard() {
                 <form onSubmit={handleTicketSubmit} className="space-y-3">
                   <input value={ticketForm.sujet} onChange={e => setTicketForm(t=>({...t,sujet:e.target.value}))} required
                     placeholder="Sujet du problème"
-                    className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-teal-500" />
+                    className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500" />
                   <textarea value={ticketForm.message} onChange={e => setTicketForm(t=>({...t,message:e.target.value}))} required rows={4}
                     placeholder="Décrivez le problème en détail..."
-                    className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-teal-500 resize-none" />
-                  <button type="submit" className="w-full py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm transition-all">
+                    className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 resize-none" />
+                  <button type="submit" className="w-full py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-sm transition-all">
                     Envoyer
                   </button>
                 </form>
@@ -1388,15 +1410,15 @@ function MerchantDashboard() {
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <p className="font-semibold text-slate-200 text-sm">{t.sujet}</p>
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${
-                            t.statut==='Résolu' ? 'bg-teal-500/10 text-teal-400 border-teal-500/20' :
+                            t.statut==='Résolu' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
                             t.statut==='En cours' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
                             'bg-amber-500/10 text-amber-400 border-amber-500/20'
                           }`}>{t.statut}</span>
                         </div>
                         <p className="text-xs text-slate-500">{t.message}</p>
                         {t.reponse && (
-                          <div className="mt-3 p-3 bg-teal-500/5 border border-teal-500/10 rounded-lg">
-                            <p className="text-[10px] font-bold text-teal-400 mb-1">RÉPONSE SUPPORT</p>
+                          <div className="mt-3 p-3 bg-blue-500/5 border border-blue-500/10 rounded-lg">
+                            <p className="text-[10px] font-bold text-blue-400 mb-1">RÉPONSE SUPPORT</p>
                             <p className="text-xs text-slate-300 italic">"{t.reponse}"</p>
                           </div>
                         )}
@@ -1434,7 +1456,7 @@ function MerchantDashboard() {
                 <label className="block text-xs font-medium text-slate-400 mb-1.5">Nom du produit *</label>
                 <input required value={productForm.name} onChange={e => setProductForm(p=>({...p, name:e.target.value}))}
                   placeholder="Ex: Tunique Ndiakhass"
-                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none transition-colors" />
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none transition-colors" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -1442,7 +1464,7 @@ function MerchantDashboard() {
                   <label className="block text-xs font-medium text-slate-400 mb-1.5">Prix (FCFA) *</label>
                   <input required type="number" min="0" value={productForm.price} onChange={e => setProductForm(p=>({...p, price:e.target.value}))}
                     placeholder="15000"
-                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none transition-colors" />
+                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none transition-colors" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1.5">
@@ -1455,7 +1477,7 @@ function MerchantDashboard() {
                   ) : (
                     <input required type="number" min="0" value={productForm.stock} onChange={e => setProductForm(p=>({...p, stock:e.target.value}))}
                       placeholder="10"
-                      className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none transition-colors" />
+                      className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none transition-colors" />
                   )}
                 </div>
               </div>
@@ -1463,7 +1485,7 @@ function MerchantDashboard() {
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1.5">Catégorie</label>
                 <select value={productForm.category} onChange={e => setProductForm(p=>({...p, category:e.target.value}))}
-                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 focus:border-teal-500 focus:outline-none">
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 focus:border-blue-500 focus:outline-none">
                   {['Vêtements','Chaussures','Sacs','Accessoires','Lunettes','Encens','Cosmétiques','Électronique','Alimentation','Divers'].map(c => <option key={c}>{c}</option>)}
                 </select>
               </div>
@@ -1485,10 +1507,10 @@ function MerchantDashboard() {
                     {(productForm.photos||[]).map((url, idx) => (
                       <div key={idx} className="relative group">
                         <img src={url} alt={`Photo ${idx+1}`}
-                          className={`w-full aspect-square object-cover rounded-lg border-2 transition-all ${idx===0 ? 'border-teal-500' : 'border-slate-700'}`} />
+                          className={`w-full aspect-square object-cover rounded-lg border-2 transition-all ${idx===0 ? 'border-blue-500' : 'border-slate-700'}`} />
                         {/* Badge "principale" */}
                         {idx === 0 && (
-                          <span className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold bg-teal-500 text-slate-950 py-0.5 rounded-b-lg">
+                          <span className="absolute bottom-0 left-0 right-0 text-center text-[8px] font-bold bg-blue-500 text-slate-950 py-0.5 rounded-b-lg">
                             Principale
                           </span>
                         )}
@@ -1497,7 +1519,7 @@ function MerchantDashboard() {
                           {idx !== 0 && (
                             <button type="button" onClick={() => movePhotoFirst(idx)}
                               title="Mettre en principale"
-                              className="w-6 h-6 bg-teal-500 text-slate-950 rounded-full flex items-center justify-center text-[9px] font-bold">
+                              className="w-6 h-6 bg-blue-500 text-slate-950 rounded-full flex items-center justify-center text-[9px] font-bold">
                               1
                             </button>
                           )}
@@ -1511,7 +1533,7 @@ function MerchantDashboard() {
                     {/* Slots vides + uploading */}
                     {photosUploading.map(i => (
                       <div key={`up-${i}`} className="aspect-square rounded-lg bg-slate-700 border-2 border-slate-600 flex items-center justify-center">
-                        <span className="w-5 h-5 border-2 border-teal-400 border-t-transparent rounded-full animate-spin" />
+                        <span className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
                       </div>
                     ))}
                   </div>
@@ -1519,7 +1541,7 @@ function MerchantDashboard() {
 
                 {/* Bouton ajouter */}
                 {(productForm.photos||[]).length < 5 && photosUploading.length === 0 && (
-                  <label className="cursor-pointer flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 border-dashed border-slate-600 hover:border-teal-500 text-slate-400 hover:text-teal-400 transition-all text-sm font-medium">
+                  <label className="cursor-pointer flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 border-dashed border-slate-600 hover:border-blue-500 text-slate-400 hover:text-blue-400 transition-all text-sm font-medium">
                     <Plus className="w-4 h-4 stroke-[3]" />
                     {(productForm.photos||[]).length === 0 ? 'Ajouter des photos (max 5)' : `Ajouter encore ${5-(productForm.photos||[]).length} photo(s)`}
                     <input type="file" accept="image/*" multiple className="hidden"
@@ -1536,7 +1558,7 @@ function MerchantDashboard() {
                 <label className="block text-xs font-medium text-slate-400 mb-1.5">Description</label>
                 <textarea value={productForm.description} onChange={e => setProductForm(p=>({...p, description:e.target.value}))} rows={3}
                   placeholder="Couleurs, tailles, matière..."
-                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none resize-none" />
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none resize-none" />
               </div>
 
               {/* Variantes (parfums, couleurs, modèles...) */}
@@ -1554,7 +1576,7 @@ function MerchantDashboard() {
                     {/* Aperçu image */}
                     <div className="w-12 h-12 rounded-lg bg-slate-700 overflow-hidden shrink-0 flex items-center justify-center">
                       {variantUploading === i
-                        ? <span className="w-4 h-4 border-2 border-teal-400 border-t-transparent rounded-full animate-spin" />
+                        ? <span className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
                         : v.photo
                           ? <img src={v.photo} alt={v.nom} className="w-full h-full object-cover" />
                           : <span className="text-slate-500 text-[9px]">photo</span>}
@@ -1564,13 +1586,13 @@ function MerchantDashboard() {
                       <div className="flex gap-1.5">
                         <input value={v.nom} onChange={e => updateVariantName(i, e.target.value)}
                           placeholder="Nom (ex: Vanille)"
-                          className="flex-1 px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none" />
+                          className="flex-1 px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none" />
                         <input type="number" min="0" value={v.stock} onChange={e => updateVariantStock(i, e.target.value)}
                           placeholder="Stock"
-                          className="w-16 px-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-600 text-center focus:border-teal-500 focus:outline-none" />
+                          className="w-16 px-2 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-600 text-center focus:border-blue-500 focus:outline-none" />
                       </div>
                       <input type="file" accept="image/*" onChange={e => handleVariantPhoto(i, e)}
-                        className="text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-teal-500/10 file:text-teal-400 file:cursor-pointer" />
+                        className="text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-500/10 file:text-blue-400 file:cursor-pointer" />
                     </div>
                     <button type="button" onClick={() => removeVariant(i)}
                       className="w-7 h-7 rounded-lg bg-red-500/5 text-red-400 hover:bg-red-500/10 flex items-center justify-center shrink-0">
@@ -1580,7 +1602,7 @@ function MerchantDashboard() {
                 ))}
 
                 <button type="button" onClick={addVariant}
-                  className="flex items-center gap-1.5 text-xs text-teal-400 hover:text-teal-300 transition-colors">
+                  className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors">
                   <Plus className="w-3.5 h-3.5 stroke-[3]" /> Ajouter une variante
                 </button>
               </div>
@@ -1591,7 +1613,7 @@ function MerchantDashboard() {
                   Annuler
                 </button>
                 <button type="submit" disabled={productSaving}
-                  className="flex-1 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 disabled:opacity-50 text-slate-950 font-bold text-sm transition-all flex items-center justify-center gap-2">
+                  className="flex-1 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:opacity-50 text-slate-950 font-bold text-sm transition-all flex items-center justify-center gap-2">
                   {productSaving ? <><span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />Enregistrement...</>
                     : editingProduct ? 'Mettre à jour' : 'Ajouter le produit'}
                 </button>
@@ -1608,7 +1630,7 @@ function MerchantDashboard() {
             {!upgradePaySuccess ? (
               <>
                 <div className="text-center">
-                  <div className="w-12 h-12 rounded-2xl bg-orange-500/10 text-orange-400 flex items-center justify-center mx-auto mb-3">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center mx-auto mb-3">
                     <Zap className="w-6 h-6" />
                   </div>
                   <h3 className="font-bold text-white">Passer au forfait supérieur</h3>
@@ -1619,7 +1641,7 @@ function MerchantDashboard() {
                   <div className="grid grid-cols-2 gap-2">
                     {[{p:'Pro', price:'5 000'},{p:'Premium', price:'15 000'}].map(({p, price}) => (
                       <button key={p} type="button" onClick={() => setUpgradePayPlan(p)}
-                        className={`p-3 rounded-xl border text-center transition-all ${upgradePayPlan===p ? 'border-teal-500 bg-teal-500/10 text-teal-300' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'}`}>
+                        className={`p-3 rounded-xl border text-center transition-all ${upgradePayPlan===p ? 'border-blue-500 bg-blue-500/10 text-blue-300' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'}`}>
                         <p className="font-bold text-sm">{p}</p>
                         <p className="text-xs opacity-70">{price} FCFA/m</p>
                       </button>
@@ -1635,12 +1657,12 @@ function MerchantDashboard() {
                   </div>
                   <input required value={upgradePayPhone} onChange={e => setUpgradePayPhone(e.target.value)}
                     placeholder="Numéro Mobile Money"
-                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none font-mono" />
+                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none font-mono" />
                   <div className="flex gap-3">
                     <button type="button" onClick={() => setShowUpgradeModal(false)}
                       className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-400 text-sm font-medium">Annuler</button>
                     <button type="submit" disabled={upgradePayLoading}
-                      className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-white font-bold text-sm flex items-center justify-center gap-2">
+                      className="flex-1 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:opacity-50 text-white font-bold text-sm flex items-center justify-center gap-2">
                       {upgradePayLoading ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />...</> : 'Payer'}
                     </button>
                   </div>
@@ -1648,13 +1670,13 @@ function MerchantDashboard() {
               </>
             ) : (
               <div className="text-center space-y-4">
-                <div className="w-12 h-12 rounded-full bg-teal-500/10 text-teal-400 flex items-center justify-center mx-auto">
+                <div className="w-12 h-12 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center mx-auto">
                   <Check className="w-6 h-6" />
                 </div>
                 <h3 className="font-bold text-white">Demande envoyée !</h3>
                 <p className="text-xs text-slate-400">Votre demande de passage au forfait <strong>{upgradePayPlan}</strong> a été transmise à l'administrateur. Validation sous 24h.</p>
                 <button onClick={() => setShowUpgradeModal(false)}
-                  className="w-full py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm">
+                  className="w-full py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-sm">
                   Fermer
                 </button>
               </div>
@@ -1677,7 +1699,7 @@ function MerchantDashboard() {
                     <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
                   </button>
                   <button onClick={generatePDF} disabled={pdfLoading}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white font-bold text-xs transition-all">
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold text-xs transition-all">
                     {pdfLoading
                       ? <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> PDF...</>
                       : <><Printer className="w-3.5 h-3.5" /> Télécharger PDF</>}
@@ -1697,7 +1719,7 @@ function MerchantDashboard() {
                 <div className="flex items-center gap-3">
                   {activeBoutique.logo && (
                     <div className="w-14 h-14 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
-                      {activeBoutique.logo.startsWith('http') || activeBoutique.logo.startsWith('data:') || activeBoutique.logo.startsWith('/')
+                      {typeof activeBoutique.logo === 'string' && (activeBoutique.logo.startsWith('http') || activeBoutique.logo.startsWith('data:') || activeBoutique.logo.startsWith('/'))
                         ? <img src={activeBoutique.logo} alt="Logo" className="w-full h-full object-contain p-1" crossOrigin="anonymous" />
                         : <span className="text-2xl">{activeBoutique.logo}</span>}
                     </div>
@@ -1765,13 +1787,13 @@ function MerchantDashboard() {
                   </div>
                   <div className="flex justify-between font-black text-slate-900 border-t-2 border-slate-900 pt-2 text-base">
                     <span>TOTAL</span>
-                    <span style={{ color: '#0d9488' }}>{fmt(activePrintInvoice.total)}</span>
+                    <span style={{ color: '#2563eb' }}>{fmt(activePrintInvoice.total)}</span>
                   </div>
                 </div>
               </div>
 
               <p className="text-center text-xs text-slate-400 mt-6 pt-4 border-t border-slate-100">
-                Merci pour votre achat chez {activeBoutique.name} · Propulsé par Kër Salaatu Tech
+                Merci pour votre achat chez {activeBoutique.name} · Propulsé par Jappandal Tech
               </p>
             </div>
           </div>
@@ -1805,7 +1827,7 @@ function MerchantDashboard() {
                       <span className="text-sm font-bold text-white w-6 text-center">{it.quantity}</span>
                       <button onClick={() => editChangeQty(idx, 1)} className="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center"><Plus className="w-3.5 h-3.5" /></button>
                     </div>
-                    <span className="text-sm font-bold text-teal-400 w-20 text-right shrink-0">{fmt(it.price * it.quantity)}</span>
+                    <span className="text-sm font-bold text-blue-400 w-20 text-right shrink-0">{fmt(it.price * it.quantity)}</span>
                     <button onClick={() => editRemoveItem(idx)} className="w-7 h-7 rounded-lg bg-red-500/5 text-red-400 hover:bg-red-500/10 flex items-center justify-center shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 ))}
@@ -1818,7 +1840,7 @@ function MerchantDashboard() {
                   <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
                   <input value={editAddSearch} onChange={e => setEditAddSearch(e.target.value)}
                     placeholder="Rechercher dans le catalogue..."
-                    className="w-full pl-9 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-teal-500" />
+                    className="w-full pl-9 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500" />
                 </div>
                 {editAddSearch && (
                   <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
@@ -1827,8 +1849,8 @@ function MerchantDashboard() {
                         className="w-full flex items-center gap-2 p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-left transition-colors">
                         <img src={p.photo} alt={p.name} className="w-8 h-8 rounded object-cover bg-slate-700 shrink-0" />
                         <span className="flex-1 text-xs text-slate-200 truncate">{p.name}</span>
-                        <span className="text-xs font-bold text-teal-400">{fmt(p.price)}</span>
-                        <Plus className="w-4 h-4 text-teal-400 shrink-0" />
+                        <span className="text-xs font-bold text-blue-400">{fmt(p.price)}</span>
+                        <Plus className="w-4 h-4 text-blue-400 shrink-0" />
                       </button>
                     ))}
                   </div>
@@ -1851,7 +1873,7 @@ function MerchantDashboard() {
                 <button onClick={() => setEditingOrder(null)}
                   className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-400 hover:text-white font-medium text-sm transition-colors">Fermer</button>
                 <button onClick={saveEditOrder}
-                  className="flex-1 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm transition-all flex items-center justify-center gap-2">
+                  className="flex-1 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-sm transition-all flex items-center justify-center gap-2">
                   <Save className="w-4 h-4" /> Enregistrer
                 </button>
               </div>
