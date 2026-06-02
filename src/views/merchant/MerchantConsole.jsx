@@ -1,3 +1,4 @@
+import { toast } from '../../components/toast';
 import React, { useState, useRef } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import { Link } from 'react-router-dom';
@@ -142,9 +143,9 @@ export default function MerchantConsole() {
 
         {tab === 'login' && (
           <button type="button" onClick={async () => {
-            if (!email.trim()) { alert('Saisissez votre email ci-dessus.'); return; }
-            try { await resetMerchantPassword(email); alert('Email de réinitialisation envoyé !'); }
-            catch(e) { alert(e.message); }
+            if (!email.trim()) { toast('Saisissez votre email ci-dessus.'); return; }
+            try { await resetMerchantPassword(email); toast('Email de réinitialisation envoyé !', 'success'); }
+            catch(e) { toast(e.message); }
           }} className="w-full mt-4 text-sm text-blue-500 hover:text-blue-300 transition-colors text-center">
             Mot de passe oublié ?
           </button>
@@ -286,7 +287,7 @@ function MerchantDashboard() {
   };
   const editSubtotal = editItems.reduce((s, it) => s + it.price * it.quantity, 0);
   const saveEditOrder = () => {
-    if (editItems.length === 0) { alert('La commande doit contenir au moins un article.'); return; }
+    if (editItems.length === 0) { toast('La commande doit contenir au moins un article.'); return; }
     updateOrder(editingOrder.id, editItems);
     setEditingOrder(null);
   };
@@ -372,13 +373,13 @@ function MerchantDashboard() {
   const handleVariantPhoto = async (index, e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { alert('Image trop lourde (max 5 Mo).'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast('Image trop lourde (max 5 Mo).'); return; }
     setVariantUploading(index);
     try {
       const url = await uploadProductPhoto(activeBoutique.id, file);
       setProductForm(p => ({ ...p, variantes: p.variantes.map((v, i) => i === index ? { ...v, photo: url } : v) }));
     } catch (err) {
-      alert('Erreur upload image variante : ' + (err.message || ''));
+      toast('Erreur upload image variante : ' + (err.message || ''));
     } finally {
       setVariantUploading(null);
     }
@@ -442,7 +443,7 @@ function MerchantDashboard() {
 
   const handleDeleteProduct = async (id) => {
     if (!confirm('Supprimer ce produit ?')) return;
-    try { await deleteProduct(id); } catch(e) { alert('Erreur lors de la suppression.'); }
+    try { await deleteProduct(id); } catch(e) { toast('Erreur lors de la suppression.'); }
   };
 
   // Upload multiple photos (max 5)
@@ -452,11 +453,11 @@ function MerchantDashboard() {
 
     const currentCount = (productForm.photos || []).length;
     const canAdd = 5 - currentCount;
-    if (canAdd <= 0) { alert('Maximum 5 photos atteint.'); return; }
+    if (canAdd <= 0) { toast('Maximum 5 photos atteint.'); return; }
 
     const toProcess = files.slice(0, canAdd);
     const oversized = toProcess.filter(f => f.size > 5 * 1024 * 1024);
-    if (oversized.length) { alert('Certaines images dépassent 5 Mo et seront ignorées.'); }
+    if (oversized.length) { toast('Certaines images dépassent 5 Mo et seront ignorées.'); }
     const validFiles = toProcess.filter(f => f.size <= 5 * 1024 * 1024);
     if (!validFiles.length) return;
 
@@ -480,7 +481,7 @@ function MerchantDashboard() {
         setProductForm(p => ({ ...p, photos: [...(p.photos || []), ...urls] }));
       }
     } catch (err) {
-      alert('Erreur upload : ' + (err.message || ''));
+      toast('Erreur upload : ' + (err.message || ''));
     } finally {
       setPhotosUploading([]);
       // Reset input pour permettre re-sélection des mêmes fichiers
@@ -504,12 +505,12 @@ function MerchantDashboard() {
   const handleLogoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { alert('Image trop lourde (max 2 Mo).'); return; }
+    if (file.size > 2 * 1024 * 1024) { toast('Image trop lourde (max 2 Mo).'); return; }
     setLogoUploading(true);
     try {
       const url = await uploadBoutiqueLogo(activeBoutique.id, file);
       setSettingsForm(p => ({ ...p, logo: url }));
-    } catch(e) { alert(e.message || "Erreur upload logo."); }
+    } catch(e) { toast(e.message || "Erreur upload logo."); }
     finally { setLogoUploading(false); }
   };
 
@@ -518,7 +519,7 @@ function MerchantDashboard() {
     updateBoutique(activeBoutique.id, settingsForm);
     setSettingsSaved(true);
     setTimeout(() => setSettingsSaved(false), 3000);
-    alert('Modifications enregistrées avec succès !');
+    toast('Modifications enregistrées avec succès !', 'success');
     setActiveTab('dashboard');
   };
 
@@ -528,13 +529,13 @@ function MerchantDashboard() {
     if (!ticketForm.sujet || !ticketForm.message) return;
     addTicket(activeBoutique.id, ticketForm);
     setTicketForm({ sujet:'', message:'' });
-    alert("Ticket envoyé à l'équipe technique !");
+    toast("Ticket envoyé à l'équipe technique !", 'success');
   };
 
   // ── Handlers upgrade ─────────────────────────────────────────────────────
   const handleUpgradeSubmit = (e) => {
     e.preventDefault();
-    if (!upgradePayPhone.trim()) { alert('Renseignez votre numéro.'); return; }
+    if (!upgradePayPhone.trim()) { toast('Renseignez votre numéro.'); return; }
     setUpgradePayLoading(true);
     setTimeout(() => {
       createUpgradeRequest(activeBoutique.id, upgradePayPlan, upgradePayMethod, upgradePayPhone.trim());
@@ -555,8 +556,8 @@ function MerchantDashboard() {
   const posSubtotal = posCart.reduce((a, i) => a + i.price * i.quantity, 0);
 
   const handlePosSell = () => {
-    if (!posCart.length) { alert('Ajoutez au moins un article.'); return; }
-    if (!posClient.nom.trim() || !posClient.telephone.trim()) { alert('Nom et téléphone obligatoires.'); return; }
+    if (!posCart.length) { toast('Ajoutez au moins un article.'); return; }
+    if (!posClient.nom.trim() || !posClient.telephone.trim()) { toast('Nom et téléphone obligatoires.'); return; }
     const orderId = `VD-${Math.floor(1000 + Math.random() * 9000)}`;
     createOrder(activeBoutique.id, posClient, posCart, 0, 'Vente directe', { methode: posPayMethod, statut: posPayStatut, note: posNote });
     setPosSaleSuccess({ orderId, items:[...posCart], total: posSubtotal, client:{...posClient}, payMethod: posPayMethod });
@@ -576,7 +577,7 @@ function MerchantDashboard() {
 
   // ── CSV export ─────────────────────────────────────────────────────────
   const handleExportCSV = () => {
-    if (!activeOrders.length) { alert('Aucune commande à exporter.'); return; }
+    if (!activeOrders.length) { toast('Aucune commande à exporter.'); return; }
     const headers = ['ID','Date','Client','Téléphone','Zone','Frais Livraison','Paiement','Statut Paiement','Statut Commande','Articles','Total'];
     const rows = activeOrders.map(o => [
       o.id, new Date(o.date).toLocaleDateString('fr-FR'),
@@ -724,7 +725,7 @@ function MerchantDashboard() {
 
     } catch (err) {
       console.error('PDF error:', err);
-      alert('Erreur PDF : ' + (err.message || 'Réessayez'));
+      toast('Erreur PDF : ' + (err.message || 'Réessayez'));
     } finally {
       setPdfLoading(false);
     }

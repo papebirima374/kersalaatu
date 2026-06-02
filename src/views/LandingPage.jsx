@@ -79,7 +79,7 @@ export default function LandingPage() {
 
     // Set as current merchant shop and navigate to merchant console
     setCurrentMerchantBoutiqueId(newShop.id);
-    navigate('/merchant');
+    navigate('/marchand');
   };
 
   return (
@@ -108,7 +108,7 @@ export default function LandingPage() {
 
         {/* Se connecter à droite */}
         <button
-          onClick={() => navigate('/merchant')}
+          onClick={() => navigate('/marchand')}
           className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-blue-500 to-blue-400 text-white font-semibold text-sm px-4 sm:px-5 py-2.5 cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/25"
         >
           <LogIn className="w-4 h-4 stroke-[2.5]" /> Se connecter
@@ -133,7 +133,7 @@ export default function LandingPage() {
 
           <div className="flex flex-wrap gap-4 pt-4 animate-fade-up" style={{ animationDelay: '0.3s' }}>
             <button
-              onClick={() => navigate('/merchant?creer=1')}
+              onClick={() => navigate('/marchand?creer=1')}
               className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-400 text-white font-bold hover:shadow-lg hover:shadow-blue-500/25 transition-all flex items-center gap-2 hover:translate-x-0.5 cursor-pointer"
             >
               Lancer ma boutique maintenant <ArrowRight className="w-5 h-5 stroke-[2.5]" />
@@ -228,7 +228,7 @@ export default function LandingPage() {
 
             <div className="mt-6 pt-5 border-t border-slate-800/60 text-center">
               <button
-                onClick={() => navigate('/merchant?creer=1')}
+                onClick={() => navigate('/marchand?creer=1')}
                 className="text-sm font-semibold text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1.5 mx-auto cursor-pointer"
               >
                 <Plus className="w-4 h-4 stroke-[3]" /> Créer une nouvelle boutique
@@ -416,7 +416,7 @@ export default function LandingPage() {
             </div>
 
             <button
-              onClick={() => navigate('/merchant?creer=1')}
+              onClick={() => navigate('/marchand?creer=1')}
               className="w-full mt-8 py-3 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-200 font-semibold text-xs transition-all cursor-pointer"
             >
               Lancer gratuitement
@@ -465,7 +465,7 @@ export default function LandingPage() {
             </div>
 
             <button
-              onClick={() => navigate('/merchant?creer=1')}
+              onClick={() => navigate('/marchand?creer=1')}
               className="w-full mt-8 py-3 rounded-xl bg-blue-500 hover:bg-blue-400 text-white font-extrabold text-xs transition-all cursor-pointer shadow-lg shadow-blue-500/10"
             >
               Commencer le forfait Pro
@@ -511,7 +511,7 @@ export default function LandingPage() {
             </div>
 
             <button
-              onClick={() => navigate('/merchant?creer=1')}
+              onClick={() => navigate('/marchand?creer=1')}
               className="w-full mt-8 py-3 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-200 font-semibold text-xs transition-all cursor-pointer"
             >
               Lancer la version Premium

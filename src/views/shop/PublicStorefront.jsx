@@ -1,3 +1,4 @@
+import { toast } from '../../components/toast';
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTenant } from '../../context/TenantContext';
@@ -159,7 +160,7 @@ export default function PublicStorefront() {
       if (existing) {
         const nextQty = existing.quantity + customQty;
         if (nextQty > availStock) {
-          alert(`Désolé, il n'y a que ${availStock} unité(s) en stock (vous en avez déjà ${existing.quantity} dans votre panier).`);
+          toast(`Désolé, il n'y a que ${availStock} unité(s) en stock (vous en avez déjà ${existing.quantity} dans votre panier).`);
           return prevCart;
         }
         return prevCart.map(item => item.cartKey === cartKey ? { ...item, quantity: nextQty } : item);
@@ -184,7 +185,7 @@ export default function PublicStorefront() {
           const newQty = item.quantity + change;
           if (newQty <= 0) return null;
           if (newQty > item.stock) {
-            alert(`Désolé, il n'y a que ${item.stock} unités de ce produit en stock.`);
+            toast(`Désolé, il n'y a que ${item.stock} unités de ce produit en stock.`);
             return item;
           }
           return { ...item, quantity: newQty };
@@ -219,7 +220,7 @@ export default function PublicStorefront() {
           if (productSnap.exists()) {
             const currentDbStock = Number(productSnap.data().stock);
             if (currentDbStock < item.quantity) {
-              alert(`Stock insuffisant pour "${item.name}". Il ne reste que ${currentDbStock} pièces en stock. Votre panier a été mis à jour.`);
+              toast(`Stock insuffisant pour "${item.name}". Il ne reste que ${currentDbStock} pièces en stock. Votre panier a été mis à jour.`);
               setCart(prev => prev.map(c => c.id === item.id ? { ...c, stock: currentDbStock, quantity: Math.min(c.quantity, currentDbStock) } : c).filter(c => c.quantity > 0));
               return false;
             }
@@ -232,7 +233,7 @@ export default function PublicStorefront() {
       for (const item of cart) {
         const product = products.find(p => p.id === item.id);
         if (product && product.stock < item.quantity) {
-          alert(`Stock insuffisant pour "${item.name}". Il ne reste que ${product.stock} pièces en stock. Votre panier a été mis à jour.`);
+          toast(`Stock insuffisant pour "${item.name}". Il ne reste que ${product.stock} pièces en stock. Votre panier a été mis à jour.`);
           setCart(prev => prev.map(c => c.id === item.id ? { ...c, quantity: Math.min(c.quantity, product.stock) } : c).filter(c => c.quantity > 0));
           return false;
         }
@@ -244,7 +245,7 @@ export default function PublicStorefront() {
   // Payment simulator function
   const handleLaunchPayment = async () => {
     if (!payPhone) {
-      alert("Veuillez saisir votre numéro Mobile Money.");
+      toast("Veuillez saisir votre numéro Mobile Money.");
       return;
     }
 
@@ -275,7 +276,7 @@ export default function PublicStorefront() {
   // WhatsApp Order Submission
   const handleCheckoutSubmit = async (paiementData = null) => {
     if (!clientForm.nom || !clientForm.telephone || !clientForm.adresse) {
-      alert('Veuillez remplir toutes les informations de livraison.');
+      toast('Veuillez remplir toutes les informations de livraison.');
       return;
     }
 
@@ -329,7 +330,7 @@ export default function PublicStorefront() {
     message += `🙏 Merci pour votre confiance ! Veuillez confirmer la commande.`;
 
     const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/${String(activeShop.whatsapp || '').replace(/\+/g, '')}?text=${encodedMessage}`;
+    const whatsappUrl = `https://wa.me/${String(activeShop.whatsapp || '').replace(/\D/g, '')}?text=${encodedMessage}`;
 
     // 3. Save summary for success screen then clear cart
     setLastOrderId(orderId);

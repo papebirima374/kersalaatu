@@ -1,3 +1,4 @@
+import { toast } from '../../components/toast';
 import React, { useState } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import { Link } from 'react-router-dom';
@@ -74,7 +75,7 @@ export default function DeveloperConsole() {
   const handleCreateBoutiqueSubmit = async (e) => {
     e.preventDefault();
     if (!newBoutiqueForm.name.trim() || !newBoutiqueForm.whatsapp.trim()) {
-      alert('Veuillez remplir le nom et le numéro WhatsApp.'); return;
+      toast('Veuillez remplir le nom et le numéro WhatsApp.'); return;
     }
     let cleanWhatsapp = newBoutiqueForm.whatsapp.trim();
     if (!cleanWhatsapp.startsWith('+')) {
@@ -97,9 +98,9 @@ export default function DeveloperConsole() {
       }, tempPassword);
       setShowCreateModal(false);
       setNewBoutiqueForm({ name:'', whatsapp:'', description:'', ownerEmail:'', password:'', plan:'Pro', couleurMarque:'#2563eb' });
-      alert(`Boutique créée !\n\nIdentifiants du marchand :\nEmail : ${ownerEmail}\nMot de passe : ${tempPassword}`);
+      toast(`Boutique créée !\n\nIdentifiants du marchand :\nEmail : ${ownerEmail}\nMot de passe : ${tempPassword}`, 'success', 12000);
     } catch (error) {
-      alert(`Erreur : ${error.message || error}`);
+      toast(`Erreur : ${error.message || error}`);
     }
   };
 
