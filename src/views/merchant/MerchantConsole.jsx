@@ -1,4 +1,5 @@
 import { toast } from '../../components/toast';
+import QRCode from 'qrcode';
 import React, { useState, useRef } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import { Link } from 'react-router-dom';
@@ -294,6 +295,10 @@ function MerchantDashboard() {
 
   // Tickets
   const [ticketForm, setTicketForm] = useState({ sujet:'', message:'' });
+
+  // Partage boutique
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareQr, setShareQr] = useState('');
 
   // Upgrade
   const [showUpgradeModal, setShowUpgradeModal]       = useState(false);
@@ -850,6 +855,21 @@ function MerchantDashboard() {
           </div>
           <div className="flex items-center gap-2">
             <RefreshButton variant="dark" />
+            {activeBoutique && (
+              <button
+                onClick={async () => {
+                  const url = `${window.location.origin}/shop/${activeBoutique.slug}`;
+                  try {
+                    setShareQr(await QRCode.toDataURL(url, { width: 320, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } }));
+                  } catch { setShareQr(''); }
+                  setShowShareModal(true);
+                }}
+                title="Partager ma boutique"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium border border-slate-700 transition-all">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                <span className="hidden sm:inline">Partager</span>
+              </button>
+            )}
             {activeTab === 'products' && (
               <button onClick={openAddProduct}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 text-slate-950 text-sm font-bold transition-all">
@@ -1623,6 +1643,59 @@ function MerchantDashboard() {
           </div>
         </div>
       )}
+
+      {/* ── MODAL PARTAGE ─────────────────────────────────────────────────── */}
+      {showShareModal && activeBoutique && (() => {
+        const shopUrl = `${window.location.origin}/shop/${activeBoutique.slug}`;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowShareModal(false)}>
+            <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-6 space-y-5" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-white">Partager ma boutique</h3>
+                <button onClick={() => setShowShareModal(false)} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+              </div>
+
+              {shareQr && (
+                <div className="flex justify-center">
+                  <img src={shareQr} alt="QR code de la boutique" className="w-48 h-48 rounded-xl" />
+                </div>
+              )}
+              <p className="text-center text-xs text-slate-500">Scannez le QR code ou partagez le lien :</p>
+
+              <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5">
+                <span className="flex-1 text-xs text-slate-300 font-mono truncate">{shopUrl}</span>
+                <button
+                  onClick={() => { navigator.clipboard?.writeText(shopUrl); toast('Lien copié !', 'success'); }}
+                  className="shrink-0 text-xs font-bold text-blue-400 hover:text-blue-300">Copier</button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`Découvrez ma boutique ${activeBoutique.name} : ${shopUrl}`)}`}
+                  target="_blank" rel="noreferrer"
+                  className="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm text-center transition-colors">
+                  WhatsApp
+                </a>
+                <button
+                  onClick={async () => {
+                    if (navigator.share) { try { await navigator.share({ title: activeBoutique.name, url: shopUrl }); } catch { /* annulé */ } }
+                    else { navigator.clipboard?.writeText(shopUrl); toast('Lien copié !', 'success'); }
+                  }}
+                  className="py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-white font-bold text-sm transition-colors">
+                  Partager…
+                </button>
+              </div>
+
+              {shareQr && (
+                <a href={shareQr} download={`qr-${activeBoutique.slug}.png`}
+                  className="block text-center text-xs font-semibold text-blue-400 hover:text-blue-300">
+                  ⬇ Télécharger le QR code
+                </a>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── MODAL UPGRADE ─────────────────────────────────────────────────── */}
       {showUpgradeModal && (

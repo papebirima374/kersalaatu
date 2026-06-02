@@ -86,6 +86,14 @@ export default function PublicStorefront() {
     }
   }, [checkoutStep, clientForm.telephone]);
 
+  // Titre de l'onglet = nom de la boutique (onglet navigateur, écran d'accueil PWA, SEO léger)
+  useEffect(() => {
+    if (activeShop?.name) {
+      document.title = `${activeShop.name} — Boutique en ligne`;
+    }
+    return () => { document.title = 'Jappandal Tech - Plateforme E-Commerce Multi-boutiques'; };
+  }, [activeShop?.name]);
+
   const currentZone = activeShop?.zonesLivraison?.find(z => z.id === deliveryZone) || activeShop?.zonesLivraison?.[0] || { label: 'Livraison', price: 0 };
 
   if (!dataReady) {
