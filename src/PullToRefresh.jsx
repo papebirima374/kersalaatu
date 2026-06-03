@@ -16,8 +16,8 @@ export default function PullToRefresh() {
 
   useEffect(() => {
     const onStart = (e) => {
-      // Désactivé quand un modal verrouille le défilement (body en position fixed)
-      if (document.body.style.position === 'fixed') { active.current = false; return; }
+      // Désactivé quand un modal verrouille le défilement (body en overflow hidden)
+      if (document.body.style.overflow === 'hidden') { active.current = false; return; }
       if (window.scrollY <= 0 && e.touches.length === 1) {
         startY.current = e.touches[0].clientY;
         active.current = true;

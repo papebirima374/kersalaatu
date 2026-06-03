@@ -94,21 +94,13 @@ export default function PublicStorefront() {
     return () => { document.title = 'Jappandal Tech - Plateforme E-Commerce Multi-boutiques'; };
   }, [activeShop?.name]);
 
-  // Bloque le défilement de la page derrière quand le modal produit OU le panier est ouvert
+  // Bloque le défilement du fond quand le modal produit OU le panier est ouvert.
+  // (overflow:hidden — sûr et réversible ; le modal/panier ont leur propre défilement interne)
   useEffect(() => {
     const open = !!selectedProduct || isCartOpen;
     if (!open) return;
-    const scrollY = window.scrollY;
-    const body = document.body;
-    body.style.position = 'fixed';
-    body.style.top = `-${scrollY}px`;
-    body.style.width = '100%';
-    return () => {
-      body.style.position = '';
-      body.style.top = '';
-      body.style.width = '';
-      window.scrollTo(0, scrollY);
-    };
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
   }, [selectedProduct, isCartOpen]);
 
   const currentZone = activeShop?.zonesLivraison?.find(z => z.id === deliveryZone) || activeShop?.zonesLivraison?.[0] || { label: 'Livraison', price: 0 };
