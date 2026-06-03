@@ -179,13 +179,11 @@ export const TenantProvider = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
-  // Listeners Firestore temps réel (onSnapshot) — remplace getDocs one-shot
+  // Listeners PUBLICS (boutiques + produits) — toujours actifs (vitrines publiques)
   useEffect(() => {
     if (!isConfigured) return;
-
     const unsubs = [];
 
-    // Boutiques
     unsubs.push(onSnapshot(collection(db, 'boutiques'), snap => {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       if (data.length > 0) {
@@ -200,7 +198,6 @@ export const TenantProvider = ({ children }) => {
       setDataReady(true);
     }));
 
-    // Products
     unsubs.push(onSnapshot(collection(db, 'products'), snap => {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       if (data.length > 0) {
@@ -211,29 +208,38 @@ export const TenantProvider = ({ children }) => {
       }
     }, err => console.error('products listener:', err)));
 
-    // Orders
+    return () => unsubs.forEach(u => u());
+  }, []);
+
+  // Listeners PRIVÉS (commandes, tickets, upgrades) — seulement pour un compte connecté.
+  // → un visiteur anonyme de vitrine ne télécharge plus toute la base : vitrine plus rapide + données privées non chargées.
+  useEffect(() => {
+    if (!isConfigured) return;
+    if (!merchantUser) {
+      setOrders([]); setTickets([]); setUpgradeRequests([]);
+      return;
+    }
+    const unsubs = [];
+
     unsubs.push(onSnapshot(collection(db, 'orders'), snap => {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       data.sort((a, b) => new Date(b.date) - new Date(a.date));
       setOrders(data);
     }, err => console.error('orders listener:', err)));
 
-    // Tickets
     unsubs.push(onSnapshot(collection(db, 'tickets'), snap => {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setTickets(data);
     }, err => console.error('tickets listener:', err)));
 
-    // Upgrade requests
     unsubs.push(onSnapshot(collection(db, 'upgradeRequests'), snap => {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       data.sort((a, b) => new Date(b.date) - new Date(a.date));
       setUpgradeRequests(data);
     }, err => console.error('upgradeRequests listener:', err)));
 
-    console.log("🔥 Firestore listeners actifs (temps réel)");
     return () => unsubs.forEach(u => u());
-  }, []);
+  }, [merchantUser?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Actions
   const updateBoutique = (boutiqueId, updatedFields) => {

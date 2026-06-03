@@ -244,6 +244,57 @@ export default function DeveloperConsole() {
       (bqDigits && phone.replace(/\D/g, '').includes(bqDigits));
   });
 
+  // ── Abonnements / mensualités ────────────────────────────────────────
+  const DAY_MS = 86400000;
+  const PLAN_PRICE = { Pro: 5000, Premium: 15000 };
+  // Renvoie l'état d'abonnement d'une boutique
+  const subInfo = (b) => {
+    const plan = b.abonnement?.plan || 'Découverte';
+    const isFree = plan === 'Découverte';
+    const statut = b.abonnement?.statut || 'Actif';
+    const exp = b.abonnement?.dateExpiration ? new Date(b.abonnement.dateExpiration) : null;
+    const daysLeft = exp ? Math.ceil((exp.getTime() - Date.now()) / DAY_MS) : null;
+    const expired = !isFree && exp ? exp.getTime() < Date.now() : false;
+    let etat = 'ok';                       // ok | bientot | expire | gratuit | inconnu
+    if (isFree) etat = 'gratuit';
+    else if (!exp) etat = 'inconnu';
+    else if (expired) etat = 'expire';
+    else if (daysLeft <= 7) etat = 'bientot';
+    return { plan, isFree, statut, exp, daysLeft, expired, etat };
+  };
+  // Renouvelle/prolonge : +N mois (payé) ou offert. Étend depuis l'échéance restante si non expirée.
+  const renewSub = (b, months, paid) => {
+    const cur = b.abonnement?.dateExpiration ? new Date(b.abonnement.dateExpiration).getTime() : Date.now();
+    const base = Math.max(Date.now(), cur);
+    const newExp = new Date(base + months * 30 * DAY_MS).toISOString();
+    const plan = (b.abonnement?.plan && b.abonnement.plan !== 'Découverte') ? b.abonnement.plan : 'Pro';
+    updateBoutique(b.id, {
+      abonnement: {
+        ...(b.abonnement || {}),
+        plan,
+        statut: 'Actif',
+        dateDebut: b.abonnement?.dateDebut || new Date().toISOString(),
+        dateExpiration: newExp,
+        ...(paid ? { dernierPaiement: new Date().toISOString() } : { dernierCadeau: new Date().toISOString() }),
+      }
+    });
+    const until = new Date(newExp).toLocaleDateString('fr-FR');
+    toast(paid ? `💳 Encaissé — actif jusqu'au ${until}` : `🎁 ${months} mois offert(s) — jusqu'au ${until}`, 'success', 5000);
+  };
+  // Statistiques d'abonnement + tri par urgence (expirées d'abord)
+  const subStats = boutiques.reduce((acc, b) => {
+    const s = subInfo(b);
+    if (s.statut === 'Actif' && !s.expired) { acc.actives++; if (!s.isFree) acc.mrr += (PLAN_PRICE[s.plan] || 0); }
+    if (s.etat === 'bientot') acc.bientot++;
+    if (s.etat === 'expire') acc.expirees++;
+    return acc;
+  }, { actives: 0, bientot: 0, expirees: 0, mrr: 0 });
+  const URG = { expire: 0, bientot: 1, ok: 2, inconnu: 2, gratuit: 3 };
+  const sortedBoutiques = [...filteredBoutiques].sort((a, b) => {
+    const sa = subInfo(a), sb = subInfo(b);
+    return (URG[sa.etat] - URG[sb.etat]) || ((sa.daysLeft ?? 99999) - (sb.daysLeft ?? 99999));
+  });
+
   const NAV = [
     { id:'dashboard',   label:"Vue d'ensemble", icon: Settings },
     { id:'boutiques',   label:`Boutiques (${totalShops})`, icon: Store },
@@ -426,13 +477,35 @@ export default function DeveloperConsole() {
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500"
                 />
               </div>
+
+              {/* Résumé abonnements */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wide">Actives</p>
+                  <p className="text-lg font-bold text-emerald-400">{subStats.actives}</p>
+                </div>
+                <div className={`rounded-xl p-3 border ${subStats.bientot > 0 ? 'bg-amber-500/5 border-amber-500/30' : 'bg-slate-900 border-slate-800'}`}>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wide">Expire ≤ 7j</p>
+                  <p className={`text-lg font-bold ${subStats.bientot > 0 ? 'text-amber-400' : 'text-slate-400'}`}>{subStats.bientot}</p>
+                </div>
+                <div className={`rounded-xl p-3 border ${subStats.expirees > 0 ? 'bg-red-500/5 border-red-500/30' : 'bg-slate-900 border-slate-800'}`}>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wide">Expirées</p>
+                  <p className={`text-lg font-bold ${subStats.expirees > 0 ? 'text-red-400' : 'text-slate-400'}`}>{subStats.expirees}</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wide">Revenu / mois</p>
+                  <p className="text-lg font-bold text-blue-400">{fmt(subStats.mrr)}</p>
+                </div>
+              </div>
+
               {boutiques.length > 0 && filteredBoutiques.length === 0 && (
                 <div className="bg-slate-900 border border-dashed border-slate-700 rounded-xl py-10 text-center text-slate-500 text-sm">
                   Aucune boutique ne correspond à « {boutiqueSearch} ».
                 </div>
               )}
-              {filteredBoutiques.map(b => {
+              {sortedBoutiques.map(b => {
                 const actif = (b.abonnement?.statut || 'Actif') === 'Actif';
+                const s = subInfo(b);
                 return (
                 <div key={b.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
                   {/* Identité + statut */}
@@ -444,6 +517,9 @@ export default function DeveloperConsole() {
                         <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border ${actif ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
                           {b.abonnement?.statut || 'Actif'}
                         </span>
+                        {s.etat === 'expire' && <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/15 text-red-300 border border-red-500/30">⛔ Expiré</span>}
+                        {s.etat === 'bientot' && <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">⏳ J-{s.daysLeft}</span>}
+                        {s.etat === 'gratuit' && <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-500/10 text-slate-400 border border-slate-500/20">Gratuit</span>}
                       </div>
                       <Link to={`/shop/${b.slug}`} target="_blank" className="text-xs text-blue-400 hover:underline font-mono inline-flex items-center gap-1 mt-0.5">
                         /{b.slug} <ExternalLink className="w-3 h-3" />
@@ -451,6 +527,37 @@ export default function DeveloperConsole() {
                       <p className="text-[10px] text-slate-500 mt-0.5">{b.whatsapp}</p>
                     </div>
                   </div>
+
+                  {/* Abonnement / mensualité (forfaits payants uniquement) */}
+                  {!s.isFree && (
+                    <div className="mt-3 pt-3 border-t border-slate-800 flex flex-wrap items-center gap-2">
+                      <div className="flex-1 min-w-[150px] text-xs">
+                        {s.etat === 'expire' ? (
+                          <span className="text-red-400 font-semibold">⛔ Expiré{s.exp ? ` le ${s.exp.toLocaleDateString('fr-FR')}` : ''} — vitrine bloquée</span>
+                        ) : s.exp ? (
+                          <span className={s.etat === 'bientot' ? 'text-amber-400 font-semibold' : 'text-slate-400'}>
+                            {s.etat === 'bientot' ? '⏳ ' : '✓ '}Échéance : {s.exp.toLocaleDateString('fr-FR')}
+                            <span className="text-slate-500"> ({s.daysLeft > 0 ? `dans ${s.daysLeft} j` : "aujourd'hui"})</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-500">Aucune échéance — cliquez « Encaisser » pour démarrer.</span>
+                        )}
+                        {b.abonnement?.dernierPaiement && (
+                          <span className="block text-[10px] text-slate-600 mt-0.5">Dernier paiement : {new Date(b.abonnement.dernierPaiement).toLocaleDateString('fr-FR')}</span>
+                        )}
+                      </div>
+                      <button onClick={() => renewSub(b, 1, true)}
+                        title="Le client a payé sa mensualité → prolonge d'1 mois"
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all">
+                        💳 Encaisser +1 mois
+                      </button>
+                      <button onClick={() => renewSub(b, 1, false)}
+                        title="Offrir un mois gratuit à ce client"
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-all">
+                        🎁 Offrir
+                      </button>
+                    </div>
+                  )}
 
                   {/* Contrôles : forfait + actions */}
                   <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-800">
