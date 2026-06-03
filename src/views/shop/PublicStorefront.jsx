@@ -1,5 +1,5 @@
 import { toast } from '../../components/toast';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTenant } from '../../context/TenantContext';
 import { db, isConfigured } from '../../firebase/config';
@@ -46,6 +46,8 @@ export default function PublicStorefront() {
   const [selectedVariant, setSelectedVariant] = useState(null); // Variante choisie dans le modal
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [modalQty, setModalQty] = useState(1);
+  const [lightboxOpen, setLightboxOpen] = useState(false); // photo plein écran
+  const lightboxTouchX = useRef(null);
 
   // Réinitialiser les index de photo et quantité au changement de produit/variante
   useEffect(() => {
@@ -1277,8 +1279,9 @@ export default function PublicStorefront() {
         // Si variante sélectionnée avec photo, on l'affiche en priorité
         const displayPhoto = selectedVariant?.photo || productPhotos[activePhotoIdx] || selectedProduct.photo;
         const needsChoice = hasVariants && !selectedVariant;
-        const closeModal = () => { setSelectedProduct(null); setSelectedVariant(null); setActivePhotoIdx(0); };
+        const closeModal = () => { setSelectedProduct(null); setSelectedVariant(null); setActivePhotoIdx(0); setLightboxOpen(false); };
         return (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70" onClick={closeModal}>
           <div className="w-full max-w-4xl bg-white rounded-3xl overflow-hidden shadow-2xl relative max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
 
@@ -1299,7 +1302,8 @@ export default function PublicStorefront() {
                     <img
                       src={displayPhoto}
                       alt={selectedProduct.name}
-                      className="max-w-full max-h-full object-contain transition-transform duration-300 group-hover:scale-105"
+                      onClick={() => setLightboxOpen(true)}
+                      className="max-w-full max-h-full object-contain transition-transform duration-300 group-hover:scale-105 cursor-zoom-in"
                     />
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50 text-slate-400 text-sm">
@@ -1519,6 +1523,54 @@ export default function PublicStorefront() {
             </div>
           </div>
         </div>
+
+        {/* Lightbox plein écran (zoom + défilement des photos) */}
+        {lightboxOpen && displayPhoto && (
+          <div
+            className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center select-none"
+            onClick={() => setLightboxOpen(false)}
+            onTouchStart={(e) => { lightboxTouchX.current = e.touches[0].clientX; }}
+            onTouchEnd={(e) => {
+              if (lightboxTouchX.current == null) return;
+              const dx = e.changedTouches[0].clientX - lightboxTouchX.current;
+              lightboxTouchX.current = null;
+              if (Math.abs(dx) > 40 && productPhotos.length > 1 && !selectedVariant?.photo) {
+                setActivePhotoIdx(i => dx < 0 ? (i + 1) % productPhotos.length : (i - 1 + productPhotos.length) % productPhotos.length);
+              }
+            }}
+          >
+            <button onClick={(e) => { e.stopPropagation(); setLightboxOpen(false); }}
+              className="absolute top-4 right-4 z-10 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+              style={{ marginTop: 'env(safe-area-inset-top)' }}>
+              <X className="w-5 h-5" />
+            </button>
+            <img src={displayPhoto} alt={selectedProduct.name}
+              onClick={(e) => e.stopPropagation()}
+              className="max-w-[92vw] max-h-[82vh] object-contain" />
+            {!selectedVariant?.photo && productPhotos.length > 1 && (
+              <>
+                <button onClick={(e) => { e.stopPropagation(); setActivePhotoIdx(i => (i - 1 + productPhotos.length) % productPhotos.length); }}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all">
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+                <button onClick={(e) => { e.stopPropagation(); setActivePhotoIdx(i => (i + 1) % productPhotos.length); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all">
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+                <div className="absolute bottom-6 left-0 right-0 flex flex-col items-center gap-2" style={{ marginBottom: 'env(safe-area-inset-bottom)' }}>
+                  <div className="flex gap-1.5">
+                    {productPhotos.map((_, i) => (
+                      <button key={i} onClick={(e) => { e.stopPropagation(); setActivePhotoIdx(i); }}
+                        className={`w-2 h-2 rounded-full transition-all ${i === activePhotoIdx ? 'bg-white scale-125' : 'bg-white/40'}`} />
+                    ))}
+                  </div>
+                  <span className="text-white/70 text-xs font-medium">{activePhotoIdx + 1} / {productPhotos.length}</span>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        </>
         );
       })()}
 

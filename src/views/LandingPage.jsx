@@ -48,6 +48,10 @@ export default function LandingPage() {
     return name.includes(shopQuery) || phone.includes(shopQuery) ||
       (shopQueryDigits && phone.replace(/\D/g, '').includes(shopQueryDigits));
   });
+  // Liste compacte : on n'affiche que 6 boutiques par défaut (sauf recherche / « voir tout »)
+  const [showAllShops, setShowAllShops] = useState(false);
+  const SHOPS_PREVIEW = 6;
+  const visibleShops = (shopQuery || showAllShops) ? filteredShops : filteredShops.slice(0, SHOPS_PREVIEW);
 
   const faqData = [
     {
@@ -217,7 +221,7 @@ export default function LandingPage() {
                   Aucune boutique ne correspond à « {shopSearch} ».
                 </div>
               ) : (
-                filteredShops.map((b) => (
+                visibleShops.map((b) => (
                   <div key={b.id} className="p-3 rounded-xl bg-slate-950 border border-slate-800/50 hover:border-slate-700 transition-all flex items-center gap-3 group">
                     {/* Logo */}
                     <div className="w-11 h-11 rounded-lg flex items-center justify-center text-xl bg-slate-900 border border-slate-800 overflow-hidden shrink-0">
@@ -256,6 +260,15 @@ export default function LandingPage() {
                 ))
               )}
             </div>
+
+            {!shopQuery && filteredShops.length > SHOPS_PREVIEW && (
+              <button
+                onClick={() => setShowAllShops(v => !v)}
+                className="mt-3 w-full py-2.5 rounded-xl border border-slate-800 text-sm font-semibold text-blue-400 hover:text-blue-300 hover:border-slate-700 transition-colors"
+              >
+                {showAllShops ? 'Voir moins' : `Voir toutes les ${filteredShops.length} boutiques`}
+              </button>
+            )}
 
             <div className="mt-6 pt-5 border-t border-slate-800/60 text-center">
               <button

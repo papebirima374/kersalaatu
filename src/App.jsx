@@ -4,6 +4,7 @@ import { TenantProvider } from './context/TenantContext';
 import ErrorBoundary from './ErrorBoundary';
 import { Toaster } from './components/toast';
 import PullToRefresh from './PullToRefresh';
+import ScrollToTop from './ScrollToTop';
 import LandingPage from './views/LandingPage';
 import MerchantConsole from './views/merchant/MerchantConsole';
 import PublicStorefront from './views/shop/PublicStorefront';
@@ -14,6 +15,7 @@ function App() {
     <ErrorBoundary>
       <TenantProvider>
         <PullToRefresh />
+        <ScrollToTop />
         <Toaster />
         <Router>
           <Routes>
