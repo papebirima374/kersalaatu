@@ -288,7 +288,8 @@ export default function DeveloperConsole() {
     const { default: jsPDF } = await import('jspdf');
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const W = 210, M = 18;
-    const fmtN = (n) => new Intl.NumberFormat('fr-FR').format(n || 0);
+    // Formatage avec ESPACE NORMALE (Intl/fr-FR utilise U+202F que les polices PDF ne gèrent pas → texte cassé)
+    const fmtN = (n) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
     pdf.setFillColor(37, 99, 235); pdf.rect(0, 0, W, 3, 'F');
 
     const logo = await loadJappandalLogo();
@@ -334,7 +335,7 @@ export default function DeveloperConsole() {
     y += 7;
     pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
     pdf.setTextColor(payment.type === 'offert' ? 37 : 16, payment.type === 'offert' ? 99 : 185, payment.type === 'offert' ? 235 : 129);
-    pdf.text(payment.type === 'offert' ? 'OFFERT (gratuit)' : 'PAYE', M, y + 10);
+    pdf.text(payment.type === 'offert' ? 'OFFERT (gratuit)' : 'PAYÉ', M, y + 10);
     pdf.setFillColor(37, 99, 235); pdf.roundedRect(W - M - 82, y, 82, 16, 2, 2, 'F');
     pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(255, 255, 255);
     pdf.text('TOTAL PAYÉ', W - M - 78, y + 6);

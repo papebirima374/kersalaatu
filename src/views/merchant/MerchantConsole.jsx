@@ -650,7 +650,7 @@ function MerchantDashboard() {
   });
 
   // ── Génération PDF (dessin direct jsPDF) ─────────────────────────────────
-  const generatePDF = async () => {
+  const generatePDF = async (mode = 'download') => {
     if (!activePrintInvoice) return;
     setPdfLoading(true);
     try {
@@ -762,7 +762,18 @@ function MerchantDashboard() {
       pdf.text(`Merci pour votre achat chez ${activeBoutique.name} · Jappandal Tech`, pageW / 2, y, { align: 'center' });
 
       const filename = `Facture_${activePrintInvoice.id}_${activeBoutique.name.replace(/\s+/g,'_')}.pdf`;
-      pdf.save(filename);
+      if (mode === 'share') {
+        const file = new File([pdf.output('blob')], filename, { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try { await navigator.share({ files: [file], title: 'Facture', text: `Facture ${activePrintInvoice.id} — ${activeBoutique.name}` }); }
+          catch (e) { if (e?.name !== 'AbortError') pdf.save(filename); }
+        } else {
+          pdf.save(filename);
+          toast('Partage de fichier indisponible ici — facture téléchargée (joignez-la sur WhatsApp).', 'info', 5000);
+        }
+      } else {
+        pdf.save(filename);
+      }
 
     } catch (err) {
       console.error('PDF error:', err);
@@ -1905,11 +1916,17 @@ function MerchantDashboard() {
                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all">
                     <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
                   </button>
-                  <button onClick={generatePDF} disabled={pdfLoading}
+                  <button onClick={() => generatePDF('download')} disabled={pdfLoading}
+                    title="Télécharger la facture PDF"
                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold text-xs transition-all">
                     {pdfLoading
                       ? <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> PDF...</>
-                      : <><Printer className="w-3.5 h-3.5" /> Télécharger PDF</>}
+                      : <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg> Télécharger</>}
+                  </button>
+                  <button onClick={() => generatePDF('share')} disabled={pdfLoading}
+                    title="Partager la facture PDF (WhatsApp…)"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-60 text-white font-bold text-xs transition-all">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></svg> Partager
                   </button>
                   <button onClick={() => setActivePrintInvoice(null)}
                     className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-300 text-slate-600 text-xs font-medium hover:bg-slate-100 transition-all">
