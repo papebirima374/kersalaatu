@@ -1,0 +1,59 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────────
+// Règles de sécurité Firestore — Jappandal Tech
+//
+// ⚠️ À DÉPLOYER SEULEMENT APRÈS que l'admin se connecte via Firebase Auth
+//    (Phase 1 déployée) — sinon les actions admin cesseront de fonctionner.
+//
+// Déploiement :
+//   • Console Firebase → Firestore Database → onglet « Règles » → coller → Publier
+//   • ou  firebase deploy --only firestore:rules
+//
+// Modèle : vitrines/catalogues publics en LECTURE ; toute ÉCRITURE exige un
+// compte connecté (marchand ou admin Firebase). Les clients peuvent créer une
+// commande sans compte. Tout le reste est refusé par défaut.
+// ─────────────────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+
+    // Boutiques : vitrines publiques (lecture libre), écriture réservée aux connectés
+    match /boutiques/{id} {
+      allow read: if true;
+      allow write: if signedIn();
+    }
+
+    // Produits : catalogues publics (lecture libre), écriture réservée aux connectés
+    match /products/{id} {
+      allow read: if true;
+      allow write: if signedIn();
+    }
+
+    // Commandes : un client peut CRÉER sans compte ; lecture/gestion réservées aux connectés
+    // (protège les données clients : nom, téléphone, adresse — plus lisibles publiquement)
+    match /orders/{id} {
+      allow create: if true;
+      allow read, update, delete: if signedIn();
+    }
+
+    // Tickets support : créés et gérés par des comptes connectés
+    match /tickets/{id} {
+      allow create: if signedIn();
+      allow read, update, delete: if signedIn();
+    }
+
+    // Demandes de passage Pro/Premium : créées et gérées par des comptes connectés
+    match /upgradeRequests/{id} {
+      allow create: if signedIn();
+      allow read, update, delete: if signedIn();
+    }
+
+    // Tout le reste : refusé
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

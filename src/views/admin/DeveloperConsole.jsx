@@ -23,8 +23,12 @@ export default function DeveloperConsole() {
     boutiques, tickets, updateBoutique, deleteBoutique,
     resolveTicket, replyToTicket, addBoutiqueWithAuth,
     upgradeRequests, approveUpgradeRequest, rejectUpgradeRequest,
-    dataReady
+    dataReady, merchantUser, loginMerchant, logoutMerchant
   } = useTenant();
+
+  // Connexion admin sécurisée (Firebase Auth) — l'e-mail admin est défini par VITE_ADMIN_EMAIL
+  const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || '').trim().toLowerCase();
+  const isFirebaseAdmin = !!ADMIN_EMAIL && (merchantUser?.email || '').toLowerCase() === ADMIN_EMAIL;
 
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -52,6 +56,26 @@ export default function DeveloperConsole() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [authError, setAuthError] = useState('');
+  const adminOk = isAuthenticated || isFirebaseAdmin;
+
+  // Connexion Firebase admin
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPw, setAdminPw] = useState('');
+  const [adminLoginError, setAdminLoginError] = useState('');
+  const [adminLoginLoading, setAdminLoginLoading] = useState(false);
+  const handleAdminFirebaseLogin = async (e) => {
+    e.preventDefault();
+    setAdminLoginError(''); setAdminLoginLoading(true);
+    try {
+      const u = await loginMerchant(adminEmail.trim(), adminPw);
+      if (!ADMIN_EMAIL || (u?.email || '').toLowerCase() !== ADMIN_EMAIL) {
+        setAdminLoginError("Ce compte n'est pas le compte administrateur configuré.");
+        await logoutMerchant();
+      }
+    } catch (err) {
+      setAdminLoginError('Identifiants incorrects ou compte introuvable.');
+    } finally { setAdminLoginLoading(false); }
+  };
 
   // Password change
   const [currentPass, setCurrentPass] = useState('');
@@ -128,7 +152,7 @@ export default function DeveloperConsole() {
   };
 
   // ── Auth screen ────────────────────────────────────────────────────────
-  if (!isAuthenticated) {
+  if (!adminOk) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
         <div className="w-full max-w-sm">
@@ -140,6 +164,31 @@ export default function DeveloperConsole() {
             <p className="text-sm text-slate-500 mt-1">Administration centrale Jappandal Tech</p>
           </div>
 
+          {/* Connexion sécurisée (Firebase Auth) — recommandée */}
+          <form onSubmit={handleAdminFirebaseLogin} className="space-y-3">
+            <input type="email" required placeholder="Email administrateur"
+              value={adminEmail}
+              onChange={(e) => { setAdminEmail(e.target.value); setAdminLoginError(''); }}
+              className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none" />
+            <input type="password" required placeholder="Mot de passe"
+              value={adminPw}
+              onChange={(e) => { setAdminPw(e.target.value); setAdminLoginError(''); }}
+              className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none" />
+            {adminLoginError && <p className="text-red-400 text-xs text-center font-medium">{adminLoginError}</p>}
+            <button type="submit" disabled={adminLoginLoading}
+              className="w-full py-3 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:opacity-60 text-slate-950 font-bold text-sm transition-all flex items-center justify-center gap-2">
+              {adminLoginLoading ? <span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" /> : <Lock className="w-4 h-4" />}
+              Connexion sécurisée
+            </button>
+          </form>
+
+          <div className="flex items-center gap-3 my-5">
+            <div className="flex-1 h-px bg-slate-800" />
+            <span className="text-[10px] text-slate-600 uppercase tracking-wider">ou code d'accès</span>
+            <div className="flex-1 h-px bg-slate-800" />
+          </div>
+
+          {/* Code d'accès (secours) */}
           <form onSubmit={(e) => {
             e.preventDefault();
             if (adminPassword === getStoredAdminPassword()) setIsAuthenticated(true);
