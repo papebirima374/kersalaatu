@@ -5,6 +5,7 @@ import {
   ShoppingBag,
   ArrowRight,
   LogIn,
+  Search,
   Smartphone, 
   MessageSquare, 
   Shield, 
@@ -35,6 +36,18 @@ export default function LandingPage() {
 
   // FAQ accordion state
   const [openFaq, setOpenFaq] = useState(null);
+
+  // Recherche boutiques (nom + téléphone)
+  const [shopSearch, setShopSearch] = useState('');
+  const shopQuery = shopSearch.trim().toLowerCase();
+  const shopQueryDigits = shopQuery.replace(/\D/g, '');
+  const filteredShops = boutiques.filter(b => {
+    if (!shopQuery) return true;
+    const name = (b.name || '').toLowerCase();
+    const phone = (b.whatsapp || '').toLowerCase();
+    return name.includes(shopQuery) || phone.includes(shopQuery) ||
+      (shopQueryDigits && phone.replace(/\D/g, '').includes(shopQueryDigits));
+  });
 
   const faqData = [
     {
@@ -182,13 +195,29 @@ export default function LandingPage() {
                 : "Découvrez les boutiques actuellement en ligne sur Jappandal Tech :"}
             </p>
 
+            {boutiques.length > 0 && (
+              <div className="relative mb-4">
+                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  value={shopSearch}
+                  onChange={e => setShopSearch(e.target.value)}
+                  placeholder="Rechercher une boutique (nom ou téléphone)…"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            )}
+
             <div className="space-y-4">
               {boutiques.length === 0 ? (
                 <div className="py-8 text-center text-slate-500 text-sm border border-dashed border-slate-800 rounded-xl bg-slate-950/40 p-4">
                   Aucune boutique créée pour le moment. Soyez le premier à lancer votre boutique en ligne !
                 </div>
+              ) : filteredShops.length === 0 ? (
+                <div className="py-8 text-center text-slate-500 text-sm border border-dashed border-slate-800 rounded-xl bg-slate-950/40 p-4">
+                  Aucune boutique ne correspond à « {shopSearch} ».
+                </div>
               ) : (
-                boutiques.map((b) => (
+                filteredShops.map((b) => (
                   <div key={b.id} className="p-3 rounded-xl bg-slate-950 border border-slate-800/50 hover:border-slate-700 transition-all flex items-center gap-3 group">
                     {/* Logo */}
                     <div className="w-11 h-11 rounded-lg flex items-center justify-center text-xl bg-slate-900 border border-slate-800 overflow-hidden shrink-0">

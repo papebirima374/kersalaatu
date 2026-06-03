@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import {
   Shield, Store, ClipboardList, Settings, LogOut, Check, AlertTriangle,
   DollarSign, TrendingUp, Users, Lock, Unlock, MessageSquare, Trash2,
-  Plus, X, ExternalLink, Clock
+  Plus, X, ExternalLink, Clock, Search
 } from 'lucide-react';
 
 const fmt = (n) => new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
@@ -59,6 +59,9 @@ export default function DeveloperConsole() {
   const [confirmPass, setConfirmPass] = useState('');
   const [passSuccess, setPassSuccess] = useState('');
   const [passError, setPassError] = useState('');
+
+  // Recherche boutiques
+  const [boutiqueSearch, setBoutiqueSearch] = useState('');
 
   // Create boutique modal
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -179,6 +182,18 @@ export default function DeveloperConsole() {
     if (b.abonnement?.plan === 'Premium') return sum + 15000;
     return sum;
   }, 0);
+
+  // Recherche boutiques (nom + téléphone + email)
+  const bq = boutiqueSearch.trim().toLowerCase();
+  const bqDigits = bq.replace(/\D/g, '');
+  const filteredBoutiques = boutiques.filter(b => {
+    if (!bq) return true;
+    const name = (b.name || '').toLowerCase();
+    const phone = (b.whatsapp || '').toLowerCase();
+    const email = (b.ownerEmail || '').toLowerCase();
+    return name.includes(bq) || email.includes(bq) || phone.includes(bq) ||
+      (bqDigits && phone.replace(/\D/g, '').includes(bqDigits));
+  });
 
   const NAV = [
     { id:'dashboard',   label:"Vue d'ensemble", icon: Settings },
@@ -353,7 +368,21 @@ export default function DeveloperConsole() {
           {/* ── BOUTIQUES ─────────────────────────────────────────────── */}
           {activeTab === 'boutiques' && (
             <div className="space-y-3">
-              {boutiques.map(b => {
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  value={boutiqueSearch}
+                  onChange={e => setBoutiqueSearch(e.target.value)}
+                  placeholder="Rechercher (nom, téléphone ou email)…"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              {boutiques.length > 0 && filteredBoutiques.length === 0 && (
+                <div className="bg-slate-900 border border-dashed border-slate-700 rounded-xl py-10 text-center text-slate-500 text-sm">
+                  Aucune boutique ne correspond à « {boutiqueSearch} ».
+                </div>
+              )}
+              {filteredBoutiques.map(b => {
                 const actif = (b.abonnement?.statut || 'Actif') === 'Actif';
                 return (
                 <div key={b.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
