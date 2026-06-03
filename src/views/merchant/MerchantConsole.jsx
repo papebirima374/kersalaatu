@@ -1,5 +1,6 @@
 import { toast } from '../../components/toast';
 import QRCode from 'qrcode';
+import { unlockAudio, playOrderSound, requestNotifPermission, showOrderNotification } from '../../notify';
 import React, { useState, useRef } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import { Link } from 'react-router-dom';
@@ -225,6 +226,39 @@ function MerchantDashboard() {
   const totalRevenue    = completedOrders.reduce((s, o) => s + o.total, 0);
   const pendingOrders   = activeOrders.filter(o => o.statut === 'Reçue' || o.statut === 'Préparée').length;
   const lowStock        = activeProducts.filter(p => p.stock <= 3).length;
+  const outOfStock      = activeProducts.filter(p => p.actif && p.stock === 0);
+  const lowStockList    = activeProducts.filter(p => p.actif && p.stock > 0 && p.stock <= 3);
+
+  // ── Alertes de commande (son + notification système) ──────────────────
+  const [alertsOn, setAlertsOn] = useState(() => localStorage.getItem('jt_alerts_on') === '1');
+  const seenOrders = useRef(null);
+
+  // Réinitialise le suivi au changement de boutique (n'alerte pas pour l'historique)
+  React.useEffect(() => { seenOrders.current = null; }, [activeBoutique?.id]);
+
+  // Détecte les nouvelles commandes en temps réel → son + toast + notif système
+  React.useEffect(() => {
+    if (!activeBoutique) return;
+    const ids = activeOrders.map(o => o.id);
+    if (seenOrders.current === null) { seenOrders.current = new Set(ids); return; }
+    const fresh = activeOrders.filter(o => !seenOrders.current.has(o.id));
+    if (fresh.length === 0) return;
+    fresh.forEach(o => seenOrders.current.add(o.id));
+    if (!alertsOn) return;
+    playOrderSound();
+    const o = fresh[0];
+    const n = fresh.length;
+    toast(`🔔 ${n} nouvelle${n > 1 ? 's' : ''} commande${n > 1 ? 's' : ''} !`, 'success', 7000);
+    showOrderNotification('Nouvelle commande reçue', `${o.client?.nom || 'Client'} · ${fmt(o.total)}`);
+  }, [activeOrders, alertsOn, activeBoutique?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Débloque l'audio au 1er contact (politique navigateur) si les alertes sont actives
+  React.useEffect(() => {
+    if (!alertsOn) return;
+    const h = () => unlockAudio();
+    window.addEventListener('pointerdown', h, { once: true });
+    return () => window.removeEventListener('pointerdown', h);
+  }, [alertsOn]);
 
   // Product modal
   const [showProductModal, setShowProductModal] = useState(false);
@@ -855,6 +889,25 @@ function MerchantDashboard() {
           </div>
           <div className="flex items-center gap-2">
             <RefreshButton variant="dark" />
+            <button
+              onClick={async () => {
+                if (alertsOn) {
+                  setAlertsOn(false); localStorage.setItem('jt_alerts_on', '0');
+                  toast('Alertes commande désactivées.', 'info');
+                } else {
+                  unlockAudio();
+                  await requestNotifPermission();
+                  setAlertsOn(true); localStorage.setItem('jt_alerts_on', '1');
+                  playOrderSound();
+                  toast('🔔 Alertes activées — un son retentira à chaque nouvelle commande.', 'success', 6000);
+                }
+              }}
+              title={alertsOn ? 'Alertes commande activées (cliquer pour désactiver)' : 'Activer les alertes sonores de commande'}
+              className={`relative flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-all ${alertsOn ? 'bg-blue-500/15 text-blue-300 border-blue-500/40' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>
+              <svg viewBox="0 0 24 24" fill={alertsOn ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
+              <span className="hidden sm:inline">{alertsOn ? 'Alertes ON' : 'Alertes'}</span>
+              {alertsOn && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-slate-950" />}
+            </button>
             {activeBoutique && (
               <button
                 onClick={async () => {
@@ -911,6 +964,33 @@ function MerchantDashboard() {
                   </div>
                 ))}
               </div>
+
+              {/* Alerte stock — produits à réapprovisionner */}
+              {(outOfStock.length > 0 || lowStockList.length > 0) && (
+                <div className="bg-slate-900 border border-amber-500/30 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-white text-sm flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-400" /> Stock à réapprovisionner
+                    </h3>
+                    <button onClick={() => setActiveTab('products')} className="text-xs text-blue-400 hover:text-blue-300">Gérer les produits →</button>
+                  </div>
+                  <p className="text-xs text-slate-500 mb-3">Touchez un article pour modifier son stock.</p>
+                  <div className="flex flex-wrap gap-2">
+                    {outOfStock.map(p => (
+                      <button key={p.id} onClick={() => openEditProduct(p)} title="Réapprovisionner cet article"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/10 text-red-300 border border-red-500/30 hover:bg-red-500/20 transition-colors">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> {p.name} · Rupture
+                      </button>
+                    ))}
+                    {lowStockList.map(p => (
+                      <button key={p.id} onClick={() => openEditProduct(p)} title="Réapprovisionner cet article"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20 transition-colors">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> {p.name} · {p.stock} restant{p.stock > 1 ? 's' : ''}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Commandes récentes */}
               <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
