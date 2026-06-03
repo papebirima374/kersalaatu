@@ -266,48 +266,128 @@ export default function DeveloperConsole() {
     else if (daysLeft <= 7) etat = 'bientot';
     return { plan, isFree, statut, exp, daysLeft, expired, etat };
   };
-  // Reçu de paiement (PDF)
-  const generateReceipt = async (b, payment) => {
+  // Charge le logo Jappandal (même origine) en dataURL pour le PDF
+  const loadJappandalLogo = () => new Promise((resolve) => {
     try {
-      const { default: jsPDF } = await import('jspdf');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const W = 210;
-      pdf.setFillColor(37, 99, 235); pdf.rect(0, 0, W, 4, 'F');
-      pdf.setFont(undefined, 'bold'); pdf.setFontSize(22); pdf.setTextColor(37, 99, 235);
-      pdf.text('Jappandal Tech', 20, 26);
-      pdf.setFont(undefined, 'normal'); pdf.setFontSize(10); pdf.setTextColor(120);
-      pdf.text('Reçu de paiement — Abonnement', 20, 33);
-      pdf.text(`Reçu N° ${String(new Date(payment.date).getTime()).slice(-8)}`, W - 20, 26, { align: 'right' });
-      pdf.text(new Date(payment.date).toLocaleDateString('fr-FR'), W - 20, 33, { align: 'right' });
-      pdf.setDrawColor(225); pdf.line(20, 40, W - 20, 40);
-      pdf.setFont(undefined, 'bold'); pdf.setFontSize(11); pdf.setTextColor(40); pdf.text('Client', 20, 50);
-      pdf.setFont(undefined, 'normal'); pdf.setFontSize(10); pdf.setTextColor(60);
-      pdf.text(b.name || '', 20, 57);
-      if (b.whatsapp) pdf.text(String(b.whatsapp), 20, 63);
-      if (b.ownerEmail) pdf.text(String(b.ownerEmail), 20, 69);
-      pdf.setFont(undefined, 'bold'); pdf.setFontSize(11); pdf.setTextColor(40); pdf.text("Détails de l'abonnement", 20, 84);
-      const rows = [
-        ['Forfait', b.abonnement?.plan || 'Pro'],
-        ['Période', payment.mois ? `${payment.mois} mois` : 'Personnalisée'],
-        ["Actif jusqu'au", new Date(payment.jusqua).toLocaleDateString('fr-FR')],
-        ['Méthode', payment.methode || '—'],
-        ['Type', payment.type === 'offert' ? 'Offert (gratuit)' : 'Payé'],
-      ];
-      let y = 93;
-      pdf.setFont(undefined, 'normal'); pdf.setFontSize(10);
-      rows.forEach(([k, v]) => {
-        pdf.setTextColor(110); pdf.text(k, 20, y);
-        pdf.setTextColor(40); pdf.text(String(v), 85, y);
-        y += 8;
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas');
+          c.width = img.naturalWidth; c.height = img.naturalHeight;
+          c.getContext('2d').drawImage(img, 0, 0);
+          resolve(c.toDataURL('image/png'));
+        } catch { resolve(null); }
+      };
+      img.onerror = () => resolve(null);
+      img.src = '/icon-512.png';
+    } catch { resolve(null); }
+  });
+
+  // Construit le reçu PDF (pro, avec logo) et retourne l'objet jsPDF
+  const buildReceiptPdf = async (b, payment) => {
+    const { default: jsPDF } = await import('jspdf');
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const W = 210, M = 18;
+    const fmtN = (n) => new Intl.NumberFormat('fr-FR').format(n || 0);
+    pdf.setFillColor(37, 99, 235); pdf.rect(0, 0, W, 3, 'F');
+
+    const logo = await loadJappandalLogo();
+    let xText = M;
+    if (logo) { try { pdf.addImage(logo, 'PNG', M, 13, 18, 18); xText = M + 23; } catch { /* */ } }
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(18); pdf.setTextColor(37, 99, 235);
+    pdf.text('Jappandal Tech', xText, 22);
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(100, 116, 139);
+    pdf.text('Plateforme e-commerce multi-boutiques', xText, 28);
+
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(20); pdf.setTextColor(15, 23, 42);
+    pdf.text('REÇU', W - M, 20, { align: 'right' });
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(100, 116, 139);
+    pdf.text(`N° ${String(new Date(payment.date).getTime()).slice(-8)}`, W - M, 26, { align: 'right' });
+    pdf.text(`Date : ${new Date(payment.date).toLocaleDateString('fr-FR')}`, W - M, 31, { align: 'right' });
+
+    pdf.setDrawColor(226, 232, 240); pdf.setLineWidth(0.4); pdf.line(M, 40, W - M, 40);
+
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9); pdf.setTextColor(100, 116, 139); pdf.text('FACTURÉ À', M, 50);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12); pdf.setTextColor(15, 23, 42); pdf.text(b.name || 'Client', M, 57);
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9.5); pdf.setTextColor(100, 116, 139);
+    let cy = 63;
+    if (b.whatsapp) { pdf.text(String(b.whatsapp), M, cy); cy += 5; }
+    if (b.ownerEmail) { pdf.text(String(b.ownerEmail), M, cy); cy += 5; }
+    if (b.slug) { pdf.text(`jappandal-tech.vercel.app/shop/${b.slug}`, M, cy); cy += 5; }
+
+    let y = 84;
+    pdf.setFillColor(241, 245, 249); pdf.rect(M, y, W - 2 * M, 9, 'F');
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9); pdf.setTextColor(15, 23, 42);
+    pdf.text('DESCRIPTION', M + 4, y + 6);
+    pdf.text('MONTANT', W - M - 4, y + 6, { align: 'right' });
+    y += 9;
+    const period = payment.mois ? `${payment.mois} mois` : 'période personnalisée';
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10.5); pdf.setTextColor(15, 23, 42);
+    pdf.text(`Abonnement ${b.abonnement?.plan || 'Pro'} — ${period}`, M + 4, y + 8);
+    pdf.setTextColor(100, 116, 139); pdf.setFontSize(8.5);
+    pdf.text(`Actif jusqu'au ${new Date(payment.jusqua).toLocaleDateString('fr-FR')}${payment.methode ? ' · ' + payment.methode : ''}${payment.type === 'offert' ? ' · OFFERT' : ''}`, M + 4, y + 13.5);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10.5); pdf.setTextColor(15, 23, 42);
+    pdf.text(`${fmtN(payment.montant)} FCFA`, W - M - 4, y + 8, { align: 'right' });
+    y += 20;
+    pdf.setDrawColor(226, 232, 240); pdf.line(M, y, W - M, y);
+
+    y += 7;
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+    pdf.setTextColor(payment.type === 'offert' ? 37 : 16, payment.type === 'offert' ? 99 : 185, payment.type === 'offert' ? 235 : 129);
+    pdf.text(payment.type === 'offert' ? 'OFFERT (gratuit)' : 'PAYE', M, y + 10);
+    pdf.setFillColor(37, 99, 235); pdf.roundedRect(W - M - 82, y, 82, 16, 2, 2, 'F');
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(255, 255, 255);
+    pdf.text('TOTAL PAYÉ', W - M - 78, y + 6);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(14);
+    pdf.text(`${fmtN(payment.montant)} FCFA`, W - M - 4, y + 11.5, { align: 'right' });
+
+    pdf.setDrawColor(226, 232, 240); pdf.line(M, 272, W - M, 272);
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.setTextColor(120, 130, 145);
+    pdf.text('Merci de votre confiance — Jappandal Tech', M, 279);
+    pdf.text("Ce reçu confirme le paiement de votre abonnement.", M, 283.5);
+    return pdf;
+  };
+
+  const receiptFilename = (b, payment) => `recu-${b.slug || 'client'}-${new Date(payment.date).toISOString().slice(0, 10)}.pdf`;
+
+  const downloadReceipt = async (b, payment) => {
+    try { const pdf = await buildReceiptPdf(b, payment); pdf.save(receiptFilename(b, payment)); }
+    catch (e) { toast('Erreur lors de la génération du reçu.'); }
+  };
+
+  const shareReceipt = async (b, payment) => {
+    try {
+      const pdf = await buildReceiptPdf(b, payment);
+      const file = new File([pdf.output('blob')], receiptFilename(b, payment), { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Reçu Jappandal Tech', text: `Reçu — ${b.name}` });
+      } else {
+        pdf.save(receiptFilename(b, payment));
+        toast('Partage de fichier indisponible ici — reçu téléchargé (joignez-le sur WhatsApp).', 'info', 5000);
+      }
+    } catch (e) { if (e?.name !== 'AbortError') toast('Erreur lors du partage.'); }
+  };
+
+  const emailReceipt = async (b, payment) => {
+    if (!b.ownerEmail) { toast("Ce client n'a pas d'email enregistré."); return; }
+    try {
+      const pdf = await buildReceiptPdf(b, payment);
+      const base64 = pdf.output('datauristring').split('base64,')[1];
+      toast('Envoi du reçu par email…', 'info', 2500);
+      const r = await fetch('/api/send-receipt', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: b.ownerEmail,
+          subject: `Reçu d'abonnement — ${b.name}`,
+          filename: receiptFilename(b, payment),
+          pdfBase64: base64,
+          html: `<p>Bonjour <b>${b.name}</b>,<br/>Veuillez trouver en pièce jointe votre reçu de paiement d'abonnement <b>Jappandal Tech</b>.<br/>Merci de votre confiance !</p>`,
+        }),
       });
-      y += 4; pdf.setDrawColor(225); pdf.line(20, y, W - 20, y); y += 11;
-      pdf.setFont(undefined, 'bold'); pdf.setFontSize(13); pdf.setTextColor(37, 99, 235);
-      pdf.text('Montant payé', 20, y);
-      pdf.text(`${new Intl.NumberFormat('fr-FR').format(payment.montant || 0)} FCFA`, W - 20, y, { align: 'right' });
-      pdf.setFont(undefined, 'normal'); pdf.setFontSize(8); pdf.setTextColor(150);
-      pdf.text('Merci de votre confiance — Jappandal Tech', 20, 285);
-      pdf.save(`recu-${b.slug || 'client'}-${new Date(payment.date).toISOString().slice(0, 10)}.pdf`);
-    } catch (e) { toast('Erreur lors de la génération du reçu.'); }
+      const data = await r.json().catch(() => ({}));
+      if (data.ok) toast('Reçu envoyé par email ✅', 'success');
+      else toast(data.error || "Échec de l'envoi (configurez Resend + domaine).", 'error', 6000);
+    } catch (e) { toast("Erreur lors de l'envoi de l'email."); }
   };
 
   const openSubModal = (b) => {
@@ -353,7 +433,7 @@ export default function DeveloperConsole() {
     toast(subForm.paid
       ? `💳 Encaissé — actif jusqu'au ${new Date(newExp).toLocaleDateString('fr-FR')}`
       : `🎁 Offert — actif jusqu'au ${new Date(newExp).toLocaleDateString('fr-FR')}`, 'success', 5000);
-    if (subForm.paid) generateReceipt(b, payment);
+    if (subForm.paid) downloadReceipt(b, payment);
     setSubModal(null);
   };
   // Statistiques d'abonnement + tri par urgence (expirées d'abord)
@@ -910,9 +990,17 @@ export default function DeveloperConsole() {
                           </span>
                           {p.mois && <span className="text-slate-500"> · {p.mois} mois</span>}
                         </div>
-                        <button onClick={() => generateReceipt(b, p)} title="Télécharger le reçu" className="shrink-0 text-blue-400 hover:text-blue-300">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-                        </button>
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <button onClick={() => downloadReceipt(b, p)} title="Télécharger le reçu PDF" className="p-1.5 rounded text-slate-400 hover:text-blue-300 hover:bg-slate-700/50 transition-colors">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+                          </button>
+                          <button onClick={() => shareReceipt(b, p)} title="Partager le reçu (WhatsApp…)" className="p-1.5 rounded text-slate-400 hover:text-emerald-300 hover:bg-slate-700/50 transition-colors">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></svg>
+                          </button>
+                          <button onClick={() => emailReceipt(b, p)} title="Envoyer le reçu par email" className="p-1.5 rounded text-slate-400 hover:text-blue-300 hover:bg-slate-700/50 transition-colors">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-10 5L2 7" /></svg>
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
