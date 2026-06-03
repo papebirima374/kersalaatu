@@ -459,7 +459,7 @@ function MerchantDashboard() {
         name: productForm.name,
         price: Number(productForm.price),
         stock: globalStock,
-        category: productForm.category,
+        category: (productForm.category || '').trim() || 'Divers',
         photo: mainPhoto,
         photos: finalPhotos,
         description: productForm.description,
@@ -1591,13 +1591,34 @@ function MerchantDashboard() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1.5">Catégorie</label>
-                <select value={productForm.category} onChange={e => setProductForm(p=>({...p, category:e.target.value}))}
-                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 focus:border-blue-500 focus:outline-none">
-                  {['Vêtements','Chaussures','Sacs','Accessoires','Lunettes','Encens','Cosmétiques','Électronique','Alimentation','Divers'].map(c => <option key={c}>{c}</option>)}
-                </select>
-              </div>
+              {(() => {
+                const CATS = ['Vêtements','Chaussures','Sacs','Accessoires','Lunettes','Encens','Cosmétiques','Électronique','Alimentation','Divers'];
+                const isCustomCat = !CATS.includes(productForm.category); // catégorie personnalisée (ou vide après « Autre »)
+                return (
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1.5">Catégorie</label>
+                    <select
+                      value={isCustomCat ? '__custom__' : productForm.category}
+                      onChange={e => {
+                        const v = e.target.value;
+                        setProductForm(p => ({ ...p, category: v === '__custom__' ? '' : v }));
+                      }}
+                      className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 focus:border-blue-500 focus:outline-none">
+                      {CATS.map(c => <option key={c} value={c}>{c}</option>)}
+                      <option value="__custom__">➕ Autre catégorie…</option>
+                    </select>
+                    {isCustomCat && (
+                      <input
+                        type="text"
+                        autoFocus
+                        value={productForm.category}
+                        onChange={e => setProductForm(p => ({ ...p, category: e.target.value }))}
+                        placeholder="Saisir votre catégorie (ex : Tissus, Bijoux, Parfums…)"
+                        className="mt-2 w-full px-4 py-2.5 bg-slate-800 border border-blue-500/50 rounded-xl text-sm text-slate-200 placeholder-slate-600 focus:border-blue-500 focus:outline-none" />
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Photos (max 5) */}
               <div className="space-y-3 p-4 bg-slate-800/50 rounded-xl border border-slate-700">
