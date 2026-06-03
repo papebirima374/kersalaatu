@@ -360,6 +360,10 @@ function MerchantDashboard() {
     }
   }, [currentMerchantBoutiqueId, activeBoutique?.id]);
 
+  // ⚠️ Doit rester AVANT le return ci-dessous (Rules of Hooks — sinon React error #300
+  // quand un compte connecté n'a pas de boutique, ex. le compte admin)
+  const [variantUploading, setVariantUploading] = useState(null); // index variante en cours d'upload
+
   if (!activeBoutique) return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
       <Store className="w-12 h-12 text-slate-700 mb-4" />
@@ -395,7 +399,6 @@ function MerchantDashboard() {
   };
 
   // ── Handlers variantes (parfums, couleurs, tailles...) ───────────────────
-  const [variantUploading, setVariantUploading] = useState(null); // index en cours d'upload
   const addVariant = () => {
     setProductForm(p => ({ ...p, variantes: [...(p.variantes || []), { id: `v-${Date.now()}`, nom: '', photo: '', stock: '' }] }));
   };
