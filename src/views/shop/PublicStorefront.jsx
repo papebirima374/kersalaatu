@@ -381,18 +381,6 @@ export default function PublicStorefront() {
           <Link to="/" className="text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors hidden sm:block">
             Plateforme Jappandal
           </Link>
-          {/* Refresh */}
-          <button
-            onClick={() => window.location.reload()}
-            aria-label="Rafraîchir"
-            title="Rafraîchir la page"
-            className="p-3 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all shadow-sm cursor-pointer hover:scale-105 active:rotate-180 duration-300"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-              <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-              <path d="M21 3v6h-6" />
-            </svg>
-          </button>
           {/* Cart Icon */}
           <button 
             onClick={() => {

@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { TenantProvider } from './context/TenantContext';
 import ErrorBoundary from './ErrorBoundary';
 import { Toaster } from './components/toast';
+import PullToRefresh from './PullToRefresh';
 import LandingPage from './views/LandingPage';
 import MerchantConsole from './views/merchant/MerchantConsole';
 import PublicStorefront from './views/shop/PublicStorefront';
@@ -12,6 +13,7 @@ function App() {
   return (
     <ErrorBoundary>
       <TenantProvider>
+        <PullToRefresh />
         <Toaster />
         <Router>
           <Routes>

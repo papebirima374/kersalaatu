@@ -89,8 +89,10 @@ export default function LandingPage() {
 
       {/* Header */}
       <header className="relative max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 pt-safe flex items-center gap-3 border-b border-slate-800/80">
-        {/* Logo à gauche */}
-        <img src="/logo-jappandal.png" alt="Jappandal" className="h-11 sm:h-12 w-auto object-contain shrink-0" />
+        {/* Logo à gauche — clic = rafraîchir */}
+        <button onClick={() => window.location.reload()} title="Rafraîchir" aria-label="Rafraîchir" className="shrink-0 active:rotate-180 transition-transform duration-300">
+          <img src="/logo-jappandal.png" alt="Jappandal" className="h-11 sm:h-12 w-auto object-contain" />
+        </button>
 
         {/* Nom de marque + slogan qui défilent (logo → bouton) */}
         <div className="flex-1 overflow-hidden mask-fade">

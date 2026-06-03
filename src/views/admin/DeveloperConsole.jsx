@@ -2,7 +2,6 @@ import { toast } from '../../components/toast';
 import React, { useState } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import { Link } from 'react-router-dom';
-import RefreshButton from '../../components/RefreshButton';
 import {
   Shield, Store, ClipboardList, Settings, LogOut, Check, AlertTriangle,
   DollarSign, TrendingUp, Users, Lock, Unlock, MessageSquare, Trash2,
@@ -249,7 +248,6 @@ export default function DeveloperConsole() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <RefreshButton variant="dark" />
             {activeTab === 'boutiques' && (
               <button onClick={() => setShowCreateModal(true)}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 text-slate-950 text-sm font-bold transition-all">

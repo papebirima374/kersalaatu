@@ -5,7 +5,6 @@ import React, { useState, useRef } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import { Link } from 'react-router-dom';
 import { isConfigured } from '../../firebase/config';
-import RefreshButton from '../../components/RefreshButton';
 import {
   LayoutDashboard, ShoppingBag, ClipboardList, Settings, LogOut,
   Plus, Trash2, Edit3, Check, Clock, AlertTriangle, DollarSign,
@@ -888,7 +887,6 @@ function MerchantDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <RefreshButton variant="dark" />
             <button
               onClick={async () => {
                 if (alertsOn) {
