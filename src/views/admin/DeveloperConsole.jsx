@@ -93,6 +93,10 @@ export default function DeveloperConsole() {
     name: '', whatsapp: '', description: '', ownerEmail: '', password: '', plan: 'Pro', couleurMarque: '#2563eb'
   });
 
+  // Gestion d'abonnement (modal)
+  const [subModal, setSubModal] = useState(null); // boutique en cours de gestion
+  const [subForm, setSubForm] = useState({ mode: 'months', months: 1, date: '', paid: true, amount: '', method: 'Wave' });
+
   const getStoredAdminPassword = () => {
     const envSecret = import.meta.env.VITE_ADMIN_SECRET;
     return localStorage.getItem('ks_admin_password') || envSecret || 'ks-admin-2025';
@@ -262,24 +266,95 @@ export default function DeveloperConsole() {
     else if (daysLeft <= 7) etat = 'bientot';
     return { plan, isFree, statut, exp, daysLeft, expired, etat };
   };
-  // Renouvelle/prolonge : +N mois (payé) ou offert. Étend depuis l'échéance restante si non expirée.
-  const renewSub = (b, months, paid) => {
-    const cur = b.abonnement?.dateExpiration ? new Date(b.abonnement.dateExpiration).getTime() : Date.now();
-    const base = Math.max(Date.now(), cur);
-    const newExp = new Date(base + months * 30 * DAY_MS).toISOString();
+  // Reçu de paiement (PDF)
+  const generateReceipt = async (b, payment) => {
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const W = 210;
+      pdf.setFillColor(37, 99, 235); pdf.rect(0, 0, W, 4, 'F');
+      pdf.setFont(undefined, 'bold'); pdf.setFontSize(22); pdf.setTextColor(37, 99, 235);
+      pdf.text('Jappandal Tech', 20, 26);
+      pdf.setFont(undefined, 'normal'); pdf.setFontSize(10); pdf.setTextColor(120);
+      pdf.text('Reçu de paiement — Abonnement', 20, 33);
+      pdf.text(`Reçu N° ${String(new Date(payment.date).getTime()).slice(-8)}`, W - 20, 26, { align: 'right' });
+      pdf.text(new Date(payment.date).toLocaleDateString('fr-FR'), W - 20, 33, { align: 'right' });
+      pdf.setDrawColor(225); pdf.line(20, 40, W - 20, 40);
+      pdf.setFont(undefined, 'bold'); pdf.setFontSize(11); pdf.setTextColor(40); pdf.text('Client', 20, 50);
+      pdf.setFont(undefined, 'normal'); pdf.setFontSize(10); pdf.setTextColor(60);
+      pdf.text(b.name || '', 20, 57);
+      if (b.whatsapp) pdf.text(String(b.whatsapp), 20, 63);
+      if (b.ownerEmail) pdf.text(String(b.ownerEmail), 20, 69);
+      pdf.setFont(undefined, 'bold'); pdf.setFontSize(11); pdf.setTextColor(40); pdf.text("Détails de l'abonnement", 20, 84);
+      const rows = [
+        ['Forfait', b.abonnement?.plan || 'Pro'],
+        ['Période', payment.mois ? `${payment.mois} mois` : 'Personnalisée'],
+        ["Actif jusqu'au", new Date(payment.jusqua).toLocaleDateString('fr-FR')],
+        ['Méthode', payment.methode || '—'],
+        ['Type', payment.type === 'offert' ? 'Offert (gratuit)' : 'Payé'],
+      ];
+      let y = 93;
+      pdf.setFont(undefined, 'normal'); pdf.setFontSize(10);
+      rows.forEach(([k, v]) => {
+        pdf.setTextColor(110); pdf.text(k, 20, y);
+        pdf.setTextColor(40); pdf.text(String(v), 85, y);
+        y += 8;
+      });
+      y += 4; pdf.setDrawColor(225); pdf.line(20, y, W - 20, y); y += 11;
+      pdf.setFont(undefined, 'bold'); pdf.setFontSize(13); pdf.setTextColor(37, 99, 235);
+      pdf.text('Montant payé', 20, y);
+      pdf.text(`${new Intl.NumberFormat('fr-FR').format(payment.montant || 0)} FCFA`, W - 20, y, { align: 'right' });
+      pdf.setFont(undefined, 'normal'); pdf.setFontSize(8); pdf.setTextColor(150);
+      pdf.text('Merci de votre confiance — Jappandal Tech', 20, 285);
+      pdf.save(`recu-${b.slug || 'client'}-${new Date(payment.date).toISOString().slice(0, 10)}.pdf`);
+    } catch (e) { toast('Erreur lors de la génération du reçu.'); }
+  };
+
+  const openSubModal = (b) => {
     const plan = (b.abonnement?.plan && b.abonnement.plan !== 'Découverte') ? b.abonnement.plan : 'Pro';
+    setSubForm({ mode: 'months', months: 1, date: '', paid: true, amount: String(PLAN_PRICE[plan] || 5000), method: 'Wave' });
+    setSubModal(b);
+  };
+
+  // Applique le renouvellement (mois OU date), enregistre le paiement et génère le reçu si payé
+  const applySub = () => {
+    const b = subModal;
+    if (!b) return;
+    let newExp;
+    if (subForm.mode === 'date') {
+      if (!subForm.date) { toast("Choisissez une date d'échéance."); return; }
+      newExp = new Date(subForm.date + 'T23:59:59').toISOString();
+    } else {
+      const months = Math.max(1, Number(subForm.months) || 1);
+      const cur = b.abonnement?.dateExpiration ? new Date(b.abonnement.dateExpiration).getTime() : Date.now();
+      const base = Math.max(Date.now(), cur);
+      newExp = new Date(base + months * 30 * DAY_MS).toISOString();
+    }
+    const plan = (b.abonnement?.plan && b.abonnement.plan !== 'Découverte') ? b.abonnement.plan : 'Pro';
+    const payment = {
+      date: new Date().toISOString(),
+      type: subForm.paid ? 'paye' : 'offert',
+      montant: subForm.paid ? (Number(subForm.amount) || 0) : 0,
+      mois: subForm.mode === 'months' ? Math.max(1, Number(subForm.months) || 1) : null,
+      methode: subForm.paid ? subForm.method : null,
+      jusqua: newExp,
+    };
+    const paiements = [...(b.abonnement?.paiements || []), payment];
     updateBoutique(b.id, {
       abonnement: {
         ...(b.abonnement || {}),
-        plan,
-        statut: 'Actif',
+        plan, statut: 'Actif',
         dateDebut: b.abonnement?.dateDebut || new Date().toISOString(),
         dateExpiration: newExp,
-        ...(paid ? { dernierPaiement: new Date().toISOString() } : { dernierCadeau: new Date().toISOString() }),
+        paiements,
+        ...(subForm.paid ? { dernierPaiement: payment.date } : { dernierCadeau: payment.date }),
       }
     });
-    const until = new Date(newExp).toLocaleDateString('fr-FR');
-    toast(paid ? `💳 Encaissé — actif jusqu'au ${until}` : `🎁 ${months} mois offert(s) — jusqu'au ${until}`, 'success', 5000);
+    toast(subForm.paid
+      ? `💳 Encaissé — actif jusqu'au ${new Date(newExp).toLocaleDateString('fr-FR')}`
+      : `🎁 Offert — actif jusqu'au ${new Date(newExp).toLocaleDateString('fr-FR')}`, 'success', 5000);
+    if (subForm.paid) generateReceipt(b, payment);
+    setSubModal(null);
   };
   // Statistiques d'abonnement + tri par urgence (expirées d'abord)
   const subStats = boutiques.reduce((acc, b) => {
@@ -546,15 +621,10 @@ export default function DeveloperConsole() {
                           <span className="block text-[10px] text-slate-600 mt-0.5">Dernier paiement : {new Date(b.abonnement.dernierPaiement).toLocaleDateString('fr-FR')}</span>
                         )}
                       </div>
-                      <button onClick={() => renewSub(b, 1, true)}
-                        title="Le client a payé sa mensualité → prolonge d'1 mois"
-                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all">
-                        💳 Encaisser +1 mois
-                      </button>
-                      <button onClick={() => renewSub(b, 1, false)}
-                        title="Offrir un mois gratuit à ce client"
-                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-all">
-                        🎁 Offrir
+                      <button onClick={() => openSubModal(b)}
+                        title="Gérer l'abonnement : encaisser, offrir, définir une échéance, reçu"
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-500 hover:bg-blue-400 text-slate-950 transition-all flex items-center gap-1.5">
+                        <DollarSign className="w-3.5 h-3.5" /> Gérer / Encaisser
                       </button>
                     </div>
                   )}
@@ -743,6 +813,117 @@ export default function DeveloperConsole() {
       </main>
 
       {/* ── MODAL CRÉER BOUTIQUE ──────────────────────────────────────── */}
+      {/* ── MODAL GESTION ABONNEMENT ─────────────────────────────────── */}
+      {subModal && (() => {
+        const b = subModal;
+        const s = subInfo(b);
+        const planNow = (b.abonnement?.plan && b.abonnement.plan !== 'Découverte') ? b.abonnement.plan : 'Pro';
+        const paiements = (b.abonnement?.paiements || []).slice().reverse();
+        return (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto" onClick={() => setSubModal(null)}>
+          <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl my-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-slate-800">
+              <div className="min-w-0">
+                <h3 className="font-bold text-white">Abonnement</h3>
+                <p className="text-xs text-slate-500 truncate">{b.name}</p>
+              </div>
+              <button onClick={() => setSubModal(null)} className="text-slate-400 hover:text-white shrink-0"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="text-xs bg-slate-800/60 rounded-lg p-3">
+                <span className="text-slate-400">Forfait : </span><span className="text-slate-200 font-semibold">{b.abonnement?.plan || 'Pro'}</span>
+                {s.exp && <span className="block text-slate-400 mt-1">Échéance actuelle : <span className={s.expired ? 'text-red-400' : 'text-slate-200'}>{s.exp.toLocaleDateString('fr-FR')}{s.expired ? ' (expiré)' : ` — dans ${s.daysLeft} j`}</span></span>}
+              </div>
+
+              <div className="flex gap-2">
+                {[['months', 'Nombre de mois'], ['date', 'Date précise']].map(([m, label]) => (
+                  <button key={m} type="button" onClick={() => setSubForm(f => ({ ...f, mode: m }))}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${subForm.mode === m ? 'border-blue-500 bg-blue-500/10 text-blue-300' : 'border-slate-700 bg-slate-800 text-slate-400'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {subForm.mode === 'months' ? (
+                <div>
+                  <div className="flex gap-2 mb-2">
+                    {[1, 3, 6, 12].map(n => (
+                      <button key={n} type="button"
+                        onClick={() => setSubForm(f => ({ ...f, months: n, amount: String((PLAN_PRICE[planNow] || 5000) * n) }))}
+                        className={`flex-1 py-2 rounded-lg text-sm font-bold border transition-all ${Number(subForm.months) === n ? 'border-blue-500 bg-blue-500/10 text-blue-300' : 'border-slate-700 bg-slate-800 text-slate-400'}`}>
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                  <input type="number" min="1" value={subForm.months} onChange={e => setSubForm(f => ({ ...f, months: e.target.value }))}
+                    placeholder="Nombre de mois"
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none" />
+                </div>
+              ) : (
+                <div>
+                  <label className="text-[10px] text-slate-500 uppercase">Échéance (date)</label>
+                  <input type="date" value={subForm.date} onChange={e => setSubForm(f => ({ ...f, date: e.target.value }))}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white focus:border-blue-500 focus:outline-none" />
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setSubForm(f => ({ ...f, paid: true }))}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold border ${subForm.paid ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300' : 'border-slate-700 bg-slate-800 text-slate-400'}`}>💳 Payé</button>
+                <button type="button" onClick={() => setSubForm(f => ({ ...f, paid: false }))}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold border ${!subForm.paid ? 'border-blue-500 bg-blue-500/10 text-blue-300' : 'border-slate-700 bg-slate-800 text-slate-400'}`}>🎁 Offert</button>
+              </div>
+
+              {subForm.paid && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] text-slate-500 uppercase">Montant (FCFA)</label>
+                    <input type="number" value={subForm.amount} onChange={e => setSubForm(f => ({ ...f, amount: e.target.value }))}
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white focus:border-blue-500 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-500 uppercase">Méthode</label>
+                    <select value={subForm.method} onChange={e => setSubForm(f => ({ ...f, method: e.target.value }))}
+                      className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-white focus:border-blue-500 focus:outline-none">
+                      {['Wave', 'Orange Money', 'Espèces', 'Virement'].map(m => <option key={m}>{m}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              <button onClick={applySub}
+                className="w-full py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-sm transition-all">
+                {subForm.paid ? 'Encaisser & générer le reçu' : 'Offrir cette période'}
+              </button>
+
+              {paiements.length > 0 && (
+                <div className="pt-3 border-t border-slate-800">
+                  <p className="text-xs font-bold text-slate-400 mb-2">Historique des paiements</p>
+                  <div className="space-y-1.5 max-h-44 overflow-y-auto">
+                    {paiements.map((p, i) => (
+                      <div key={i} className="flex items-center justify-between gap-2 text-xs bg-slate-800/50 rounded-lg px-3 py-2">
+                        <div className="min-w-0">
+                          <span className="text-slate-300">{new Date(p.date).toLocaleDateString('fr-FR')}</span>
+                          <span className={`ml-2 font-semibold ${p.type === 'offert' ? 'text-blue-400' : 'text-emerald-400'}`}>
+                            {p.type === 'offert' ? 'Offert' : `${new Intl.NumberFormat('fr-FR').format(p.montant || 0)} FCFA`}
+                          </span>
+                          {p.mois && <span className="text-slate-500"> · {p.mois} mois</span>}
+                        </div>
+                        <button onClick={() => generateReceipt(b, p)} title="Télécharger le reçu" className="shrink-0 text-blue-400 hover:text-blue-300">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        );
+      })()}
+
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
           <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
