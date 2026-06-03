@@ -94,6 +94,23 @@ export default function PublicStorefront() {
     return () => { document.title = 'Jappandal Tech - Plateforme E-Commerce Multi-boutiques'; };
   }, [activeShop?.name]);
 
+  // Bloque le défilement de la page derrière quand le modal produit OU le panier est ouvert
+  useEffect(() => {
+    const open = !!selectedProduct || isCartOpen;
+    if (!open) return;
+    const scrollY = window.scrollY;
+    const body = document.body;
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.width = '100%';
+    return () => {
+      body.style.position = '';
+      body.style.top = '';
+      body.style.width = '';
+      window.scrollTo(0, scrollY);
+    };
+  }, [selectedProduct, isCartOpen]);
+
   const currentZone = activeShop?.zonesLivraison?.find(z => z.id === deliveryZone) || activeShop?.zonesLivraison?.[0] || { label: 'Livraison', price: 0 };
 
   if (!dataReady) {
@@ -1462,32 +1479,54 @@ export default function PublicStorefront() {
                         </div>
                       )}
 
-                      <button
-                        onClick={() => {
-                          if (needsChoice || dispoStock <= 0) return;
-                          addToCart(selectedProduct, selectedVariant, modalQty);
-                          closeModal();
-                        }}
-                        disabled={dispoStock <= 0 || needsChoice}
-                        className={`w-full py-3.5 px-6 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md ${
-                          dispoStock <= 0 || needsChoice
-                          ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                          : 'bg-[var(--tenant-color)] hover:bg-[var(--tenant-color-hover)] text-white hover:shadow-lg active:scale-95 transform'
-                        }`}
-                      >
-                        {needsChoice ? (
-                          'Choisissez une option'
-                        ) : dispoStock <= 0 ? (
-                          'Rupture de stock'
-                        ) : (
-                          <>
-                            <span>Ajouter au panier</span>
-                            <span className="text-xs opacity-80 px-2 py-0.5 bg-black/10 rounded">
-                              {formatMoney(selectedProduct.price * modalQty)}
-                            </span>
-                          </>
-                        )}
-                      </button>
+                      <div className="flex flex-col gap-2">
+                        {/* Commander directement */}
+                        <button
+                          onClick={() => {
+                            if (needsChoice || dispoStock <= 0) return;
+                            addToCart(selectedProduct, selectedVariant, modalQty);
+                            closeModal();
+                            setCheckoutStep('delivery');
+                            setIsCartOpen(true);
+                          }}
+                          disabled={dispoStock <= 0 || needsChoice}
+                          className={`w-full py-3.5 px-6 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md ${
+                            dispoStock <= 0 || needsChoice
+                            ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                            : 'bg-[var(--tenant-color)] hover:bg-[var(--tenant-color-hover)] text-white hover:shadow-lg active:scale-95 transform'
+                          }`}
+                        >
+                          {needsChoice ? (
+                            'Choisissez une option'
+                          ) : dispoStock <= 0 ? (
+                            'Rupture de stock'
+                          ) : (
+                            <>
+                              <span>Commander maintenant</span>
+                              <span className="text-xs opacity-80 px-2 py-0.5 bg-black/10 rounded">
+                                {formatMoney(selectedProduct.price * modalQty)}
+                              </span>
+                            </>
+                          )}
+                        </button>
+
+                        {/* Ajouter au panier (continuer les achats) */}
+                        <button
+                          onClick={() => {
+                            if (needsChoice || dispoStock <= 0) return;
+                            addToCart(selectedProduct, selectedVariant, modalQty);
+                            closeModal();
+                          }}
+                          disabled={dispoStock <= 0 || needsChoice}
+                          className={`w-full py-3 px-6 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
+                            dispoStock <= 0 || needsChoice
+                            ? 'bg-slate-50 text-slate-300 border border-slate-200 cursor-not-allowed'
+                            : 'bg-[var(--tenant-color-light)] text-[var(--tenant-color)] border border-[var(--tenant-color)]/30 hover:opacity-80 cursor-pointer active:scale-95'
+                          }`}
+                        >
+                          <Plus className="w-4 h-4 stroke-[3]" /> Ajouter au panier
+                        </button>
+                      </div>
                     </div>
                   );
                 })()}
