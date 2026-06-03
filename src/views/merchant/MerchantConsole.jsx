@@ -1195,9 +1195,16 @@ function MerchantDashboard() {
                           className={`px-3 py-1.5 rounded-lg text-xs font-bold border cursor-pointer focus:outline-none ${STATUT_COLORS[o.statut] || ''}`}>
                           {['Reçue','Préparée','Livrée','Payée'].map(s => <option key={s}>{s}</option>)}
                         </select>
-                        {o.paiement?.statut !== 'Payé' && (
+                        {o.paiement?.statut !== 'Payé' ? (
                           <button onClick={() => updateOrderPaymentStatus(o.id, 'Payé')}
+                            title="Cliquez quand vous avez reçu l'argent du client"
                             className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5" /> Encaisser
+                          </button>
+                        ) : (
+                          <button onClick={() => updateOrderPaymentStatus(o.id, 'En attente')}
+                            title="Payé — cliquez pour annuler l'encaissement"
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 text-white border border-emerald-500 flex items-center gap-1">
                             <Check className="w-3.5 h-3.5" /> Encaissé
                           </button>
                         )}

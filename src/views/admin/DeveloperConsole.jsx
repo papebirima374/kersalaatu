@@ -353,53 +353,52 @@ export default function DeveloperConsole() {
           {/* ── BOUTIQUES ─────────────────────────────────────────────── */}
           {activeTab === 'boutiques' && (
             <div className="space-y-3">
-              {boutiques.map(b => (
+              {boutiques.map(b => {
+                const actif = (b.abonnement?.statut || 'Actif') === 'Actif';
+                return (
                 <div key={b.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                  <div className="flex flex-wrap items-center gap-4">
-                    {/* Logo + nom */}
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="w-11 h-11 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">{logoOf(b)}</div>
-                      <div className="min-w-0">
+                  {/* Identité + statut */}
+                  <div className="flex items-start gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">{logoOf(b)}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
                         <p className="font-bold text-slate-200 truncate">{b.name}</p>
-                        <Link to={`/shop/${b.slug}`} target="_blank" className="text-xs text-blue-400 hover:underline font-mono flex items-center gap-1">
-                          /{b.slug} <ExternalLink className="w-3 h-3" />
-                        </Link>
-                        <p className="text-[10px] text-slate-500 mt-0.5">{b.whatsapp}</p>
+                        <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border ${actif ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                          {b.abonnement?.statut || 'Actif'}
+                        </span>
                       </div>
+                      <Link to={`/shop/${b.slug}`} target="_blank" className="text-xs text-blue-400 hover:underline font-mono inline-flex items-center gap-1 mt-0.5">
+                        /{b.slug} <ExternalLink className="w-3 h-3" />
+                      </Link>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{b.whatsapp}</p>
                     </div>
+                  </div>
 
-                    {/* Plan */}
+                  {/* Contrôles : forfait + actions */}
+                  <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-800">
                     <select value={b.abonnement?.plan || 'Découverte'} onChange={e => handlePlanChange(b.id, e.target.value)}
-                      className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 font-semibold focus:outline-none focus:border-blue-500 cursor-pointer">
-                      <option value="Découverte">Découverte</option>
+                      className="flex-1 min-w-[130px] px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 font-semibold focus:outline-none focus:border-blue-500 cursor-pointer">
+                      <option value="Découverte">Découverte · gratuit</option>
                       <option value="Pro">Pro · 5 000</option>
                       <option value="Premium">Premium · 15 000</option>
                     </select>
-
-                    {/* Statut */}
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${b.abonnement?.statut === 'Actif' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
-                      {b.abonnement?.statut || 'Actif'}
-                    </span>
-
-                    {/* Actions */}
-                    <div className="flex gap-2">
-                      <button onClick={() => handleToggleSuspension(b)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all border ${
-                          b.abonnement?.statut === 'Actif'
-                          ? 'bg-red-500/5 text-red-400 border-red-500/10 hover:bg-red-500/10'
-                          : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
-                        }`}>
-                        {b.abonnement?.statut === 'Actif' ? <><Lock className="w-3.5 h-3.5" />Suspendre</> : <><Unlock className="w-3.5 h-3.5" />Réactiver</>}
-                      </button>
-                      <button onClick={() => {
-                        if (confirm(`Supprimer définitivement "${b.name}" et toutes ses données ?`)) { deleteBoutique(b.id); }
-                      }} className="px-2.5 py-1.5 rounded-lg bg-red-500/5 text-red-400 border border-red-500/10 hover:bg-red-500 hover:text-slate-950 transition-all">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                    <button onClick={() => handleToggleSuspension(b)}
+                      className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all border ${
+                        actif
+                        ? 'bg-red-500/5 text-red-400 border-red-500/10 hover:bg-red-500/10'
+                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
+                      }`}>
+                      {actif ? <><Lock className="w-3.5 h-3.5" />Suspendre</> : <><Unlock className="w-3.5 h-3.5" />Réactiver</>}
+                    </button>
+                    <button onClick={() => {
+                      if (confirm(`Supprimer définitivement "${b.name}" et toutes ses données ?`)) { deleteBoutique(b.id); }
+                    }} className="px-2.5 py-2 rounded-lg bg-red-500/5 text-red-400 border border-red-500/10 hover:bg-red-500 hover:text-slate-950 transition-all shrink-0">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
               {boutiques.length === 0 && (
                 <div className="bg-slate-900 border border-dashed border-slate-700 rounded-xl py-16 text-center">
                   <Store className="w-10 h-10 text-slate-700 mx-auto mb-3" />

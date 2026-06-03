@@ -1496,18 +1496,11 @@ export default function PublicStorefront() {
                             : 'bg-[var(--tenant-color)] hover:bg-[var(--tenant-color-hover)] text-white hover:shadow-lg active:scale-95 transform'
                           }`}
                         >
-                          {needsChoice ? (
-                            'Choisissez une option'
-                          ) : dispoStock <= 0 ? (
-                            'Rupture de stock'
-                          ) : (
-                            <>
-                              <span>Commander maintenant</span>
-                              <span className="text-xs opacity-80 px-2 py-0.5 bg-black/10 rounded">
-                                {formatMoney(selectedProduct.price * modalQty)}
-                              </span>
-                            </>
-                          )}
+                          {needsChoice
+                            ? 'Choisissez une option'
+                            : dispoStock <= 0
+                            ? 'Rupture de stock'
+                            : 'Commander maintenant'}
                         </button>
 
                         {/* Ajouter au panier (continuer les achats) */}
