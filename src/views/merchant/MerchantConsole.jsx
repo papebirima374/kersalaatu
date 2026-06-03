@@ -942,6 +942,30 @@ function MerchantDashboard() {
         {/* Content */}
         <div className="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
 
+          {/* Alerte abonnement (rappel de paiement / compte à rebours) */}
+          {(() => {
+            const ab = activeBoutique.abonnement;
+            if (!ab || ab.plan === 'Découverte' || !ab.dateExpiration) return null;
+            const days = Math.ceil((new Date(ab.dateExpiration).getTime() - Date.now()) / 86400000);
+            if (days > 7) return null;
+            const expired = days < 0;
+            return (
+              <div className={`rounded-xl p-4 flex items-start gap-3 border ${expired ? 'bg-red-500/10 border-red-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
+                <Clock className={`w-5 h-5 shrink-0 mt-0.5 ${expired ? 'text-red-400' : 'text-amber-400'}`} />
+                <div className="flex-1 text-sm">
+                  <p className={`font-bold ${expired ? 'text-red-300' : 'text-amber-300'}`}>
+                    {expired ? 'Votre abonnement a expiré — votre vitrine est bloquée.' : `Votre abonnement expire dans ${days} jour${days > 1 ? 's' : ''}.`}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {expired
+                      ? 'Renouvelez pour réactiver votre boutique en ligne.'
+                      : `Échéance : ${new Date(ab.dateExpiration).toLocaleDateString('fr-FR')}. Pensez à renouveler pour rester en ligne.`}
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* ── DASHBOARD ─────────────────────────────────────────────────── */}
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
