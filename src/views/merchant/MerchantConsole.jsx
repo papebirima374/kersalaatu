@@ -654,9 +654,9 @@ function MerchantDashboard() {
   const handlePosSell = () => {
     if (!posCart.length) { toast('Ajoutez au moins un article.'); return; }
     if (!posClient.nom.trim() || !posClient.telephone.trim()) { toast('Nom et téléphone obligatoires.'); return; }
-    const orderId = `VD-${Math.floor(1000 + Math.random() * 9000)}`;
-    createOrder(activeBoutique.id, posClient, posCart, 0, 'Vente directe', { methode: posPayMethod, statut: posPayStatut, note: posNote });
-    setPosSaleSuccess({ orderId, items:[...posCart], total: posSubtotal, client:{...posClient}, payMethod: posPayMethod });
+    // createOrder renvoie la commande créée → on la garde pour pouvoir éditer/envoyer la facture.
+    const order = createOrder(activeBoutique.id, posClient, posCart, 0, 'Vente directe', { methode: posPayMethod, statut: posPayStatut, note: posNote });
+    setPosSaleSuccess({ order, orderId: order.id, items:[...posCart], total: posSubtotal, client:{...posClient}, payMethod: posPayMethod });
     setPosCart([]); setPosClient({ nom:'', telephone:'', adresse:'' }); setPosNote('');
   };
 
@@ -1317,6 +1317,16 @@ function MerchantDashboard() {
                           className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors flex items-center gap-1">
                           <Printer className="w-3.5 h-3.5" /> Facture
                         </button>
+                        <button onClick={() => {
+                            if (window.confirm(`Annuler la commande ${o.id} ?\n\nLes articles seront automatiquement remis en stock (retour client).`)) {
+                              cancelOrder(o.id);
+                              toast('Commande annulée — articles remis en stock.', 'success');
+                            }
+                          }}
+                          title="Annuler la commande / retour produit — remet les articles en stock"
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors flex items-center gap-1">
+                          <X className="w-3.5 h-3.5" /> Annuler / Retour
+                        </button>
                       </div>
                       )}
                     </div>
@@ -1339,6 +1349,12 @@ function MerchantDashboard() {
                     <div className="flex-1">
                       <p className="font-semibold text-emerald-300 text-sm">Vente enregistrée — {posSaleSuccess.orderId}</p>
                       <p className="text-xs text-emerald-600 mt-0.5">{posSaleSuccess.client.nom} · {fmt(posSaleSuccess.total)} · {posSaleSuccess.payMethod}</p>
+                      {posSaleSuccess.order && (
+                        <button onClick={() => setActivePrintInvoice(posSaleSuccess.order)}
+                          className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors">
+                          <Printer className="w-3.5 h-3.5" /> Facture / Envoyer
+                        </button>
+                      )}
                     </div>
                     <button onClick={() => setPosSaleSuccess(null)} className="text-slate-500 hover:text-slate-300">
                       <X className="w-4 h-4" />
