@@ -711,6 +711,90 @@ function MerchantDashboard() {
     img.src = src + (src.includes('?') ? '&' : '?') + 't=' + Date.now();
   });
 
+  // ── Ticket de caisse (80 mm) dessiné avec jsPDF — robuste, sans dépendance CSS ──
+  const buildReceiptPdf = async (jsPDF) => {
+    const inv = activePrintInvoice, b = activeBoutique;
+    const W = 80, m = 5, cw = W - 2 * m;
+    const money = (n) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' FCFA';
+
+    // Logo image (les emojis ne se rendent pas en PDF → ignorés)
+    let logoData = null;
+    const logo = b.logo;
+    if (logo && typeof logo === 'string') {
+      if (logo.startsWith('data:image')) logoData = logo;
+      else if (logo.startsWith('http')) logoData = await loadImgDataURL(logo);
+    }
+
+    const draw = (pdf, measure) => {
+      let y = m + 1;
+      const setC = (c) => pdf.setTextColor(c[0], c[1], c[2]);
+      const center = (txt, size, style, color) => {
+        pdf.setFont('helvetica', style || 'normal'); pdf.setFontSize(size); setC(color || [0, 0, 0]);
+        pdf.splitTextToSize(String(txt), cw).forEach(l => { pdf.text(l, W / 2, y, { align: 'center' }); y += size * 0.45 + 0.6; });
+      };
+      const dash = () => {
+        pdf.setDrawColor(150); pdf.setLineWidth(0.2); pdf.setLineDashPattern([0.7, 0.7], 0);
+        pdf.line(m, y, W - m, y); pdf.setLineDashPattern([], 0); y += 3;
+      };
+      const solid = () => { pdf.setDrawColor(30); pdf.setLineWidth(0.4); pdf.line(m, y, W - m, y); y += 3.5; };
+
+      if (logoData) { if (!measure) { try { pdf.addImage(logoData, 'PNG', W / 2 - 9, y, 18, 18); } catch { /* */ } } y += 20; }
+      center(b.name.toUpperCase(), 13, 'bold');
+      if (b.adresse) center(b.adresse, 8, 'normal', [110, 110, 110]);
+      if (b.whatsapp) center(b.whatsapp, 8.5, 'normal', [110, 110, 110]);
+      y += 1.5; dash();
+
+      center('FACTURE', 11, 'bold');
+      const dt = new Date(inv.date);
+      center(`N° ${inv.id}`, 8.5, 'normal', [110, 110, 110]);
+      center(`${dt.toLocaleDateString('fr-FR')}  ${dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`, 8.5, 'normal', [110, 110, 110]);
+      y += 1; dash();
+
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8); setC([90, 90, 90]); pdf.text('CLIENT', m, y); y += 4;
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); setC([20, 20, 20]);
+      [inv.client?.nom, inv.client?.telephone, inv.client?.adresse].filter(Boolean).forEach(t => {
+        pdf.splitTextToSize(String(t), cw).forEach(l => { pdf.text(l, m, y); y += 4; });
+      });
+      y += 0.5; dash();
+
+      inv.items.forEach(it => {
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9); setC([0, 0, 0]);
+        pdf.splitTextToSize(it.name, cw).forEach(l => { pdf.text(l, m, y); y += 4; });
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); setC([110, 110, 110]);
+        pdf.text(`${it.quantity} x ${money(it.price)}`, m, y);
+        pdf.setFont('helvetica', 'bold'); setC([0, 0, 0]);
+        pdf.text(money(it.price * it.quantity), W - m, y, { align: 'right' });
+        y += 5;
+      });
+      dash();
+
+      const sous = inv.total - (inv.livraison?.frais || 0);
+      const trow = (lbl, val) => {
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); setC([90, 90, 90]); pdf.text(lbl, m, y);
+        setC([20, 20, 20]); pdf.text(val, W - m, y, { align: 'right' }); y += 4.5;
+      };
+      trow('Sous-total', money(sous));
+      trow('Livraison', money(inv.livraison?.frais || 0));
+      y += 0.5; solid();
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(13); setC([0, 0, 0]); pdf.text('TOTAL', m, y);
+      setC([37, 99, 235]); pdf.text(money(inv.total), W - m, y, { align: 'right' }); y += 6;
+
+      center(`Paiement : ${inv.paiement?.methode || 'À la livraison'} — ${inv.paiement?.statut || 'En attente'}`, 8.5, 'normal', [90, 90, 90]);
+      y += 1; dash();
+      center('Merci pour votre achat !', 9, 'bold', [60, 60, 60]);
+      center(`${b.name} · Propulsé par Jappandal Tech`, 7.5, 'normal', [150, 150, 150]);
+      y += m;
+      return y;
+    };
+
+    // 1) mesure de la hauteur, 2) ticket à la hauteur exacte
+    const probe = new jsPDF({ unit: 'mm', format: [W, 2000] });
+    const H = draw(probe, true);
+    const pdf = new jsPDF({ unit: 'mm', format: [W, Math.max(70, H)] });
+    draw(pdf, false);
+    return pdf;
+  };
+
   // ── Repli : facture dessinée directement avec jsPDF (si la capture échoue) ──
   const buildManualPdf = async (jsPDF) => {
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -823,9 +907,9 @@ function MerchantDashboard() {
       return pdf;
   };
 
-  // ── Génération de la facture : capture FIDÈLE de l'aperçu (rendu identique à
-  //    l'écran, donc même format pour le PDF partagé sur WhatsApp), avec repli
-  //    sur le dessin jsPDF si la capture échoue. ──────────────────────────────
+  // ── Génération de la facture au format TICKET DE CAISSE (80 mm), dessiné
+  //    directement avec jsPDF → rendu net et identique partout (téléchargement
+  //    + partage WhatsApp). Repli sur la facture A4 si jamais le ticket échoue. ─
   const generatePDF = async (mode = 'download') => {
     if (!activePrintInvoice) return;
     setPdfLoading(true);
@@ -834,27 +918,9 @@ function MerchantDashboard() {
       const filename = `Facture_${activePrintInvoice.id}_${activeBoutique.name.replace(/\s+/g,'_')}.pdf`;
       let pdf;
       try {
-        const { default: html2canvas } = await import('html2canvas-pro');
-        const canvas = await html2canvas(invoiceRef.current, {
-          scale: Math.min(3, (window.devicePixelRatio || 1) + 1),
-          useCORS: true, backgroundColor: '#ffffff', logging: false,
-        });
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        const pw = 210, ph = 297, margin = 8;
-        const w = pw - margin * 2;
-        const h = (canvas.height * w) / canvas.width;
-        let heightLeft = h, pos = margin;
-        pdf.addImage(imgData, 'JPEG', margin, pos, w, h);
-        heightLeft -= (ph - margin * 2);
-        while (heightLeft > 0) {
-          pdf.addPage();
-          pos = margin - (h - heightLeft);
-          pdf.addImage(imgData, 'JPEG', margin, pos, w, h);
-          heightLeft -= (ph - margin * 2);
-        }
+        pdf = await buildReceiptPdf(jsPDF);
       } catch (capErr) {
-        console.warn('Capture indisponible, repli sur le dessin manuel :', capErr);
+        console.warn('Ticket indisponible, repli facture A4 :', capErr);
         pdf = await buildManualPdf(jsPDF);
       }
 
@@ -2127,89 +2193,75 @@ function MerchantDashboard() {
               </div>
             </div>
 
-            {/* Corps de la facture — capturé par html2canvas */}
-            <div ref={invoiceRef} className="p-6 bg-white">
-              {/* En-tête */}
-              <div className="flex justify-between items-start mb-6">
-                <div className="flex items-center gap-3">
-                  {activeBoutique.logo && (
-                    <div className="w-14 h-14 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
-                      {typeof activeBoutique.logo === 'string' && (activeBoutique.logo.startsWith('http') || activeBoutique.logo.startsWith('data:') || activeBoutique.logo.startsWith('/'))
-                        ? <img src={proxiedImg(activeBoutique.logo)} alt="Logo" className="w-full h-full object-contain p-1" crossOrigin="anonymous" />
-                        : <span className="text-2xl">{activeBoutique.logo}</span>}
-                    </div>
+            {/* Aperçu — format ticket de caisse */}
+            <div className="bg-slate-100 px-4 py-5 flex justify-center">
+              <div ref={invoiceRef} className="bg-white w-full max-w-[300px] px-5 py-6 text-slate-900" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+                {/* En-tête centré */}
+                <div className="text-center">
+                  {activeBoutique.logo && typeof activeBoutique.logo === 'string' && (activeBoutique.logo.startsWith('http') || activeBoutique.logo.startsWith('data:') || activeBoutique.logo.startsWith('/')) && (
+                    <img src={proxiedImg(activeBoutique.logo)} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-2" crossOrigin="anonymous" />
                   )}
-                  <div>
-                    <h1 className="text-lg font-black text-slate-900 uppercase leading-tight">{activeBoutique.name}</h1>
-                    {activeBoutique.adresse && <p className="text-xs text-slate-500">{activeBoutique.adresse}</p>}
-                    <p className="text-xs text-slate-500">{activeBoutique.whatsapp}</p>
-                  </div>
+                  <h1 className="text-base font-black uppercase leading-tight">{activeBoutique.name}</h1>
+                  {activeBoutique.adresse && <p className="text-[11px] text-slate-500">{activeBoutique.adresse}</p>}
+                  {activeBoutique.whatsapp && <p className="text-[11px] text-slate-500">{activeBoutique.whatsapp}</p>}
                 </div>
-                <div className="text-right">
-                  <h2 className="text-xl font-black text-slate-900">FACTURE</h2>
-                  <p className="text-xs font-mono text-slate-500 mt-1">Réf : {activePrintInvoice.id}</p>
-                  <p className="text-xs text-slate-500">{new Date(activePrintInvoice.date).toLocaleDateString('fr-FR')}</p>
-                </div>
-              </div>
 
-              {/* Client + paiement */}
-              <div className="bg-slate-50 rounded-xl p-4 mb-5 grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Client</p>
-                  <p className="font-bold text-slate-900 text-sm">{activePrintInvoice.client.nom}</p>
-                  <p className="text-xs text-slate-600">{activePrintInvoice.client.telephone}</p>
-                  <p className="text-xs text-slate-600">{activePrintInvoice.client.adresse}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Paiement</p>
-                  <p className="font-semibold text-slate-800 text-sm">{activePrintInvoice.paiement?.methode || 'À la livraison'}</p>
-                  <p className="text-xs text-slate-600">{activePrintInvoice.paiement?.statut || 'En attente'}</p>
-                </div>
-              </div>
+                <div className="border-t border-dashed border-slate-300 my-3" />
 
-              {/* Articles */}
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b-2 border-slate-900">
-                    <th className="py-2 text-left font-bold text-slate-800">Article</th>
-                    <th className="py-2 text-center font-bold text-slate-800">Qté</th>
-                    <th className="py-2 text-right font-bold text-slate-800">P.U.</th>
-                    <th className="py-2 text-right font-bold text-slate-800">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
+                <div className="text-center">
+                  <p className="font-bold tracking-wide text-sm">FACTURE</p>
+                  <p className="text-[11px] text-slate-500">N° {activePrintInvoice.id}</p>
+                  <p className="text-[11px] text-slate-500">
+                    {new Date(activePrintInvoice.date).toLocaleDateString('fr-FR')} · {new Date(activePrintInvoice.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+
+                <div className="border-t border-dashed border-slate-300 my-3" />
+
+                {/* Client */}
+                <div className="text-[12px] leading-snug">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Client</p>
+                  <p className="font-bold">{activePrintInvoice.client.nom}</p>
+                  {activePrintInvoice.client.telephone && <p className="text-slate-600">{activePrintInvoice.client.telephone}</p>}
+                  {activePrintInvoice.client.adresse && <p className="text-slate-600">{activePrintInvoice.client.adresse}</p>}
+                </div>
+
+                <div className="border-t border-dashed border-slate-300 my-3" />
+
+                {/* Articles */}
+                <div className="space-y-2">
                   {activePrintInvoice.items.map((it, i) => (
-                    <tr key={i} className="border-b border-slate-100">
-                      <td className="py-2.5 text-slate-800">{it.name}</td>
-                      <td className="py-2.5 text-center text-slate-600">{it.quantity}</td>
-                      <td className="py-2.5 text-right font-mono text-slate-600">{fmt(it.price)}</td>
-                      <td className="py-2.5 text-right font-bold text-slate-900">{fmt(it.price * it.quantity)}</td>
-                    </tr>
+                    <div key={i} className="text-[12px]">
+                      <p className="font-bold leading-tight">{it.name}</p>
+                      <div className="flex justify-between text-slate-600">
+                        <span>{it.quantity} × {fmt(it.price)}</span>
+                        <span className="font-bold text-slate-900">{fmt(it.price * it.quantity)}</span>
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-
-              {/* Totaux */}
-              <div className="mt-4 flex justify-end">
-                <div className="w-52 space-y-1.5 text-sm">
-                  <div className="flex justify-between text-slate-500">
-                    <span>Sous-total</span>
-                    <span className="font-mono">{fmt(activePrintInvoice.total - activePrintInvoice.livraison.frais)}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-500">
-                    <span>Livraison</span>
-                    <span className="font-mono">{fmt(activePrintInvoice.livraison.frais)}</span>
-                  </div>
-                  <div className="flex justify-between font-black text-slate-900 border-t-2 border-slate-900 pt-2 text-base">
-                    <span>TOTAL</span>
-                    <span style={{ color: '#2563eb' }}>{fmt(activePrintInvoice.total)}</span>
-                  </div>
                 </div>
-              </div>
 
-              <p className="text-center text-xs text-slate-400 mt-6 pt-4 border-t border-slate-100">
-                Merci pour votre achat chez {activeBoutique.name} · Propulsé par Jappandal Tech
-              </p>
+                <div className="border-t border-dashed border-slate-300 my-3" />
+
+                {/* Totaux */}
+                <div className="text-[12px] space-y-1">
+                  <div className="flex justify-between text-slate-500"><span>Sous-total</span><span>{fmt(activePrintInvoice.total - activePrintInvoice.livraison.frais)}</span></div>
+                  <div className="flex justify-between text-slate-500"><span>Livraison</span><span>{fmt(activePrintInvoice.livraison.frais)}</span></div>
+                </div>
+                <div className="border-t-2 border-slate-900 mt-2 pt-2 flex justify-between items-center">
+                  <span className="font-black text-sm">TOTAL</span>
+                  <span className="font-black text-base" style={{ color: '#2563eb' }}>{fmt(activePrintInvoice.total)}</span>
+                </div>
+
+                <p className="text-center text-[11px] text-slate-500 mt-3">
+                  Paiement : {activePrintInvoice.paiement?.methode || 'À la livraison'} — {activePrintInvoice.paiement?.statut || 'En attente'}
+                </p>
+
+                <div className="border-t border-dashed border-slate-300 my-3" />
+
+                <p className="text-center text-[11px] font-semibold text-slate-600">Merci pour votre achat !</p>
+                <p className="text-center text-[10px] text-slate-400">{activeBoutique.name} · Propulsé par Jappandal Tech</p>
+              </div>
             </div>
           </div>
         </div>
