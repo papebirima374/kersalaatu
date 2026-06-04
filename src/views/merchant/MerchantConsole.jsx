@@ -10,7 +10,7 @@ import {
   Plus, Trash2, Edit3, Check, Clock, AlertTriangle, DollarSign,
   TrendingUp, Store, ExternalLink, Save, MessageSquare, Printer,
   Lock, ShoppingCart, Minus, User, Phone, MapPin, Receipt, Search,
-  X, ChevronDown, Package, Zap
+  X, ChevronDown, Package, Zap, Calendar
 } from 'lucide-react';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -341,6 +341,9 @@ function MerchantDashboard() {
   const [orderSearch, setOrderSearch]       = useState('');
   const [orderStatut, setOrderStatut]       = useState('Tous');
   const [orderPaiement, setOrderPaiement]   = useState('Tous');
+  const [orderFrom, setOrderFrom]           = useState('');
+  const [orderTo, setOrderTo]               = useState('');
+  const [collapsedDays, setCollapsedDays]   = useState(() => new Set());
   const [activePrintInvoice, setActivePrintInvoice] = useState(null);
   const invoiceRef = useRef(null);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -708,18 +711,15 @@ function MerchantDashboard() {
     img.src = src + (src.includes('?') ? '&' : '?') + 't=' + Date.now();
   });
 
-  // ── Génération PDF (dessin direct jsPDF) ─────────────────────────────────
-  const generatePDF = async (mode = 'download') => {
-    if (!activePrintInvoice) return;
-    setPdfLoading(true);
-    try {
-      const { default: jsPDF } = await import('jspdf');
+  // ── Repli : facture dessinée directement avec jsPDF (si la capture échoue) ──
+  const buildManualPdf = async (jsPDF) => {
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const pageW = 210;
       const m = 15;
       const cW = pageW - 2 * m;
       let y = m;
-      const fmtNum = (n) => new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
+      // Formateur SANS U+202F (espace fine insécable que jsPDF n'affiche pas).
+      const fmtNum = (n) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' FCFA';
 
       // ── Logo : data URL (local) ou URL distante via canvas ──
       const logo = activeBoutique.logo;
@@ -820,7 +820,44 @@ function MerchantDashboard() {
       pdf.setFontSize(8); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(160,160,160);
       pdf.text(`Merci pour votre achat chez ${activeBoutique.name} · Jappandal Tech`, pageW / 2, y, { align: 'center' });
 
+      return pdf;
+  };
+
+  // ── Génération de la facture : capture FIDÈLE de l'aperçu (rendu identique à
+  //    l'écran, donc même format pour le PDF partagé sur WhatsApp), avec repli
+  //    sur le dessin jsPDF si la capture échoue. ──────────────────────────────
+  const generatePDF = async (mode = 'download') => {
+    if (!activePrintInvoice) return;
+    setPdfLoading(true);
+    try {
+      const { default: jsPDF } = await import('jspdf');
       const filename = `Facture_${activePrintInvoice.id}_${activeBoutique.name.replace(/\s+/g,'_')}.pdf`;
+      let pdf;
+      try {
+        const { default: html2canvas } = await import('html2canvas-pro');
+        const canvas = await html2canvas(invoiceRef.current, {
+          scale: Math.min(3, (window.devicePixelRatio || 1) + 1),
+          useCORS: true, backgroundColor: '#ffffff', logging: false,
+        });
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pw = 210, ph = 297, margin = 8;
+        const w = pw - margin * 2;
+        const h = (canvas.height * w) / canvas.width;
+        let heightLeft = h, pos = margin;
+        pdf.addImage(imgData, 'JPEG', margin, pos, w, h);
+        heightLeft -= (ph - margin * 2);
+        while (heightLeft > 0) {
+          pdf.addPage();
+          pos = margin - (h - heightLeft);
+          pdf.addImage(imgData, 'JPEG', margin, pos, w, h);
+          heightLeft -= (ph - margin * 2);
+        }
+      } catch (capErr) {
+        console.warn('Capture indisponible, repli sur le dessin manuel :', capErr);
+        pdf = await buildManualPdf(jsPDF);
+      }
+
       if (mode === 'share') {
         const file = new File([pdf.output('blob')], filename, { type: 'application/pdf' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -833,7 +870,6 @@ function MerchantDashboard() {
       } else {
         pdf.save(filename);
       }
-
     } catch (err) {
       console.error('PDF error:', err);
       toast('Erreur PDF : ' + (err.message || 'Réessayez'));
@@ -855,11 +891,54 @@ function MerchantDashboard() {
   const isFree = !activeBoutique.abonnement?.plan || activeBoutique.abonnement.plan === 'Découverte';
 
   // ── Filtered orders ───────────────────────────────────────────────────────
+  const dFrom = orderFrom ? new Date(orderFrom + 'T00:00:00') : null;
+  const dTo   = orderTo   ? new Date(orderTo   + 'T23:59:59') : null;
   const filteredOrders = activeOrders.filter(o => {
     const matchSearch = !orderSearch || o.id.toLowerCase().includes(orderSearch.toLowerCase()) || o.client.nom.toLowerCase().includes(orderSearch.toLowerCase()) || o.client.telephone.includes(orderSearch);
     const matchStatut = orderStatut === 'Tous' || o.statut === orderStatut;
     const matchPay    = orderPaiement === 'Tous' || (o.paiement?.statut||'En attente') === orderPaiement;
-    return matchSearch && matchStatut && matchPay;
+    const od = new Date(o.date);
+    const matchFrom = !dFrom || od >= dFrom;
+    const matchTo   = !dTo   || od <= dTo;
+    return matchSearch && matchStatut && matchPay && matchFrom && matchTo;
+  });
+
+  // Préréglages de période (Aujourd'hui / 7j / 30j / Tout)
+  const setDatePreset = (preset) => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if (preset === 'today')      { setOrderFrom(iso(today)); setOrderTo(iso(today)); }
+    else if (preset === '7')     { const s = new Date(today); s.setDate(s.getDate()-6);  setOrderFrom(iso(s)); setOrderTo(iso(today)); }
+    else if (preset === '30')    { const s = new Date(today); s.setDate(s.getDate()-29); setOrderFrom(iso(s)); setOrderTo(iso(today)); }
+    else                         { setOrderFrom(''); setOrderTo(''); }
+  };
+
+  // Regroupement des commandes par jour (le plus récent en premier)
+  const orderGroups = (() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const yest = new Date(today); yest.setDate(yest.getDate() - 1);
+    const byKey = {}; const groups = [];
+    [...filteredOrders].sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(o => {
+      const d = new Date(o.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      if (!byKey[key]) {
+        const dd = new Date(d); dd.setHours(0, 0, 0, 0);
+        let label = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+        if (dd.getTime() === today.getTime()) label = "Aujourd'hui";
+        else if (dd.getTime() === yest.getTime()) label = 'Hier';
+        byKey[key] = { key, label, orders: [], total: 0, count: 0 };
+        groups.push(byKey[key]);
+      }
+      byKey[key].orders.push(o);
+      byKey[key].count += 1;
+      if (o.statut !== 'Annulée') byKey[key].total += o.total;
+    });
+    return groups;
+  })();
+  const toggleDay = (key) => setCollapsedDays(prev => {
+    const next = new Set(prev);
+    next.has(key) ? next.delete(key) : next.add(key);
+    return next;
   });
 
   // ── Sidebar ───────────────────────────────────────────────────────────────
@@ -1217,21 +1296,44 @@ function MerchantDashboard() {
           {activeTab === 'orders' && (
             <div className="space-y-4">
               {/* Filters */}
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-wrap gap-3">
-                <div className="flex items-center gap-2 flex-1 min-w-48">
-                  <Search className="w-4 h-4 text-slate-500 shrink-0" />
-                  <input value={orderSearch} onChange={e => setOrderSearch(e.target.value)}
-                    placeholder="Rechercher commande, client..."
-                    className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-600 focus:outline-none" />
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+                <div className="flex flex-wrap gap-3">
+                  <div className="flex items-center gap-2 flex-1 min-w-48 bg-slate-800/60 rounded-lg px-3">
+                    <Search className="w-4 h-4 text-slate-500 shrink-0" />
+                    <input value={orderSearch} onChange={e => setOrderSearch(e.target.value)}
+                      placeholder="Rechercher commande, client..."
+                      className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-600 focus:outline-none py-2" />
+                  </div>
+                  <select value={orderStatut} onChange={e => setOrderStatut(e.target.value)}
+                    className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-300 focus:outline-none">
+                    {['Tous','Reçue','Préparée','Livrée','Payée','Annulée'].map(s => <option key={s}>{s}</option>)}
+                  </select>
+                  <select value={orderPaiement} onChange={e => setOrderPaiement(e.target.value)}
+                    className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-300 focus:outline-none">
+                    {['Tous','En attente','Payé'].map(s => <option key={s}>{s}</option>)}
+                  </select>
                 </div>
-                <select value={orderStatut} onChange={e => setOrderStatut(e.target.value)}
-                  className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-300 focus:outline-none">
-                  {['Tous','Reçue','Préparée','Livrée','Payée','Annulée'].map(s => <option key={s}>{s}</option>)}
-                </select>
-                <select value={orderPaiement} onChange={e => setOrderPaiement(e.target.value)}
-                  className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-300 focus:outline-none">
-                  {['Tous','En attente','Payé'].map(s => <option key={s}>{s}</option>)}
-                </select>
+                {/* Période : préréglages + calendrier du / au */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {[['today',"Aujourd'hui"],['7','7 jours'],['30','30 jours'],['all','Tout']].map(([k, lbl]) => (
+                    <button key={k} onClick={() => setDatePreset(k)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors">
+                      {lbl}
+                    </button>
+                  ))}
+                  <div className="flex items-center gap-1.5 sm:ml-auto text-xs text-slate-400">
+                    <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    <span>Du</span>
+                    <input type="date" value={orderFrom} max={orderTo || undefined} onChange={e => setOrderFrom(e.target.value)}
+                      className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-blue-500 [color-scheme:dark]" />
+                    <span>au</span>
+                    <input type="date" value={orderTo} min={orderFrom || undefined} onChange={e => setOrderTo(e.target.value)}
+                      className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-blue-500 [color-scheme:dark]" />
+                    {(orderFrom || orderTo) && (
+                      <button onClick={() => setDatePreset('all')} title="Effacer les dates" className="text-slate-500 hover:text-red-400 ml-1"><X className="w-3.5 h-3.5" /></button>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {filteredOrders.length === 0 ? (
@@ -1239,9 +1341,22 @@ function MerchantDashboard() {
                   {activeOrders.length === 0 ? 'Aucune commande reçue pour le moment.' : 'Aucune commande correspond aux filtres.'}
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {filteredOrders.map(o => (
-                    <div key={o.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-all">
+                <div className="space-y-5">
+                  {orderGroups.map(g => {
+                    const collapsed = collapsedDays.has(g.key);
+                    return (
+                    <div key={g.key} className="space-y-3">
+                      <button onClick={() => toggleDay(g.key)}
+                        className="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-slate-800/60 border border-slate-700/60 hover:bg-slate-800 transition-colors text-left">
+                        <span className="flex items-center gap-2 min-w-0">
+                          <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
+                          <span className="font-bold text-slate-100 text-sm capitalize truncate">{g.label}</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0">{g.count} cmd</span>
+                        </span>
+                        <span className="font-bold text-emerald-400 text-sm shrink-0">{fmt(g.total)}</span>
+                      </button>
+                      {!collapsed && g.orders.map(o => (
+                        <div key={o.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-all">
                       {/* Header */}
                       <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
                         <div>
@@ -1329,8 +1444,11 @@ function MerchantDashboard() {
                         </button>
                       </div>
                       )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -2017,7 +2135,7 @@ function MerchantDashboard() {
                   {activeBoutique.logo && (
                     <div className="w-14 h-14 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
                       {typeof activeBoutique.logo === 'string' && (activeBoutique.logo.startsWith('http') || activeBoutique.logo.startsWith('data:') || activeBoutique.logo.startsWith('/'))
-                        ? <img src={activeBoutique.logo} alt="Logo" className="w-full h-full object-contain p-1" crossOrigin="anonymous" />
+                        ? <img src={proxiedImg(activeBoutique.logo)} alt="Logo" className="w-full h-full object-contain p-1" crossOrigin="anonymous" />
                         : <span className="text-2xl">{activeBoutique.logo}</span>}
                     </div>
                   )}
