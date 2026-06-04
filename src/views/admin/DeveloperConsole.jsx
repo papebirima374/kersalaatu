@@ -1,6 +1,7 @@
 import { toast } from '../../components/toast';
 import React, { useState } from 'react';
 import { useTenant } from '../../context/TenantContext';
+import { auth } from '../../firebase/config';
 import { Link } from 'react-router-dom';
 import {
   Shield, Store, ClipboardList, Settings, LogOut, Check, AlertTriangle,
@@ -371,12 +372,16 @@ export default function DeveloperConsole() {
 
   const emailReceipt = async (b, payment) => {
     if (!b.ownerEmail) { toast("Ce client n'a pas d'email enregistré."); return; }
+    // Jeton d'authentification admin (envoi réservé à l'admin connecté via Firebase)
+    let token = null;
+    try { token = auth?.currentUser ? await auth.currentUser.getIdToken() : null; } catch { /* */ }
+    if (!token) { toast("Connectez-vous via « Connexion sécurisée » (Firebase) pour envoyer un email.", 'error', 6000); return; }
     try {
       const pdf = await buildReceiptPdf(b, payment);
       const base64 = pdf.output('datauristring').split('base64,')[1];
       toast('Envoi du reçu par email…', 'info', 2500);
       const r = await fetch('/api/send-receipt', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           to: b.ownerEmail,
           subject: `Reçu d'abonnement — ${b.name}`,
