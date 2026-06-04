@@ -16,6 +16,24 @@ import {
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const fmt = (n) => new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
 
+// Version courte dérivée du logo (+ nom). Elle change quand le marchand met à jour
+// son logo, ce qui modifie l'URL de partage et FORCE WhatsApp / Facebook à
+// régénérer l'aperçu (sinon l'ancienne image reste figée dans leur cache).
+const shareVersion = (s = '') => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+};
+const buildShopUrl = (b) =>
+  `${window.location.origin}/shop/${b.slug}?v=${shareVersion((b && (b.logo || '')) + '|' + (b && (b.name || '')))}`;
+
+// Proxy même-origine pour les images Firebase Storage (contourne le blocage CORS
+// dans le <canvas> des factures PDF).
+const proxiedImg = (url) =>
+  /^https?:\/\//i.test(url) && url.includes('firebasestorage.googleapis.com')
+    ? '/api/img?url=' + encodeURIComponent(url)
+    : url;
+
 const STATUT_COLORS = {
   Reçue:   'bg-blue-500/10 text-blue-400 border-blue-500/20',
   Préparée:'bg-amber-500/10 text-amber-400 border-amber-500/20',
@@ -646,7 +664,11 @@ function MerchantDashboard() {
       } catch { resolve(null); }
     };
     img.onerror = () => resolve(null);
-    img.src = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+    // Les logos Firebase Storage n'ont pas d'en-tête CORS → on passe par notre
+    // proxy même-origine /api/img, sinon le canvas est « tainté » et le logo
+    // n'apparaît pas sur la facture.
+    const src = proxiedImg(url);
+    img.src = src + (src.includes('?') ? '&' : '?') + 't=' + Date.now();
   });
 
   // ── Génération PDF (dessin direct jsPDF) ─────────────────────────────────
@@ -923,7 +945,7 @@ function MerchantDashboard() {
             {activeBoutique && (
               <button
                 onClick={async () => {
-                  const url = `${window.location.origin}/shop/${activeBoutique.slug}`;
+                  const url = buildShopUrl(activeBoutique);
                   try {
                     setShareQr(await QRCode.toDataURL(url, { width: 320, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } }));
                   } catch { setShareQr(''); }
@@ -1790,7 +1812,7 @@ function MerchantDashboard() {
 
       {/* ── MODAL PARTAGE ─────────────────────────────────────────────────── */}
       {showShareModal && activeBoutique && (() => {
-        const shopUrl = `${window.location.origin}/shop/${activeBoutique.slug}`;
+        const shopUrl = buildShopUrl(activeBoutique);
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowShareModal(false)}>
             <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-6 space-y-5" onClick={e => e.stopPropagation()}>

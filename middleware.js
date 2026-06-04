@@ -70,8 +70,15 @@ export default async function middleware(request) {
 
   // 3) Injecte les balises d'aperçu spécifiques à la boutique
   if (shop && shop.name) {
+    // Logo distant (Firebase Storage) → on le sert via notre proxy même-domaine
+    // /api/img : Content-Type propre + cache, et image livrée depuis notre domaine
+    // (plus fiable pour l'aperçu WhatsApp/Facebook que l'URL Storage brute).
     const isImg = /^https?:\/\//i.test(shop.logo);
-    const image = isImg ? shop.logo : `${url.origin}/icon-512.png`;
+    const image = isImg
+      ? (shop.logo.includes('firebasestorage.googleapis.com')
+          ? `${url.origin}/api/img?url=${encodeURIComponent(shop.logo)}`
+          : shop.logo)
+      : `${url.origin}/icon-512.png`;
     const title = `${shop.name} — Boutique en ligne`;
     const desc = shop.description || `Découvrez ${shop.name} et commandez en ligne en un clic.`;
     const pageUrl = `${url.origin}/shop/${slug}`;
