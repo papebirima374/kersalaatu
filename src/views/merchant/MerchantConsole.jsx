@@ -1912,10 +1912,6 @@ function MerchantDashboard() {
               <div className="flex flex-wrap items-center gap-2 justify-between">
                 <span className="font-bold text-slate-800 text-sm">Facture / Reçu</span>
                 <div className="flex flex-wrap gap-2">
-                  <button onClick={() => sendInvoiceWA(activePrintInvoice)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all">
-                    <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
-                  </button>
                   <button onClick={() => generatePDF('download')} disabled={pdfLoading}
                     title="Télécharger la facture PDF"
                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold text-xs transition-all">
