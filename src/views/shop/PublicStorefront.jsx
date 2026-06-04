@@ -96,6 +96,22 @@ export default function PublicStorefront() {
     return () => { document.title = 'Jappandal Tech - Plateforme E-Commerce Multi-boutiques'; };
   }, [activeShop?.name]);
 
+  // Canonicalise l'URL : on y inscrit une « version » dérivée du logo. Ainsi tout
+  // lien copié depuis la barre d'adresse (par le marchand, un client ou toi) est
+  // déjà « neuf » pour WhatsApp/Facebook, et il le redevient automatiquement dès
+  // que le logo change → l'aperçu de lien n'est jamais figé sur une vieille image.
+  // N'écrit que le chemin + ?v= → fonctionne tel quel sur le futur domaine.
+  useEffect(() => {
+    if (!activeShop) return;
+    const sv = (s = '') => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h.toString(36); };
+    const v = sv((activeShop.logo || '') + '|' + (activeShop.name || ''));
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('v') !== v) {
+      params.set('v', v);
+      window.history.replaceState(null, '', `/shop/${shopSlug}?${params.toString()}${window.location.hash || ''}`);
+    }
+  }, [activeShop?.logo, activeShop?.name, shopSlug]);
+
   // Bloque le défilement du fond quand le modal produit OU le panier est ouvert.
   // (overflow:hidden — sûr et réversible ; le modal/panier ont leur propre défilement interne)
   useEffect(() => {
