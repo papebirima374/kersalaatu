@@ -34,6 +34,38 @@ const proxiedImg = (url) =>
     ? '/api/img?url=' + encodeURIComponent(url)
     : url;
 
+// Redimensionne + ré-encode une image côté navigateur AVANT l'upload.
+// Objectif : les photos de téléphone (souvent 3-5 Mo) deviennent de petits
+// fichiers (< 512 px), donc l'upload ne peut plus échouer à cause de la taille,
+// et le logo reste léger (affichage rapide + aperçu de lien fiable).
+const compressImage = (file, maxDim = 512) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Lecture du fichier impossible.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Image illisible (format non supporté ? Évitez le HEIC).'));
+      img.onload = () => {
+        let w = img.naturalWidth, h = img.naturalHeight;
+        if (!w || !h) { reject(new Error('Image vide.')); return; }
+        if (w > maxDim || h > maxDim) {
+          if (w >= h) { h = Math.round((h * maxDim) / w); w = maxDim; }
+          else { w = Math.round((w * maxDim) / h); h = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        // PNG : conserve la transparence des logos de marque.
+        canvas.toBlob((blob) => {
+          if (!blob) { reject(new Error('Compression de l’image échouée.')); return; }
+          resolve(new File([blob], 'logo.png', { type: 'image/png' }));
+        }, 'image/png');
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
 const STATUT_COLORS = {
   Reçue:   'bg-blue-500/10 text-blue-400 border-blue-500/20',
   Préparée:'bg-amber-500/10 text-amber-400 border-amber-500/20',
@@ -562,15 +594,20 @@ function MerchantDashboard() {
 
   // ── Handlers settings ────────────────────────────────────────────────────
   const handleLogoUpload = async (e) => {
-    const file = e.target.files[0];
+    const input = e.target;
+    const file = input.files[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { toast('Image trop lourde (max 2 Mo).'); return; }
+    if (!file.type.startsWith('image/')) { toast('Veuillez choisir une image.'); input.value = ''; return; }
+    if (file.size > 15 * 1024 * 1024) { toast('Image trop lourde (max 15 Mo).'); input.value = ''; return; }
     setLogoUploading(true);
     try {
-      const url = await uploadBoutiqueLogo(activeBoutique.id, file);
+      const optimized = await compressImage(file, 512);          // redimensionne : toute photo passe
+      const url = await uploadBoutiqueLogo(activeBoutique.id, optimized);
       setSettingsForm(p => ({ ...p, logo: url }));
-    } catch(e) { toast(e.message || "Erreur upload logo."); }
-    finally { setLogoUploading(false); }
+      updateBoutique(activeBoutique.id, { logo: url });           // ENREGISTREMENT IMMÉDIAT (plus besoin de cliquer « Enregistrer »)
+      toast('Logo enregistré ✓', 'success');
+    } catch(err) { toast(err.message || "Erreur upload logo."); }
+    finally { setLogoUploading(false); input.value = ''; }
   };
 
   const handleSettingsSubmit = (e) => {
@@ -1433,7 +1470,9 @@ function MerchantDashboard() {
                     <div className="flex-1 space-y-2">
                       <input type="file" accept="image/*" disabled={logoUploading} onChange={handleLogoUpload}
                         className="text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-500/10 file:text-blue-400 hover:file:bg-blue-500/20 file:cursor-pointer" />
-                      {logoUploading && <span className="text-xs text-blue-400 animate-pulse">Upload en cours…</span>}
+                      {logoUploading
+                        ? <span className="block text-xs text-blue-400 animate-pulse">Upload en cours…</span>
+                        : <span className="block text-[11px] text-slate-500">Choisissez une image — elle est enregistrée automatiquement (toutes tailles acceptées).</span>}
                       <input type="text" value={settingsForm.logo} onChange={e => setSettingsForm(s => ({...s, logo:e.target.value}))}
                         placeholder="Emoji ou URL image" className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500" />
                     </div>
