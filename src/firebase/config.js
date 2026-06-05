@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
@@ -26,6 +27,31 @@ let storage = null;
 if (isConfigured) {
   try {
     app = initializeApp(firebaseConfig);
+
+    // ── Firebase App Check (anti-abus / anti-bot) ──────────────────────────
+    // INACTIF tant que VITE_RECAPTCHA_SITE_KEY n'est pas défini → aucun impact
+    // sur la prod actuelle. Une fois la clé reCAPTCHA v3 créée et ajoutée dans
+    // Vercel, l'app envoie un jeton d'attestation à chaque requête ; tu pourras
+    // alors activer l'« enforcement » côté Firebase pour bloquer les scripts
+    // qui taperaient l'API directement.
+    const recaptchaKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+    if (typeof window !== 'undefined' && recaptchaKey) {
+      try {
+        // En développement local, jeton de debug (sinon reCAPTCHA bloque localhost).
+        if (import.meta.env.DEV) {
+          // eslint-disable-next-line no-undef
+          self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+        }
+        initializeAppCheck(app, {
+          provider: new ReCaptchaV3Provider(recaptchaKey),
+          isTokenAutoRefreshEnabled: true,
+        });
+        console.log('🛡️ App Check activé.');
+      } catch (e) {
+        console.warn('App Check non initialisé :', e);
+      }
+    }
+
     db = getFirestore(app);
     auth = getAuth(app);
     storage = getStorage(app);
