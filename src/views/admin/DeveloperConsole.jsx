@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import {
   Shield, Store, ClipboardList, Settings, LogOut, Check, AlertTriangle,
   DollarSign, TrendingUp, Users, Lock, Unlock, MessageSquare, Trash2,
-  Plus, X, ExternalLink, Clock, Search
+  Plus, X, ExternalLink, Clock, Search, Star
 } from 'lucide-react';
 
 const fmt = (n) => new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
@@ -452,6 +452,7 @@ export default function DeveloperConsole() {
   }, { actives: 0, bientot: 0, expirees: 0, mrr: 0 });
   const URG = { expire: 0, bientot: 1, ok: 2, inconnu: 2, gratuit: 3 };
   const sortedBoutiques = [...filteredBoutiques].sort((a, b) => {
+    if (!!a.favori !== !!b.favori) return a.favori ? -1 : 1;   // ⭐ favoris en premier
     const sa = subInfo(a), sb = subInfo(b);
     return (URG[sa.etat] - URG[sb.etat]) || ((sa.daysLeft ?? 99999) - (sb.daysLeft ?? 99999));
   });
@@ -687,6 +688,17 @@ export default function DeveloperConsole() {
                       </Link>
                       <p className="text-[10px] text-slate-500 mt-0.5">{b.whatsapp}</p>
                     </div>
+                    <button
+                      onClick={() => updateBoutique(b.id, { favori: !b.favori })}
+                      title={b.favori ? 'Retirer des favoris' : "Épingler en favori (affichée en premier sur l'accueil)"}
+                      className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center border transition-all ${
+                        b.favori
+                          ? 'bg-amber-400/15 text-amber-400 border-amber-400/30'
+                          : 'bg-slate-800 text-slate-500 border-slate-700 hover:text-amber-400 hover:border-amber-400/30'
+                      }`}
+                    >
+                      <Star className="w-4 h-4" fill={b.favori ? 'currentColor' : 'none'} />
+                    </button>
                   </div>
 
                   {/* Abonnement / mensualité (forfaits payants uniquement) */}

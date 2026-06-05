@@ -20,7 +20,8 @@ import {
   PieChart,
   Palette,
   Globe,
-  HelpCircle
+  HelpCircle,
+  Star
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -47,6 +48,10 @@ export default function LandingPage() {
     const phone = (b.whatsapp || '').toLowerCase();
     return name.includes(shopQuery) || phone.includes(shopQuery) ||
       (shopQueryDigits && phone.replace(/\D/g, '').includes(shopQueryDigits));
+  }).sort((a, b) => {
+    // ⭐ Boutiques épinglées (favori) affichées en premier
+    if (!!a.favori !== !!b.favori) return a.favori ? -1 : 1;
+    return 0;
   });
   // Liste compacte : on n'affiche que 6 boutiques par défaut (sauf recherche / « voir tout »)
   const [showAllShops, setShowAllShops] = useState(false);
@@ -222,7 +227,7 @@ export default function LandingPage() {
                 </div>
               ) : (
                 visibleShops.map((b) => (
-                  <div key={b.id} className="p-3 rounded-xl bg-slate-950 border border-slate-800/50 hover:border-slate-700 transition-all flex items-center gap-3 group">
+                  <div key={b.id} className={`p-3 rounded-xl bg-slate-950 border transition-all flex items-center gap-3 group ${b.favori ? 'border-amber-400/40 ring-1 ring-amber-400/20' : 'border-slate-800/50 hover:border-slate-700'}`}>
                     {/* Logo */}
                     <div className="w-11 h-11 rounded-lg flex items-center justify-center text-xl bg-slate-900 border border-slate-800 overflow-hidden shrink-0">
                       {b.logo.startsWith('/') || b.logo.startsWith('http') ? (
@@ -235,6 +240,7 @@ export default function LandingPage() {
                     {/* Infos */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
+                        {b.favori && <Star className="w-3.5 h-3.5 text-amber-400 shrink-0" fill="currentColor" />}
                         <h4 className="font-bold text-slate-200 group-hover:text-blue-400 transition-colors truncate">{b.name}</h4>
                         {b.abonnement?.plan && (
                           <span className={`shrink-0 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${
