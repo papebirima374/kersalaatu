@@ -73,7 +73,7 @@ export default function LandingPage() {
     },
     {
       q: "Puis-je lier mon propre nom de domaine ?",
-      a: "Actuellement, toutes les boutiques ont un sous-domaine sous la forme jappandal-tech.vercel.app/shop/votre-slug. L'intégration de noms de domaine personnalisés (ex: maboutique.com) est prévue dans notre feuille de route pour le forfait Premium VIP très prochainement !"
+      a: "Chaque boutique a une adresse sous la forme jappandal.com/shop/votre-slug. L'intégration de noms de domaine personnalisés (ex: maboutique.com) est prévue dans notre feuille de route pour le forfait Premium VIP très prochainement !"
     }
   ];
 

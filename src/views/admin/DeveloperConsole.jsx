@@ -315,7 +315,7 @@ export default function DeveloperConsole() {
     let cy = 63;
     if (b.whatsapp) { pdf.text(String(b.whatsapp), M, cy); cy += 5; }
     if (b.ownerEmail) { pdf.text(String(b.ownerEmail), M, cy); cy += 5; }
-    if (b.slug) { pdf.text(`jappandal-tech.vercel.app/shop/${b.slug}`, M, cy); cy += 5; }
+    if (b.slug) { pdf.text(`${window.location.host}/shop/${b.slug}`, M, cy); cy += 5; }
 
     let y = 84;
     pdf.setFillColor(241, 245, 249); pdf.rect(M, y, W - 2 * M, 9, 'F');
