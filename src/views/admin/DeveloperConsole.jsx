@@ -53,11 +53,9 @@ export default function DeveloperConsole() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [replyTextMap, setReplyTextMap] = useState({});
 
-  // Auth
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [adminPassword, setAdminPassword] = useState('');
-  const [authError, setAuthError] = useState('');
-  const adminOk = isAuthenticated || isFirebaseAdmin;
+  // Auth — accès réservé au compte administrateur Firebase (VITE_ADMIN_EMAIL).
+  // (plus de « code d'accès » de secours : il exposait un secret dans le bundle public)
+  const adminOk = isFirebaseAdmin;
 
   // Connexion Firebase admin
   const [adminEmail, setAdminEmail] = useState('');
@@ -78,13 +76,6 @@ export default function DeveloperConsole() {
     } finally { setAdminLoginLoading(false); }
   };
 
-  // Password change
-  const [currentPass, setCurrentPass] = useState('');
-  const [newPass, setNewPass] = useState('');
-  const [confirmPass, setConfirmPass] = useState('');
-  const [passSuccess, setPassSuccess] = useState('');
-  const [passError, setPassError] = useState('');
-
   // Recherche boutiques
   const [boutiqueSearch, setBoutiqueSearch] = useState('');
 
@@ -97,11 +88,6 @@ export default function DeveloperConsole() {
   // Gestion d'abonnement (modal)
   const [subModal, setSubModal] = useState(null); // boutique en cours de gestion
   const [subForm, setSubForm] = useState({ mode: 'months', months: 1, date: '', paid: true, amount: '', method: 'Wave' });
-
-  const getStoredAdminPassword = () => {
-    const envSecret = import.meta.env.VITE_ADMIN_SECRET;
-    return localStorage.getItem('ks_admin_password') || envSecret || 'ks-admin-2025';
-  };
 
   const handleCreateBoutiqueSubmit = async (e) => {
     e.preventDefault();
@@ -133,17 +119,6 @@ export default function DeveloperConsole() {
     } catch (error) {
       toast(`Erreur : ${error.message || error}`);
     }
-  };
-
-  const handleChangePassword = (e) => {
-    e.preventDefault();
-    setPassError(''); setPassSuccess('');
-    if (currentPass !== getStoredAdminPassword()) { setPassError('Mot de passe actuel incorrect.'); return; }
-    if (newPass.length < 4) { setPassError('Le nouveau mot de passe doit faire au moins 4 caractères.'); return; }
-    if (newPass !== confirmPass) { setPassError('Les mots de passe ne correspondent pas.'); return; }
-    localStorage.setItem('ks_admin_password', newPass);
-    setPassSuccess('Mot de passe modifié avec succès !');
-    setCurrentPass(''); setNewPass(''); setConfirmPass('');
   };
 
   const handleToggleSuspension = (b) => {
@@ -184,29 +159,6 @@ export default function DeveloperConsole() {
               className="w-full py-3 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:opacity-60 text-slate-950 font-bold text-sm transition-all flex items-center justify-center gap-2">
               {adminLoginLoading ? <span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" /> : <Lock className="w-4 h-4" />}
               Connexion sécurisée
-            </button>
-          </form>
-
-          <div className="flex items-center gap-3 my-5">
-            <div className="flex-1 h-px bg-slate-800" />
-            <span className="text-[10px] text-slate-600 uppercase tracking-wider">ou code d'accès</span>
-            <div className="flex-1 h-px bg-slate-800" />
-          </div>
-
-          {/* Code d'accès (secours) */}
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            if (adminPassword === getStoredAdminPassword()) setIsAuthenticated(true);
-            else setAuthError('Code d\'accès incorrect.');
-          }} className="space-y-4">
-            <input type="password" required placeholder="Code d'accès secret"
-              value={adminPassword}
-              onChange={(e) => { setAdminPassword(e.target.value); setAuthError(''); }}
-              className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-center text-sm font-mono tracking-widest text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none" />
-            {authError && <p className="text-red-400 text-xs text-center font-medium">{authError}</p>}
-            <button type="submit"
-              className="w-full py-3 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-sm transition-all">
-              Déverrouiller
             </button>
           </form>
 
@@ -880,29 +832,22 @@ export default function DeveloperConsole() {
               <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-5">
                 <div>
                   <h3 className="font-semibold text-white flex items-center gap-2"><Lock className="w-4 h-4 text-blue-400" /> Sécurité d'accès</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Modifiez le code d'accès à cette console.</p>
+                  <p className="text-xs text-slate-500 mt-0.5">L'accès à cette console est réservé au compte administrateur Firebase.</p>
                 </div>
 
-                <form onSubmit={handleChangePassword} className="space-y-4">
-                  {passError && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">{passError}</div>}
-                  {passSuccess && <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 text-sm">{passSuccess}</div>}
-
-                  {[
-                    { label:'Mot de passe actuel', val: currentPass, set: setCurrentPass, ph:'••••••••' },
-                    { label:'Nouveau mot de passe', val: newPass, set: setNewPass, ph:'Minimum 4 caractères' },
-                    { label:'Confirmer', val: confirmPass, set: setConfirmPass, ph:'Re-saisir' },
-                  ].map(({ label, val, set, ph }) => (
-                    <div key={label}>
-                      <label className="block text-xs font-medium text-slate-400 mb-1.5">{label}</label>
-                      <input type="password" required value={val} onChange={e => set(e.target.value)} placeholder={ph}
-                        className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 font-mono focus:border-blue-500 focus:outline-none" />
-                    </div>
-                  ))}
-
-                  <button type="submit" className="w-full py-3 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-sm transition-all">
-                    Mettre à jour
-                  </button>
-                </form>
+                <p className="text-sm text-slate-300 bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+                  Connecté en tant qu'administrateur :<br />
+                  <span className="text-blue-400 font-mono break-all">{merchantUser?.email}</span>
+                </p>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Pour changer le mot de passe, utilise « Mot de passe oublié » sur l'écran de connexion,
+                  ou la section <span className="text-slate-300">Authentication</span> de la console Firebase.
+                </p>
+                <button
+                  onClick={async () => { await logoutMerchant(); }}
+                  className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm transition-all flex items-center justify-center gap-2 border border-slate-700">
+                  <LogOut className="w-4 h-4" /> Se déconnecter
+                </button>
               </div>
             </div>
           )}
