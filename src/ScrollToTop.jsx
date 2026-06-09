@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 /**
  * Bouton flottant « retour en haut » : apparaît quand on a défilé vers le bas,

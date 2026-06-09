@@ -59,7 +59,7 @@ export default async function middleware(request) {
           logo: f.logo?.stringValue || '',
         };
       }
-    } catch (e) {
+    } catch {
       /* en cas d'échec, on retombe sur l'aperçu Jappandal par défaut */
     }
   }

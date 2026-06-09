@@ -28,12 +28,16 @@ export default async function handler(req, res) {
   }
 
   // 1) Lire les boutiques
-  let docs = [];
-  try {
-    const r = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/boutiques?key=${apiKey}&pageSize=300`);
-    const data = await r.json();
-    docs = data.documents || [];
-  } catch (e) {
+  const docs = await (async () => {
+    try {
+      const r = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/boutiques?key=${apiKey}&pageSize=300`);
+      const data = await r.json();
+      return data.documents || [];
+    } catch {
+      return null;
+    }
+  })();
+  if (docs === null) {
     return res.status(500).json({ error: 'lecture Firestore échouée' });
   }
 
@@ -99,7 +103,7 @@ export default async function handler(req, res) {
         body: JSON.stringify({ from: fromEmail, to: [adminEmail], subject: `🔔 ${toRelance.length} abonnement(s) à relancer`, html }),
       });
       emailSent = er.ok;
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
   }
 
   return res.status(200).json({

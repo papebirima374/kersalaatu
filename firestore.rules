@@ -2,53 +2,52 @@ rules_version = '2';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Règles de sécurité Firestore — Jappandal Tech
-//
-// ⚠️ À DÉPLOYER SEULEMENT APRÈS que l'admin se connecte via Firebase Auth
-//    (Phase 1 déployée) — sinon les actions admin cesseront de fonctionner.
-//
-// Déploiement :
-//   • Console Firebase → Firestore Database → onglet « Règles » → coller → Publier
-//   • ou  firebase deploy --only firestore:rules
-//
-// Modèle : vitrines/catalogues publics en LECTURE ; toute ÉCRITURE exige un
-// compte connecté (marchand ou admin Firebase). Les clients peuvent créer une
-// commande sans compte. Tout le reste est refusé par défaut.
 // ─────────────────────────────────────────────────────────────────────────
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function signedIn() { return request.auth != null; }
+    
+    function isAdmin() {
+      return signedIn() && (request.auth.token.admin == true || request.auth.token.email.toLowerCase() == 'papebirima374@gmail.com');
+    }
 
-    // Boutiques : vitrines publiques (lecture libre), écriture réservée aux connectés
+    function isBoutiqueOwner(boutiqueId) {
+      return get(/databases/$(database)/documents/boutiques/$(boutiqueId)).data.ownerUid == request.auth.uid;
+    }
+
+    // Boutiques : vitrines publiques (lecture libre), écriture réservée au propriétaire connecté ou à l'admin
     match /boutiques/{id} {
       allow read: if true;
-      allow write: if signedIn();
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if signedIn() && (resource.data.ownerUid == request.auth.uid || isAdmin());
     }
 
-    // Produits : catalogues publics (lecture libre), écriture réservée aux connectés
+    // Produits : catalogues publics (lecture libre), écriture par le propriétaire de la boutique ou l'admin
     match /products/{id} {
       allow read: if true;
-      allow write: if signedIn();
+      allow create: if signedIn() && (isBoutiqueOwner(request.resource.data.boutiqueId) || isAdmin());
+      allow update, delete: if signedIn() && (isBoutiqueOwner(resource.data.boutiqueId) || isAdmin());
     }
 
-    // Commandes : un client peut CRÉER sans compte ; lecture/gestion réservées aux connectés
-    // (protège les données clients : nom, téléphone, adresse — plus lisibles publiquement)
+    // Commandes : un client peut créer sans compte ; lecture/gestion par le propriétaire ou l'admin
     match /orders/{id} {
       allow create: if true;
-      allow read, update, delete: if signedIn();
+      allow read, update, delete: if signedIn() && (isBoutiqueOwner(resource.data.boutiqueId) || isAdmin());
     }
 
-    // Tickets support : créés et gérés par des comptes connectés
+    // Tickets support : créés par le propriétaire, gérés/résolus par le propriétaire ou l'admin
     match /tickets/{id} {
-      allow create: if signedIn();
-      allow read, update, delete: if signedIn();
+      allow create: if signedIn() && request.resource.data.boutiqueId != null && isBoutiqueOwner(request.resource.data.boutiqueId);
+      allow read, update, delete: if signedIn() && (isBoutiqueOwner(resource.data.boutiqueId) || isAdmin());
     }
 
-    // Demandes de passage Pro/Premium : créées et gérées par des comptes connectés
+    // Demandes de passage Pro/Premium : créées par le propriétaire, gérées/validées par l'admin
     match /upgradeRequests/{id} {
-      allow create: if signedIn();
-      allow read, update, delete: if signedIn();
+      allow create: if signedIn() && request.resource.data.boutiqueId != null && isBoutiqueOwner(request.resource.data.boutiqueId);
+      allow read: if signedIn() && (isBoutiqueOwner(resource.data.boutiqueId) || isAdmin());
+      allow update, delete: if isAdmin();
     }
 
     // Tout le reste : refusé

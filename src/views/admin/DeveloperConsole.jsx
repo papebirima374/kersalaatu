@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import {
   Shield, Store, ClipboardList, Settings, LogOut, Check, AlertTriangle,
   DollarSign, TrendingUp, Users, Lock, Unlock, MessageSquare, Trash2,
-  Plus, X, ExternalLink, Clock, Search, Star
+  Plus, X, ExternalLink, Clock, Search, Star, Copy
 } from 'lucide-react';
 
 const fmt = (n) => new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
@@ -19,17 +19,67 @@ const logoOf = (entity) => {
   return <span className="text-lg">{l || '🛍️'}</span>;
 };
 
+const Sidebar = ({ activeTab, setActiveTab, setSidebarOpen, totalShops, pendingTickets, pendingUpgrades }) => {
+  const NAV = [
+    { id:'dashboard',   label:"Vue d'ensemble", icon: Settings },
+    { id:'boutiques',   label:`Boutiques (${totalShops})`, icon: Store },
+    { id:'tickets',     label:'Support & Bugs', icon: ClipboardList, badge: pendingTickets || null },
+    { id:'activations', label:'Activations', icon: DollarSign, badge: pendingUpgrades || null },
+    { id:'config',      label:'Accès & Sécurité', icon: Lock },
+  ];
+  return (
+    <aside className="w-60 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col h-[100dvh] sticky top-0">
+      <div className="p-5 border-b border-slate-800">
+        <Link to="/" className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center shrink-0">
+            <Shield className="w-4 h-4 text-slate-950 stroke-[2.5]" />
+          </div>
+          <div>
+            <p className="font-bold text-white text-sm leading-tight">Jappandal Tech</p>
+            <p className="text-[9px] uppercase tracking-widest text-blue-400 font-semibold">Console Admin</p>
+          </div>
+        </Link>
+      </div>
+
+      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+        {NAV.map(({ id, label, icon: Icon, badge }) => (
+          <button key={id} onClick={() => { setActiveTab(id); setSidebarOpen(false); }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              activeTab === id ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent'
+            }`}>
+            <Icon className="w-4 h-4 shrink-0" />
+            <span className="flex-1 text-left">{label}</span>
+            {badge ? (
+              <span className="bg-emerald-500 text-slate-950 text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{badge}</span>
+            ) : null}
+          </button>
+        ))}
+      </nav>
+
+      <div className="p-3 border-t border-slate-800">
+        <Link to="/" className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-white hover:bg-slate-800 transition-all">
+          <LogOut className="w-4 h-4" /> Retour au site
+        </Link>
+      </div>
+    </aside>
+  );
+};
+
 export default function DeveloperConsole() {
   const {
     boutiques, tickets, updateBoutique, deleteBoutique,
     resolveTicket, replyToTicket, addBoutiqueWithAuth,
     upgradeRequests, approveUpgradeRequest, rejectUpgradeRequest,
-    dataReady, merchantUser, loginMerchant, logoutMerchant
+    dataReady, merchantUser, loginMerchant, logoutMerchant,
+    getProductsByBoutique, getOrdersByBoutique
   } = useTenant();
 
-  // Connexion admin sécurisée (Firebase Auth) — l'e-mail admin est défini par VITE_ADMIN_EMAIL
-  const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || '').trim().toLowerCase();
+  // Connexion admin sécurisée (Firebase Auth) — l'e-mail admin est défini par VITE_ADMIN_EMAIL (avec fallback)
+  const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || 'papebirima374@gmail.com').trim().toLowerCase();
   const isFirebaseAdmin = !!ADMIN_EMAIL && (merchantUser?.email || '').toLowerCase() === ADMIN_EMAIL;
+
+  const [now] = useState(() => Date.now());
 
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -57,6 +107,8 @@ export default function DeveloperConsole() {
   // (plus de « code d'accès » de secours : il exposait un secret dans le bundle public)
   const adminOk = isFirebaseAdmin;
 
+
+
   // Connexion Firebase admin
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPw, setAdminPw] = useState('');
@@ -71,13 +123,52 @@ export default function DeveloperConsole() {
         setAdminLoginError("Ce compte n'est pas le compte administrateur configuré.");
         await logoutMerchant();
       }
-    } catch (err) {
+    } catch {
       setAdminLoginError('Identifiants incorrects ou compte introuvable.');
     } finally { setAdminLoginLoading(false); }
   };
 
   // Recherche boutiques
   const [boutiqueSearch, setBoutiqueSearch] = useState('');
+  const [boutiqueSubTab, setBoutiqueSubTab] = useState('all'); // 'all' | 'subscribers'
+
+  const exportSubscribersCSV = () => {
+    const headers = [
+      'Nom de la Boutique',
+      'URL Slug',
+      'Plan Actuel',
+      'Statut',
+      'Proprietaire (Email)',
+      'Telephone / WhatsApp',
+      'Echeance',
+      'Dernier Paiement'
+    ];
+    const rows = boutiques.map(b => {
+      const s = subInfo(b);
+      return [
+        b.name || '',
+        b.slug || '',
+        s.plan,
+        s.statut,
+        b.ownerEmail || '',
+        b.whatsapp || '',
+        s.exp ? s.exp.toLocaleDateString('fr-FR') : '—',
+        b.abonnement?.dernierPaiement ? new Date(b.abonnement.dernierPaiement).toLocaleDateString('fr-FR') : '—'
+      ];
+    });
+    const csvContent = [headers, ...rows]
+      .map(e => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `abonnes_jappandal_tech_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast('Export CSV des abonnés réussi ! 📊', 'success');
+  };
 
   // Create boutique modal
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -129,6 +220,37 @@ export default function DeveloperConsole() {
   const handlePlanChange = (id, plan) => {
     const b = boutiques.find(x => x.id === id);
     if (b) updateBoutique(id, { abonnement: { ...b.abonnement, plan } });
+  };
+
+  // Une boutique a « commencé ses activités » si elle a des produits, des commandes,
+  // ou un historique de paiement.
+  const isActiveShop = (b) => {
+    const prods = (getProductsByBoutique?.(b.id) || []).length;
+    const ords  = (getOrdersByBoutique?.(b.id) || []).length;
+    const pays  = (b.abonnement?.paiements || []).length;
+    return prods > 0 || ords > 0 || pays > 0 || !!b.abonnement?.dernierPaiement;
+  };
+
+  // Suppression : boutique active → mot de passe de restriction ; boutique vide → confirmation simple
+  const requestDelete = (b) => {
+    const active = isActiveShop(b);
+    if (active) {
+      const pwd = prompt(
+        `⚠️ ATTENTION : La boutique "${b.name}" a déjà commencé ses activités (produits, commandes ou paiements).\n` +
+        `Pour confirmer la suppression définitive de cette boutique et de TOUTES ses données, veuillez saisir le mot de passe de restriction :`
+      );
+      if (pwd === null) return; // Annulation
+      if (pwd !== 'Salaatualaanabi@374') {
+        toast('Mot de passe de restriction incorrect. Suppression annulée.', 'error', 5000);
+        return;
+      }
+    } else {
+      if (!confirm(`Supprimer définitivement la boutique "${b.name}" ?`)) {
+        return;
+      }
+    }
+    deleteBoutique(b.id);
+    toast(`Boutique "${b.name}" supprimée avec succès.`, 'success');
   };
 
   // ── Auth screen ────────────────────────────────────────────────────────
@@ -210,8 +332,8 @@ export default function DeveloperConsole() {
     const isFree = plan === 'Découverte';
     const statut = b.abonnement?.statut || 'Actif';
     const exp = b.abonnement?.dateExpiration ? new Date(b.abonnement.dateExpiration) : null;
-    const daysLeft = exp ? Math.ceil((exp.getTime() - Date.now()) / DAY_MS) : null;
-    const expired = !isFree && exp ? exp.getTime() < Date.now() : false;
+    const daysLeft = exp ? Math.ceil((exp.getTime() - now) / DAY_MS) : null;
+    const expired = !isFree && exp ? exp.getTime() < now : false;
     let etat = 'ok';                       // ok | bientot | expire | gratuit | inconnu
     if (isFree) etat = 'gratuit';
     else if (!exp) etat = 'inconnu';
@@ -267,7 +389,7 @@ export default function DeveloperConsole() {
     let cy = 63;
     if (b.whatsapp) { pdf.text(String(b.whatsapp), M, cy); cy += 5; }
     if (b.ownerEmail) { pdf.text(String(b.ownerEmail), M, cy); cy += 5; }
-    if (b.slug) { pdf.text(`${window.location.host}/shop/${b.slug}`, M, cy); cy += 5; }
+    if (b.slug) { pdf.text(`${window.location.host}/shop/${b.slug}`, M, cy); }
 
     let y = 84;
     pdf.setFillColor(241, 245, 249); pdf.rect(M, y, W - 2 * M, 9, 'F');
@@ -306,7 +428,7 @@ export default function DeveloperConsole() {
 
   const downloadReceipt = async (b, payment) => {
     try { const pdf = await buildReceiptPdf(b, payment); pdf.save(receiptFilename(b, payment)); }
-    catch (e) { toast('Erreur lors de la génération du reçu.'); }
+    catch { toast('Erreur lors de la génération du reçu.'); }
   };
 
   const shareReceipt = async (b, payment) => {
@@ -345,7 +467,7 @@ export default function DeveloperConsole() {
       const data = await r.json().catch(() => ({}));
       if (data.ok) toast('Reçu envoyé par email ✅', 'success');
       else toast(data.error || "Échec de l'envoi (configurez Resend + domaine).", 'error', 6000);
-    } catch (e) { toast("Erreur lors de l'envoi de l'email."); }
+    } catch { toast("Erreur lors de l'envoi de l'email."); }
   };
 
   const openSubModal = (b) => {
@@ -417,52 +539,32 @@ export default function DeveloperConsole() {
     { id:'config',      label:'Accès & Sécurité', icon: Lock },
   ];
 
-  const Sidebar = () => (
-    <aside className="w-60 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col h-[100dvh] sticky top-0">
-      <div className="p-5 border-b border-slate-800">
-        <Link to="/" className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center shrink-0">
-            <Shield className="w-4 h-4 text-slate-950 stroke-[2.5]" />
-          </div>
-          <div>
-            <p className="font-bold text-white text-sm leading-tight">Jappandal Tech</p>
-            <p className="text-[9px] uppercase tracking-widest text-blue-400 font-semibold">Console Admin</p>
-          </div>
-        </Link>
-      </div>
-
-      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-        {NAV.map(({ id, label, icon: Icon, badge }) => (
-          <button key={id} onClick={() => { setActiveTab(id); setSidebarOpen(false); }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-              activeTab === id ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent'
-            }`}>
-            <Icon className="w-4 h-4 shrink-0" />
-            <span className="flex-1 text-left">{label}</span>
-            {badge ? (
-              <span className="bg-emerald-500 text-slate-950 text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{badge}</span>
-            ) : null}
-          </button>
-        ))}
-      </nav>
-
-      <div className="p-3 border-t border-slate-800">
-        <Link to="/" className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-white hover:bg-slate-800 transition-all">
-          <LogOut className="w-4 h-4" /> Retour au site
-        </Link>
-      </div>
-    </aside>
-  );
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex font-sans">
-      <div className="hidden md:flex"><Sidebar /></div>
+      <div className="hidden md:flex">
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          setSidebarOpen={setSidebarOpen}
+          totalShops={totalShops}
+          pendingTickets={pendingTickets}
+          pendingUpgrades={pendingUpgrades}
+        />
+      </div>
 
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setSidebarOpen(false)} />
-          <div className="absolute left-0 top-0 bottom-0 w-60"><Sidebar /></div>
+          <div className="absolute left-0 top-0 bottom-0 w-60">
+            <Sidebar
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              setSidebarOpen={setSidebarOpen}
+              totalShops={totalShops}
+              pendingTickets={pendingTickets}
+              pendingUpgrades={pendingUpgrades}
+            />
+          </div>
         </div>
       )}
 
@@ -612,98 +714,339 @@ export default function DeveloperConsole() {
                 </div>
               </div>
 
+              {/* Sélecteur de sous-onglet et action d'export */}
+              <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center py-1">
+                <div className="flex rounded-xl bg-slate-900 p-1 border border-slate-800 w-full sm:w-auto">
+                  <button
+                    onClick={() => setBoutiqueSubTab('all')}
+                    className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${boutiqueSubTab === 'all' ? 'bg-blue-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    📋 Liste des boutiques
+                  </button>
+                  <button
+                    onClick={() => setBoutiqueSubTab('subscribers')}
+                    className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${boutiqueSubTab === 'subscribers' ? 'bg-blue-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'}`}
+                  >
+                    👥 Annuaire des Abonnés
+                  </button>
+                </div>
+                <button
+                  onClick={exportSubscribersCSV}
+                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-xs font-bold text-slate-300 transition-all flex items-center justify-center gap-2"
+                >
+                  📊 Exporter CSV (Abonnés)
+                </button>
+              </div>
+
               {boutiques.length > 0 && filteredBoutiques.length === 0 && (
                 <div className="bg-slate-900 border border-dashed border-slate-700 rounded-xl py-10 text-center text-slate-500 text-sm">
                   Aucune boutique ne correspond à « {boutiqueSearch} ».
                 </div>
               )}
-              {sortedBoutiques.map(b => {
-                const actif = (b.abonnement?.statut || 'Actif') === 'Actif';
-                const s = subInfo(b);
-                return (
-                <div key={b.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                  {/* Identité + statut */}
-                  <div className="flex items-start gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">{logoOf(b)}</div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-bold text-slate-200 truncate">{b.name}</p>
-                        <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border ${actif ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
-                          {b.abonnement?.statut || 'Actif'}
-                        </span>
-                        {s.etat === 'expire' && <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/15 text-red-300 border border-red-500/30">⛔ Expiré</span>}
-                        {s.etat === 'bientot' && <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">⏳ J-{s.daysLeft}</span>}
-                        {s.etat === 'gratuit' && <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-500/10 text-slate-400 border border-slate-500/20">Gratuit</span>}
-                      </div>
-                      <Link to={`/shop/${b.slug}`} target="_blank" className="text-xs text-blue-400 hover:underline font-mono inline-flex items-center gap-1 mt-0.5">
-                        /{b.slug} <ExternalLink className="w-3 h-3" />
-                      </Link>
-                      <p className="text-[10px] text-slate-500 mt-0.5">{b.whatsapp}</p>
-                    </div>
-                    <button
-                      onClick={() => updateBoutique(b.id, { favori: !b.favori })}
-                      title={b.favori ? 'Retirer des favoris' : "Épingler en favori (affichée en premier sur l'accueil)"}
-                      className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center border transition-all ${
-                        b.favori
-                          ? 'bg-amber-400/15 text-amber-400 border-amber-400/30'
-                          : 'bg-slate-800 text-slate-500 border-slate-700 hover:text-amber-400 hover:border-amber-400/30'
-                      }`}
-                    >
-                      <Star className="w-4 h-4" fill={b.favori ? 'currentColor' : 'none'} />
-                    </button>
+
+              {/* SOUS-ONGLET 1 : TOUTES LES BOUTIQUES */}
+              {boutiqueSubTab === 'all' && filteredBoutiques.length > 0 && (
+                <div className="space-y-4">
+                  {/* Desktop View: Table */}
+                  <div className="hidden md:block overflow-hidden bg-slate-900 border border-slate-800 rounded-2xl">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-800 text-[10px] text-slate-500 uppercase tracking-wider bg-slate-950/20">
+                          <th className="py-4 px-4 font-semibold">Boutique</th>
+                          <th className="py-4 px-4 font-semibold">Propriétaire & Contacts</th>
+                          <th className="py-4 px-4 font-semibold">Forfait</th>
+                          <th className="py-4 px-4 font-semibold">Statut & Échéance</th>
+                          <th className="py-4 px-4 font-semibold text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60 text-sm">
+                        {sortedBoutiques.map(b => {
+                          const actif = (b.abonnement?.statut || 'Actif') === 'Actif';
+                          const s = subInfo(b);
+                          return (
+                            <tr key={b.id} className="hover:bg-slate-950/10 transition-colors">
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
+                                    {logoOf(b)}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <p className="font-bold text-slate-200 truncate">{b.name}</p>
+                                      {b.favori && <Star className="w-3 h-3 text-amber-400 shrink-0" fill="currentColor" />}
+                                    </div>
+                                    <Link to={`/shop/${b.slug}`} target="_blank" className="text-xs text-blue-400 hover:underline font-mono inline-flex items-center gap-0.5 mt-0.5">
+                                      /{b.slug} <ExternalLink className="w-2.5 h-2.5" />
+                                    </Link>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="space-y-1">
+                                  {b.ownerEmail && (
+                                    <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                                      <span className="truncate max-w-[160px]" title={b.ownerEmail}>{b.ownerEmail}</span>
+                                      <button
+                                        onClick={() => { try { navigator.clipboard?.writeText(b.ownerEmail); toast('Email copié', 'success'); } catch { /* */ } }}
+                                        title="Copier l'email"
+                                        className="text-slate-500 hover:text-slate-300"
+                                      >
+                                        <Copy className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  )}
+                                  {b.whatsapp && (
+                                    <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                                      <span>{b.whatsapp}</span>
+                                      <a
+                                        href={`https://wa.me/${String(b.whatsapp).replace(/\D/g,'')}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        title="Contacter sur WhatsApp"
+                                        className="text-emerald-500 hover:text-emerald-400"
+                                      >
+                                        <MessageSquare className="w-3.5 h-3.5" />
+                                      </a>
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <select
+                                  value={b.abonnement?.plan || 'Découverte'}
+                                  onChange={e => handlePlanChange(b.id, e.target.value)}
+                                  className="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 font-semibold focus:outline-none focus:border-blue-500 cursor-pointer"
+                                >
+                                  <option value="Découverte">Découverte · gratuit</option>
+                                  <option value="Pro">Pro · 5 000</option>
+                                  <option value="Premium">Premium · 15 000</option>
+                                </select>
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${actif ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                                      {b.abonnement?.statut || 'Actif'}
+                                    </span>
+                                    {s.etat === 'expire' && <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-red-500/15 text-red-300 border border-red-500/30">⛔ Expiré</span>}
+                                    {s.etat === 'bientot' && <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">⏳ J-{s.daysLeft}</span>}
+                                    {s.etat === 'gratuit' && <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-500/10 text-slate-400 border border-slate-500/20">Gratuit</span>}
+                                  </div>
+                                  <div className="text-[11px] text-slate-500">
+                                    {!s.isFree && s.exp && (
+                                      <span>Échéance : {s.exp.toLocaleDateString('fr-FR')}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <div className="inline-flex items-center gap-1.5">
+                                  {!s.isFree && (
+                                    <button
+                                      onClick={() => openSubModal(b)}
+                                      title="Gérer l'abonnement : encaisser, offrir, reçu"
+                                      className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-blue-500 hover:bg-blue-400 text-slate-950 transition-all inline-flex items-center gap-1"
+                                    >
+                                      <DollarSign className="w-3 h-3" /> Encaisser
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => updateBoutique(b.id, { favori: !b.favori })}
+                                    title={b.favori ? 'Retirer des favoris' : 'Épingler en favori'}
+                                    className={`p-1.5 rounded-lg border transition-all ${b.favori ? 'bg-amber-400/15 text-amber-400 border-amber-400/30' : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-amber-400'}`}
+                                  >
+                                    <Star className="w-3.5 h-3.5" fill={b.favori ? 'currentColor' : 'none'} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleToggleSuspension(b)}
+                                    title={actif ? 'Suspendre' : 'Réactiver'}
+                                    className={`p-1.5 rounded-lg border transition-all ${actif ? 'bg-red-500/5 text-red-400 border-red-500/10 hover:bg-red-500/10' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'}`}
+                                  >
+                                    {actif ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                                  </button>
+                                  <button
+                                    onClick={() => requestDelete(b)}
+                                    title="Supprimer la boutique"
+                                    className="p-1.5 rounded-lg bg-red-500/5 text-red-400 border border-red-500/10 hover:bg-red-500 hover:text-slate-950 transition-all"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
 
-                  {/* Abonnement / mensualité (forfaits payants uniquement) */}
-                  {!s.isFree && (
-                    <div className="mt-3 pt-3 border-t border-slate-800 flex flex-wrap items-center gap-2">
-                      <div className="flex-1 min-w-[150px] text-xs">
-                        {s.etat === 'expire' ? (
-                          <span className="text-red-400 font-semibold">⛔ Expiré{s.exp ? ` le ${s.exp.toLocaleDateString('fr-FR')}` : ''} — vitrine bloquée</span>
-                        ) : s.exp ? (
-                          <span className={s.etat === 'bientot' ? 'text-amber-400 font-semibold' : 'text-slate-400'}>
-                            {s.etat === 'bientot' ? '⏳ ' : '✓ '}Échéance : {s.exp.toLocaleDateString('fr-FR')}
-                            <span className="text-slate-500"> ({s.daysLeft > 0 ? `dans ${s.daysLeft} j` : "aujourd'hui"})</span>
-                          </span>
-                        ) : (
-                          <span className="text-slate-500">Aucune échéance — cliquez « Encaisser » pour démarrer.</span>
-                        )}
-                        {b.abonnement?.dernierPaiement && (
-                          <span className="block text-[10px] text-slate-600 mt-0.5">Dernier paiement : {new Date(b.abonnement.dernierPaiement).toLocaleDateString('fr-FR')}</span>
-                        )}
-                      </div>
-                      <button onClick={() => openSubModal(b)}
-                        title="Gérer l'abonnement : encaisser, offrir, définir une échéance, reçu"
-                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-500 hover:bg-blue-400 text-slate-950 transition-all flex items-center gap-1.5">
-                        <DollarSign className="w-3.5 h-3.5" /> Gérer / Encaisser
-                      </button>
-                    </div>
-                  )}
+                  {/* Mobile View: Compact Card list */}
+                  <div className="block md:hidden space-y-3">
+                    {sortedBoutiques.map(b => {
+                      const actif = (b.abonnement?.statut || 'Actif') === 'Actif';
+                      const s = subInfo(b);
+                      return (
+                        <div key={b.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">{logoOf(b)}</div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1">
+                                <p className="font-bold text-slate-200 text-xs truncate">{b.name}</p>
+                                {b.favori && <Star className="w-3 h-3 text-amber-400 shrink-0" fill="currentColor" />}
+                              </div>
+                              <Link to={`/shop/${b.slug}`} target="_blank" className="text-[11px] text-blue-400 hover:underline font-mono inline-flex items-center gap-0.5 mt-0.5">
+                                /{b.slug} <ExternalLink className="w-2.5 h-2.5" />
+                              </Link>
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${actif ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                                {b.abonnement?.statut || 'Actif'}
+                              </span>
+                            </div>
+                          </div>
 
-                  {/* Contrôles : forfait + actions */}
-                  <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-800">
-                    <select value={b.abonnement?.plan || 'Découverte'} onChange={e => handlePlanChange(b.id, e.target.value)}
-                      className="flex-1 min-w-[130px] px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 font-semibold focus:outline-none focus:border-blue-500 cursor-pointer">
-                      <option value="Découverte">Découverte · gratuit</option>
-                      <option value="Pro">Pro · 5 000</option>
-                      <option value="Premium">Premium · 15 000</option>
-                    </select>
-                    <button onClick={() => handleToggleSuspension(b)}
-                      className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all border ${
-                        actif
-                        ? 'bg-red-500/5 text-red-400 border-red-500/10 hover:bg-red-500/10'
-                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
-                      }`}>
-                      {actif ? <><Lock className="w-3.5 h-3.5" />Suspendre</> : <><Unlock className="w-3.5 h-3.5" />Réactiver</>}
-                    </button>
-                    <button onClick={() => {
-                      if (confirm(`Supprimer définitivement "${b.name}" et toutes ses données ?`)) { deleteBoutique(b.id); }
-                    }} className="px-2.5 py-2 rounded-lg bg-red-500/5 text-red-400 border border-red-500/10 hover:bg-red-500 hover:text-slate-950 transition-all shrink-0">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                          <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-400 bg-slate-950/20 p-2 rounded-xl">
+                            <div className="truncate">
+                              <span className="block text-[8px] uppercase tracking-wide text-slate-500 mb-0.5">Email</span>
+                              {b.ownerEmail || '—'}
+                            </div>
+                            <div>
+                              <span className="block text-[8px] uppercase tracking-wide text-slate-500 mb-0.5">Téléphone</span>
+                              <span className="inline-flex items-center gap-1 text-slate-300">
+                                {b.whatsapp || '—'}
+                                {b.whatsapp && (
+                                  <a href={`https://wa.me/${String(b.whatsapp).replace(/\D/g,'')}`} target="_blank" rel="noreferrer" className="text-emerald-500">
+                                    <MessageSquare className="w-3.5 h-3.5" />
+                                  </a>
+                                )}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between text-xs border-t border-slate-800/60 pt-2.5">
+                            <select
+                              value={b.abonnement?.plan || 'Découverte'}
+                              onChange={e => handlePlanChange(b.id, e.target.value)}
+                              className="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-[10px] text-slate-200 font-semibold focus:outline-none"
+                            >
+                              <option value="Découverte">Découverte · gratuit</option>
+                              <option value="Pro">Pro · 5 000</option>
+                              <option value="Premium">Premium · 15 000</option>
+                            </select>
+                            <div className="text-[10px] text-slate-400">
+                              {!s.isFree && s.exp ? (
+                                <span>Échéance : {s.exp.toLocaleDateString('fr-FR')}</span>
+                              ) : <span>Découverte gratuit</span>}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-end gap-1.5 border-t border-slate-800/60 pt-2.5">
+                            {!s.isFree && (
+                              <button
+                                onClick={() => openSubModal(b)}
+                                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-blue-500 text-slate-950 transition-all flex items-center gap-1"
+                              >
+                                <DollarSign className="w-3 h-3" /> Encaisser
+                              </button>
+                            )}
+                            <button
+                              onClick={() => updateBoutique(b.id, { favori: !b.favori })}
+                              className={`p-1.5 rounded-lg border transition-all ${b.favori ? 'bg-amber-400/15 text-amber-400 border-amber-400/30' : 'bg-slate-800 text-slate-400 border-slate-700'}`}
+                            >
+                              <Star className="w-3.5 h-3.5" fill={b.favori ? 'currentColor' : 'none'} />
+                            </button>
+                            <button
+                              onClick={() => handleToggleSuspension(b)}
+                              className={`p-1.5 rounded-lg border transition-all ${actif ? 'bg-red-500/5 text-red-400 border-red-500/10' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}
+                            >
+                              {actif ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                            </button>
+                            <button
+                              onClick={() => requestDelete(b)}
+                              className="p-1.5 rounded-lg bg-red-500/5 text-red-400 border border-red-500/10"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-                );
-              })}
+              )}
+
+              {/* SOUS-ONGLET 2 : ANNUAIRE DES ABONNÉS */}
+              {boutiqueSubTab === 'subscribers' && filteredBoutiques.length > 0 && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {sortedBoutiques.map(b => {
+                      const s = subInfo(b);
+                      return (
+                        <div key={b.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 relative hover:border-slate-700 transition-all flex flex-col justify-between">
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
+                                {logoOf(b)}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <h3 className="font-bold text-slate-100 truncate text-sm">{b.name}</h3>
+                                <p className="text-[10px] text-slate-500 font-mono">/{b.slug}</p>
+                              </div>
+                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${s.isFree ? 'bg-slate-800 text-slate-400 border-slate-700' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
+                                {s.plan}
+                              </span>
+                            </div>
+
+                            <div className="space-y-2 bg-slate-950/30 p-3 rounded-xl border border-slate-800/40">
+                              <div className="flex items-center justify-between text-xs text-slate-300">
+                                <span className="text-slate-500 text-[10px] uppercase font-semibold">Téléphone :</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono font-medium">{b.whatsapp || '—'}</span>
+                                  {b.whatsapp && (
+                                    <a
+                                      href={`https://wa.me/${String(b.whatsapp).replace(/\D/g,'')}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      title="Chatter sur WhatsApp"
+                                      className="text-emerald-500 hover:text-emerald-400"
+                                    >
+                                      <MessageSquare className="w-4 h-4" />
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between text-xs text-slate-300">
+                                <span className="text-slate-500 text-[10px] uppercase font-semibold">Email :</span>
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="truncate max-w-[140px] font-medium" title={b.ownerEmail}>{b.ownerEmail || '—'}</span>
+                                  {b.ownerEmail && (
+                                    <button
+                                      onClick={() => { try { navigator.clipboard?.writeText(b.ownerEmail); toast('Email copié', 'success'); } catch { /* */ } }}
+                                      title="Copier l'email"
+                                      className="text-slate-400 hover:text-slate-200 shrink-0"
+                                    >
+                                      <Copy className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between text-[11px] text-slate-400 pt-3 border-t border-slate-800/50 mt-1">
+                            <span>Échéance :</span>
+                            <span className="font-semibold text-slate-200">
+                              {s.isFree ? 'Illimité (Gratuit)' : s.exp ? s.exp.toLocaleDateString('fr-FR') : 'Non définie'}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {boutiques.length === 0 && (
                 <div className="bg-slate-900 border border-dashed border-slate-700 rounded-xl py-16 text-center">
                   <Store className="w-10 h-10 text-slate-700 mx-auto mb-3" />
@@ -1043,6 +1386,37 @@ export default function DeveloperConsole() {
                 <button type="submit" className="flex-1 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-sm transition-all">Créer</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL SUPPRESSION PROTÉGÉE (boutique active) ───────────────── */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setDeleteTarget(null)}>
+          <div className="w-full max-w-sm bg-slate-900 border border-red-500/30 rounded-2xl p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center shrink-0"><AlertTriangle className="w-5 h-5 text-red-400" /></div>
+              <div className="min-w-0">
+                <h3 className="font-bold text-white">Supprimer une boutique active</h3>
+                <p className="text-xs text-slate-500 truncate">« {deleteTarget.name} » a déjà une activité.</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-400 mb-4">
+              Cette boutique a des produits, des commandes ou des paiements. Pour confirmer la
+              <span className="text-red-300 font-semibold"> suppression définitive</span>, saisis le mot de passe de sécurité.
+            </p>
+            <input type="password" autoFocus value={deletePw}
+              onChange={e => { setDeletePw(e.target.value); setDeleteErr(''); }}
+              onKeyDown={e => { if (e.key === 'Enter') confirmDelete(); }}
+              placeholder="Mot de passe de sécurité"
+              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-red-500 focus:outline-none" />
+            {deleteErr && <p className="text-red-400 text-xs mt-2 font-medium">{deleteErr}</p>}
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setDeleteTarget(null)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-300 font-bold text-sm border border-slate-700 hover:bg-slate-700 transition-colors">Annuler</button>
+              <button onClick={confirmDelete}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-bold text-sm hover:bg-red-600 transition-colors flex items-center justify-center gap-2"><Trash2 className="w-4 h-4" /> Supprimer</button>
+            </div>
           </div>
         </div>
       )}

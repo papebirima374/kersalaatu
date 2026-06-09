@@ -39,7 +39,6 @@ if (isConfigured) {
       try {
         // En développement local, jeton de debug (sinon reCAPTCHA bloque localhost).
         if (import.meta.env.DEV) {
-          // eslint-disable-next-line no-undef
           self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
         }
         initializeAppCheck(app, {

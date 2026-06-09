@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { useState, useEffect } from 'react';
 
 /**
  * Système de notifications "toast" global, sans contexte :

@@ -50,6 +50,34 @@ html, body, #root {
 }
 .animate-floaty { animation: floaty 4.5s ease-in-out infinite; }
 
+/* Animations de tiroir (drawer) et fondus */
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+.animate-slide-in-left { animation: slideInLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+.animate-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-fade-in { animation: fadeIn 0.2s ease-out both; }
+
+/* Masquer les barres de défilement */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Respecte les préférences d'accessibilité */
 @media (prefers-reduced-motion: reduce) {
   .animate-marquee, .animate-fade-up, .animate-floaty { animation: none !important; }
@@ -57,10 +85,21 @@ html, body, #root {
 
 body {
   margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background-color: #f8fafc;
   color: #0f172a;
   min-height: 100vh;
+}
+
+.font-display {
+  font-family: 'Outfit', sans-serif;
+}
+
+.bg-grid-pattern {
+  background-size: 50px 50px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
 }
 
 /* Empêche tout élément de dépasser horizontalement (stabilité mobile) */

@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.statusCode = 200;
     return res.end(buf);
-  } catch (e) {
+  } catch {
     res.statusCode = 502;
     return res.end('fetch failed');
   }

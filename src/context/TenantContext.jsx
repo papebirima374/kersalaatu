@@ -1,14 +1,13 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { db, auth, storage, isConfigured } from '../firebase/config';
 import {
   collection,
-  getDocs,
   doc,
   setDoc,
   updateDoc,
   deleteDoc,
-  onSnapshot,
-  query
+  onSnapshot
 } from 'firebase/firestore';
 import {
   signInWithEmailAndPassword,
@@ -172,6 +171,9 @@ export const TenantProvider = ({ children }) => {
         });
       } else {
         setMerchantUser(null);
+        setOrders([]);
+        setTickets([]);
+        setUpgradeRequests([]);
       }
       // Firebase a résolu l'état d'auth — on peut maintenant afficher l'UI
       setAuthReady(true);
@@ -215,10 +217,7 @@ export const TenantProvider = ({ children }) => {
   // → un visiteur anonyme de vitrine ne télécharge plus toute la base : vitrine plus rapide + données privées non chargées.
   useEffect(() => {
     if (!isConfigured) return;
-    if (!merchantUser) {
-      setOrders([]); setTickets([]); setUpgradeRequests([]);
-      return;
-    }
+    if (!merchantUser) return;
     const unsubs = [];
 
     unsubs.push(onSnapshot(collection(db, 'orders'), snap => {
@@ -575,6 +574,26 @@ export const TenantProvider = ({ children }) => {
     }));
   };
 
+  const updateClientOrdersInfo = (telephone, nom, adresse) => {
+    setOrders(prev => prev.map(o => {
+      if (o.client?.telephone === telephone) {
+        const updated = { 
+          ...o, 
+          client: { ...o.client, nom, adresse }
+        };
+        
+        if (isConfigured) {
+          updateDoc(doc(db, 'orders', o.id), { 
+            'client.nom': nom,
+            'client.adresse': adresse
+          }).catch(err => console.error("Error updating client info in Firestore order:", err));
+        }
+        return updated;
+      }
+      return o;
+    }));
+  };
+
   const getBoutiqueBySlug = (slug) => {
     if (!slug) return null;
     return boutiques.find(b => b.slug && b.slug.toLowerCase() === slug.toLowerCase()) || null;
@@ -836,6 +855,9 @@ export const TenantProvider = ({ children }) => {
       await signOut(auth);
     }
     setMerchantUser(null);
+    setOrders([]);
+    setTickets([]);
+    setUpgradeRequests([]);
     localStorage.removeItem('ks_merchant_user');
   };
 
@@ -866,6 +888,7 @@ export const TenantProvider = ({ children }) => {
       cancelOrder,
       updateOrderStatus,
       updateOrderPaymentStatus,
+      updateClientOrdersInfo,
       addTicket,
       resolveTicket,
       replyToTicket,

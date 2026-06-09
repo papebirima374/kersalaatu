@@ -1,17 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTenant } from '../context/TenantContext';
 import {
-  ShoppingBag,
   ArrowRight,
   LogIn,
   Search,
-  Smartphone, 
   MessageSquare, 
-  Shield, 
   Sparkles, 
-  Plus, 
-  Settings, 
   Check,
   ChevronDown,
   ChevronUp,
@@ -21,7 +16,9 @@ import {
   Palette,
   Globe,
   HelpCircle,
-  Star
+  Star,
+  Menu,
+  X
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -29,14 +26,16 @@ export default function LandingPage() {
   const navigate = useNavigate();
 
   // Shop creation state
-  const [showModal, setShowModal] = useState(false);
   const [shopName, setShopName] = useState('');
   const [whatsapp, setWhatsapp] = useState('780178444');
-  const [description, setDescription] = useState('');
+  const description = '';
   const [color, setColor] = useState('#2563eb');
 
   // FAQ accordion state
   const [openFaq, setOpenFaq] = useState(null);
+
+  // Mobile menu toggle state
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Recherche boutiques (nom + téléphone)
   const [shopSearch, setShopSearch] = useState('');
@@ -53,6 +52,7 @@ export default function LandingPage() {
     if (!!a.favori !== !!b.favori) return a.favori ? -1 : 1;
     return 0;
   });
+  
   // Liste compacte : on n'affiche que 6 boutiques par défaut (sauf recherche / « voir tout »)
   const [showAllShops, setShowAllShops] = useState(false);
   const SHOPS_PREVIEW = 6;
@@ -79,7 +79,7 @@ export default function LandingPage() {
 
   const handleCreateShop = (e) => {
     e.preventDefault();
-    if (!shopName) return;
+    if (!shopName.trim()) return;
 
     // Clean whatsapp number
     let cleanWhatsapp = whatsapp.trim();
@@ -104,342 +104,555 @@ export default function LandingPage() {
     navigate('/marchand');
   };
 
+  const formattedSlug = shopName.trim()
+    ? shopName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    : 'ma-boutique';
+
   return (
-    <div className="bg-slate-950 text-slate-100 flex flex-col font-sans" style={{ overflowX: 'hidden' }}>
-      {/* Background patterns — fixed pour éviter les sauts sur mobile */}
-      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/20 via-slate-950 to-blue-950/10 pointer-events-none -z-10" />
+    <div className="bg-slate-950 text-slate-100 flex flex-col bg-grid-pattern min-h-screen relative" style={{ overflowX: 'hidden' }}>
+      
+      {/* Glow effects de fond */}
+      <div className="absolute top-0 left-1/4 w-[400px] h-[400px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none -z-15" />
+      <div className="absolute top-[20%] right-10 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[150px] pointer-events-none -z-15" />
+      <div className="absolute bottom-[30%] left-10 w-[450px] h-[450px] bg-cyan-600/5 rounded-full blur-[130px] pointer-events-none -z-15" />
 
-      {/* Header */}
-      <header className="relative max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 pt-safe flex items-center gap-3 border-b border-slate-800/80">
-        {/* Logo à gauche — clic = rafraîchir */}
-        <button onClick={() => window.location.reload()} title="Rafraîchir" aria-label="Rafraîchir" className="shrink-0 active:rotate-180 transition-transform duration-300">
-          <img src="/logo-jappandal.png" alt="Jappandal" className="h-11 sm:h-12 w-auto object-contain" />
-        </button>
-
-        {/* Nom de marque + slogan qui défilent (logo → bouton) */}
-        <div className="flex-1 overflow-hidden mask-fade">
-          <div className="flex items-center w-max animate-marquee">
-            {[0, 1].map(k => (
-              <div key={k} className="flex items-baseline gap-3 pr-10 shrink-0" aria-hidden={k === 1}>
-                <span className="text-lg sm:text-2xl font-black text-blue-500 tracking-tight">Jappandal Tech</span>
-                <span className="text-blue-500/40">•</span>
-                <span className="text-xs sm:text-sm text-white/70 font-medium">Votre boutique en ligne en 2 minutes</span>
-                <span className="text-blue-500/40">•</span>
-              </div>
-            ))}
+      {/* Header collant et translucide (Glassmorphism) */}
+      <header className="sticky top-0 z-40 w-full border-b border-white/5 bg-slate-950/80 backdrop-blur-md" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={() => window.location.reload()} title="Rafraîchir" className="shrink-0 transition-transform duration-300 active:rotate-180">
+              <img src="/logo-jappandal.png" alt="Jappandal" className="h-10 w-auto object-contain" />
+            </button>
+            <span className="text-xl font-display font-black text-white tracking-tight hidden sm:inline-block">Jappandal</span>
           </div>
-        </div>
 
-        {/* Se connecter à droite */}
-        <button
-          onClick={() => navigate('/marchand')}
-          className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-blue-500 to-blue-400 text-white font-semibold text-sm px-4 sm:px-5 py-2.5 cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/25"
-        >
-          <LogIn className="w-4 h-4 stroke-[2.5]" /> Se connecter
-        </button>
-      </header>
+          {/* Navigation links */}
+          <nav className="hidden md:flex items-center gap-6 text-sm text-slate-400 font-medium">
+            <a href="#demo" className="hover:text-white transition-colors">Simulateur</a>
+            <a href="#features" className="hover:text-white transition-colors">Fonctionnalités</a>
+            <a href="#shops" className="hover:text-white transition-colors">Boutiques</a>
+            <a href="#tarifs" className="hover:text-white transition-colors">Tarifs</a>
+            <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
+          </nav>
 
-      {/* Hero Section */}
-      <main className="relative flex-grow max-w-7xl w-full mx-auto px-6 py-12 md:py-20 flex flex-col md:flex-row items-center gap-12">
-        <div className="flex-1 space-y-6 text-left">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold animate-fade-up">
-            <Sparkles className="w-3.5 h-3.5 animate-floaty" /> Propulsé par Jappandal Tech
-          </div>
-          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight animate-fade-up" style={{ animationDelay: '0.1s' }}>
-            Vendez en ligne <br />
-            <span className="bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-400 bg-clip-text text-transparent">
-              en 2 minutes chrono
-            </span>
-          </h1>
-          <p className="text-slate-400 text-lg md:text-xl leading-relaxed max-w-xl animate-fade-up" style={{ animationDelay: '0.2s' }}>
-            Créez votre vitrine e-commerce personnalisée. Vos clients commandent en un clic, et vous recevez tout sur WhatsApp. Le tout géré de A à Z sur votre téléphone.
-          </p>
-
-          <div className="flex flex-wrap gap-4 pt-4 animate-fade-up" style={{ animationDelay: '0.3s' }}>
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => navigate('/marchand?creer=1')}
-              className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-400 text-white font-bold hover:shadow-lg hover:shadow-blue-500/25 transition-all flex items-center gap-2 hover:translate-x-0.5 cursor-pointer"
+              onClick={() => navigate('/marchand')}
+              className="inline-flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 text-white font-semibold text-xs px-3 py-2 sm:px-4 sm:py-2.5 hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer"
             >
-              Lancer ma boutique maintenant <ArrowRight className="w-5 h-5 stroke-[2.5]" />
+              <LogIn className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Accès Marchand</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 text-slate-400 hover:text-white md:hidden transition-colors rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 cursor-pointer"
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
+        </div>
+      </header>
 
-          {/* Core values */}
-          <div className="grid grid-cols-3 gap-6 pt-10 border-t border-slate-900">
-            <div className="space-y-1">
-              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 mb-2">
-                <Smartphone className="w-4 h-4" />
+      {/* Mobile Menu Drawer/Overlay */}
+      {mobileMenuOpen && (
+        <div className="md:hidden sticky top-[56px] left-0 right-0 z-30 border-b border-white/5 bg-slate-950/95 backdrop-blur-md animate-fade-in">
+          <nav className="flex flex-col p-4 space-y-3 text-sm text-slate-400 font-semibold text-left">
+            <a 
+              href="#demo" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white transition-all flex items-center gap-2"
+            >
+              <Sparkles className="w-4 h-4 text-blue-400" /> Simulateur
+            </a>
+            <a 
+              href="#features" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white transition-all flex items-center gap-2"
+            >
+              <Zap className="w-4 h-4 text-indigo-400" /> Fonctionnalités
+            </a>
+            <a 
+              href="#shops" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white transition-all flex items-center gap-2"
+            >
+              <Globe className="w-4 h-4 text-cyan-400" /> Boutiques
+            </a>
+            <a 
+              href="#tarifs" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white transition-all flex items-center gap-2"
+            >
+              <Star className="w-4 h-4 text-amber-400" /> Tarifs
+            </a>
+            <a 
+              href="#faq" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white transition-all flex items-center gap-2"
+            >
+              <HelpCircle className="w-4 h-4 text-emerald-400" /> FAQ
+            </a>
+          </nav>
+        </div>
+      )}
+
+      {/* Hero Section */}
+      <main id="demo" className="relative max-w-7xl w-full mx-auto px-6 py-12 md:py-20 flex flex-col lg:flex-row items-center gap-12">
+        <div className="flex-1 space-y-6 text-left relative z-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold animate-fade-up">
+            <Sparkles className="w-3.5 h-3.5 animate-floaty" /> Vendez sur WhatsApp facilement
+          </div>
+          <h1 className="text-4xl md:text-6xl font-display font-extrabold tracking-tight leading-tight animate-fade-up" style={{ animationDelay: '0.1s' }}>
+            Propulsez votre <br />
+            <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400 bg-clip-text text-transparent">
+              vitrine e-commerce
+            </span>
+          </h1>
+          <p className="text-slate-400 text-sm md:text-base leading-relaxed max-w-xl animate-fade-up font-medium" style={{ animationDelay: '0.2s' }}>
+            Créez votre boutique en ligne personnalisée en 2 minutes. Vos clients font leur panier en un clic, vous recevez tout sur WhatsApp. Le tout géré à 100% sur mobile.
+          </p>
+
+          {/* Live Shop Customizer form */}
+          <div className="bg-slate-900/60 border border-white/5 backdrop-blur p-5 rounded-3xl space-y-4 max-w-lg shadow-xl shadow-slate-950/40 animate-fade-up" style={{ animationDelay: '0.3s' }}>
+            <h3 className="font-display font-bold text-sm text-slate-100 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              Configurez et lancez votre boutique en direct
+            </h3>
+            
+            <form onSubmit={handleCreateShop} className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Nom de la boutique</label>
+                  <input
+                    value={shopName}
+                    required
+                    onChange={e => setShopName(e.target.value)}
+                    placeholder="Ex: Sunu Boutique"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-950/70 border border-white/5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Numéro WhatsApp</label>
+                  <input
+                    value={whatsapp}
+                    required
+                    onChange={e => setWhatsapp(e.target.value)}
+                    placeholder="Ex: 780178444"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-950/70 border border-white/5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 transition-colors"
+                  />
+                </div>
               </div>
-              <h3 className="font-semibold text-sm">Mobile First</h3>
-              <p className="text-xs text-slate-500">Gérez tout depuis votre smartphone Android ou iPhone.</p>
-            </div>
-            <div className="space-y-1">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 mb-2">
-                <MessageSquare className="w-4 h-4" />
+
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Couleur principale du thème</label>
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                  <div className="flex gap-2">
+                    {[
+                      { hex: '#2563eb', name: 'blue' },
+                      { hex: '#10b981', name: 'emerald' },
+                      { hex: '#f59e0b', name: 'amber' },
+                      { hex: '#db2777', name: 'pink' },
+                      { hex: '#6366f1', name: 'indigo' }
+                    ].map((c) => (
+                      <button
+                        key={c.hex}
+                        type="button"
+                        onClick={() => setColor(c.hex)}
+                        className={`w-6 h-6 rounded-full border transition-all cursor-pointer hover:scale-110 ${color === c.hex ? 'border-white scale-110' : 'border-transparent'}`}
+                        style={{ backgroundColor: c.hex }}
+                        title={c.name}
+                      />
+                    ))}
+                    <input
+                      type="color"
+                      value={color}
+                      onChange={(e) => setColor(e.target.value)}
+                      className="w-6 h-6 bg-transparent border-0 rounded cursor-pointer p-0"
+                      title="Custom color"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow shadow-blue-500/10"
+                  >
+                    Lancer ma vitrine <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
-              <h3 className="font-semibold text-sm">WhatsApp</h3>
-              <p className="text-xs text-slate-500">Flux d'achat fluide converti en message WhatsApp.</p>
-            </div>
-            <div className="space-y-1">
-              <div className="w-8 h-8 rounded-lg bg-lime-500/10 flex items-center justify-center text-lime-400 mb-2">
-                <Shield className="w-4 h-4" />
-              </div>
-              <h3 className="font-semibold text-sm">Multi-tenant</h3>
-              <p className="text-xs text-slate-500">Un code unique, des centaines de boutiques isolées.</p>
-            </div>
+            </form>
           </div>
         </div>
 
-        {/* Interactive Demo list */}
-        <div className="flex-1 w-full max-w-md">
-          <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800/80 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <ShoppingBag className="w-5 h-5 text-blue-400" />
-              {boutiques.length === 0 ? "Prêt à commencer ?" : "Boutiques en ligne"}
-            </h2>
-            <p className="text-slate-400 text-sm mb-6">
-              {boutiques.length === 0
-                ? "Créez votre boutique en quelques clics pour commencer à vendre en ligne :"
-                : "Découvrez les boutiques actuellement en ligne sur Jappandal Tech :"}
-            </p>
+        {/* Interactive smartphone mockup (Right side of Hero) */}
+        <div className="flex-1 w-full flex justify-center animate-fade-up" style={{ animationDelay: '0.2s' }}>
+          <div className="w-full max-w-[320px] h-[550px] bg-slate-950 border-4 border-slate-800 rounded-[36px] shadow-2xl relative p-2 overflow-hidden flex flex-col select-none ring-1 ring-white/5">
+            {/* Top camera notch */}
+            <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-24 h-4 bg-slate-800 rounded-full z-20 flex items-center justify-between px-4">
+              <span className="w-2.5 h-2.5 bg-slate-900 rounded-full" />
+              <span className="w-5 h-1 bg-slate-900 rounded-full" />
+            </div>
 
-            {boutiques.length > 0 && (
-              <div className="relative mb-4">
-                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  value={shopSearch}
-                  onChange={e => setShopSearch(e.target.value)}
-                  placeholder="Rechercher une boutique (nom ou téléphone)…"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500"
-                />
+            {/* Simulated app bar */}
+            <div className="pt-6 pb-2.5 px-3 flex items-center justify-between border-b border-white/5 bg-slate-900/50 relative z-10">
+              <span className="text-[10px] font-mono text-slate-400 font-bold">12:00</span>
+              <span className="text-[10px] font-bold text-slate-300 truncate max-w-[120px]" style={{ color }}>
+                {shopName.trim() || 'Ma Vitrine'}
+              </span>
+              <span className="text-[10px] font-mono text-slate-400">5G 🔋</span>
+            </div>
+
+            {/* Mock website view */}
+            <div className="flex-1 overflow-y-auto p-2.5 space-y-3 bg-slate-950 font-sans relative">
+              {/* Shop Header card inside mockup */}
+              <div className="rounded-xl p-3 border border-white/5 text-center space-y-1 bg-slate-900/40">
+                <span className="text-xl">🛍️</span>
+                <h4 className="font-bold text-xs text-white truncate">{shopName.trim() || 'Sunu Boutique'}</h4>
+                <p className="text-[9px] text-slate-500 truncate">jappandal.com/shop/{formattedSlug}</p>
               </div>
-            )}
 
-            <div className="space-y-4">
-              {boutiques.length === 0 ? (
-                <div className="py-8 text-center text-slate-500 text-sm border border-dashed border-slate-800 rounded-xl bg-slate-950/40 p-4">
-                  Aucune boutique créée pour le moment. Soyez le premier à lancer votre boutique en ligne !
-                </div>
-              ) : filteredShops.length === 0 ? (
-                <div className="py-8 text-center text-slate-500 text-sm border border-dashed border-slate-800 rounded-xl bg-slate-950/40 p-4">
-                  Aucune boutique ne correspond à « {shopSearch} ».
-                </div>
-              ) : (
-                visibleShops.map((b) => (
-                  <div key={b.id} className={`p-3 rounded-xl bg-slate-950 border transition-all flex items-center gap-3 group ${b.favori ? 'border-amber-400/40 ring-1 ring-amber-400/20' : 'border-slate-800/50 hover:border-slate-700'}`}>
-                    {/* Logo */}
-                    <div className="w-11 h-11 rounded-lg flex items-center justify-center text-xl bg-slate-900 border border-slate-800 overflow-hidden shrink-0">
-                      {b.logo.startsWith('/') || b.logo.startsWith('http') ? (
-                        <img src={b.logo} alt="Logo" className="w-9 h-9 object-contain" />
-                      ) : (
-                        b.logo
-                      )}
-                    </div>
-
-                    {/* Infos */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        {b.favori && <Star className="w-3.5 h-3.5 text-amber-400 shrink-0" fill="currentColor" />}
-                        <h4 className="font-bold text-slate-200 group-hover:text-blue-400 transition-colors truncate">{b.name}</h4>
-                        {b.abonnement?.plan && (
-                          <span className={`shrink-0 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${
-                            b.abonnement.plan === 'Premium' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
-                            b.abonnement.plan === 'Pro' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
-                            'bg-slate-500/10 text-slate-400 border border-slate-500/20'
-                          }`}>
-                            {b.abonnement.plan}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-500 truncate font-mono">/shop/{b.slug}</p>
-                    </div>
-
-                    {/* Action : Voir la vitrine */}
-                    <Link
-                      to={`/shop/${b.slug}`}
-                      className="shrink-0 inline-flex items-center gap-1.5 whitespace-nowrap px-4 py-2 rounded-lg text-xs font-bold bg-blue-500 hover:bg-blue-400 text-white transition-colors shadow-sm"
-                    >
-                      Voir la vitrine
-                    </Link>
+              {/* Product preview list */}
+              <div className="space-y-2">
+                <div className="bg-slate-900/80 border border-white/5 rounded-xl p-2 flex gap-2">
+                  <div className="w-12 h-12 bg-slate-800 rounded-lg flex items-center justify-center shrink-0">👟</div>
+                  <div className="min-w-0 flex-1 flex flex-col justify-between">
+                    <p className="text-[10px] font-bold text-slate-200 truncate">Baskets de Luxe</p>
+                    <p className="text-[9px] font-bold text-slate-400">25 000 FCFA</p>
                   </div>
-                ))
-              )}
-            </div>
+                  <button type="button" className="self-end px-2 py-1 rounded text-[9px] font-bold text-white shrink-0" style={{ backgroundColor: color }}>
+                    + Ajouter
+                  </button>
+                </div>
 
-            {!shopQuery && filteredShops.length > SHOPS_PREVIEW && (
-              <button
-                onClick={() => setShowAllShops(v => !v)}
-                className="mt-3 w-full py-2.5 rounded-xl border border-slate-800 text-sm font-semibold text-blue-400 hover:text-blue-300 hover:border-slate-700 transition-colors"
-              >
-                {showAllShops ? 'Voir moins' : `Voir toutes les ${filteredShops.length} boutiques`}
-              </button>
-            )}
+                <div className="bg-slate-900/80 border border-white/5 rounded-xl p-2 flex gap-2">
+                  <div className="w-12 h-12 bg-slate-800 rounded-lg flex items-center justify-center shrink-0">👜</div>
+                  <div className="min-w-0 flex-1 flex flex-col justify-between">
+                    <p className="text-[10px] font-bold text-slate-200 truncate">Sac Chic</p>
+                    <p className="text-[9px] font-bold text-slate-400">18 000 FCFA</p>
+                  </div>
+                  <button type="button" className="self-end px-2 py-1 rounded text-[9px] font-bold text-white shrink-0" style={{ backgroundColor: color }}>
+                    + Ajouter
+                  </button>
+                </div>
+              </div>
 
-            <div className="mt-6 pt-5 border-t border-slate-800/60 text-center">
-              <button
-                onClick={() => navigate('/marchand?creer=1')}
-                className="text-sm font-semibold text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1.5 mx-auto cursor-pointer"
-              >
-                <Plus className="w-4 h-4 stroke-[3]" /> Créer une nouvelle boutique
-              </button>
+              {/* Whatsapp Order Preview bubble */}
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-2.5 text-[9px] space-y-1">
+                <p className="font-extrabold text-emerald-400 flex items-center gap-1">
+                  <MessageSquare className="w-3 h-3" /> Commande WhatsApp simulée :
+                </p>
+                <div className="font-mono text-slate-300 leading-tight bg-slate-950 p-1.5 rounded border border-emerald-500/5">
+                  <span className="text-slate-400">Boutique:</span> {shopName.trim() || 'Sunu Boutique'}<br/>
+                  <span className="text-slate-400">Articles:</span> 1x Basket de Luxe (25 000 F)<br/>
+                  <span className="text-slate-400">Client:</span> Fatou Gueye<br/>
+                  <span className="text-slate-400">Lieu:</span> Dakar
+                </div>
+              </div>
             </div>
+            
+            {/* Phone bottom indicator */}
+            <div className="w-24 h-1.5 bg-slate-800 rounded-full mx-auto my-1.5 shrink-0" />
           </div>
         </div>
       </main>
 
-
-      {/* Workflow: Comment ça marche */}
-      <section className="relative max-w-7xl w-full mx-auto px-6 py-16 md:py-24 border-t border-slate-900/80 text-center">
+      {/* Bento Grid: Fonctionnalités */}
+      <section id="features" className="relative max-w-7xl w-full mx-auto px-6 py-16 md:py-24 border-t border-white/5 text-center">
         <div className="space-y-3 mb-16">
-          <span className="text-xs font-bold text-blue-400 uppercase tracking-widest bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20">Processus Simple</span>
-          <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight mt-3">Comment ça marche ?</h2>
+          <span className="text-xs font-bold text-blue-400 uppercase tracking-widest bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20">SaaS Premium</span>
+          <h2 className="text-3xl md:text-5xl font-display font-extrabold tracking-tight mt-3">Tout pour gérer votre activité</h2>
           <p className="text-slate-400 text-sm md:text-base max-w-xl mx-auto">
-            Trois étapes simples suffisent pour digitaliser votre commerce et commencer à vendre à vos clients.
+            Bénéficiez d'outils ultra-modernes pour piloter vos ventes, vos clients et vos stocks sur mobile.
+          </p>
+        </div>
+
+        {/* Bento Layout Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+          
+          {/* Card 1: Dashboard (Double size on desktop) */}
+          <div className="md:col-span-2 p-6 rounded-3xl bg-slate-900/40 border border-white/5 hover:border-blue-500/20 hover:bg-slate-900/60 transition-all flex flex-col md:flex-row gap-6 relative overflow-hidden group">
+            <div className="space-y-3 flex-1">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
+                <PieChart className="w-5 h-5" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Cockpit Analytique & CRM Client</h3>
+              <p className="text-xs text-slate-400 leading-relaxed font-sans">
+                Suivez votre chiffre d'affaires, panier moyen et évolution des ventes via des graphiques SVG interactifs. Gérez la relation client (historique d'achats, fiches de contact éditables, notes de suivi privées) sur mobile.
+              </p>
+            </div>
+            <div className="w-full md:w-60 bg-slate-950/80 border border-white/5 rounded-2xl p-4 flex flex-col justify-between gap-3 shrink-0">
+              <div className="flex justify-between items-center text-[9px] uppercase font-bold text-slate-500">
+                <span>Chiffre du jour</span>
+                <span className="text-emerald-400">124.5k F</span>
+              </div>
+              <div className="h-12 flex items-end gap-1.5 border-b border-white/5 pb-2">
+                {[20, 40, 30, 60, 50, 90, 75].map((h, i) => (
+                  <span key={i} className="flex-1 bg-blue-500/40 rounded-t-xs group-hover:bg-blue-500 transition-colors" style={{ height: `${h}%` }} />
+                ))}
+              </div>
+              <div className="space-y-1.5">
+                <span className="text-[8px] uppercase font-bold text-slate-500">Top Clients (CRM)</span>
+                <div className="flex justify-between text-[10px] text-slate-400 font-medium">
+                  <span>Moussa D.</span>
+                  <span className="font-bold text-slate-200">54 000 F</span>
+                </div>
+                <div className="flex justify-between text-[10px] text-slate-400 font-medium">
+                  <span>Fatou S. (VIP)</span>
+                  <span className="font-bold text-slate-200">32 500 F</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: WhatsApp Integration */}
+          <div className="p-6 rounded-3xl bg-slate-900/40 border border-white/5 hover:border-emerald-500/20 hover:bg-slate-900/60 transition-all flex flex-col justify-between gap-4 group">
+            <div className="space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                <MessageSquare className="w-5 h-5" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Tunnel WhatsApp</h3>
+              <p className="text-xs text-slate-400 leading-relaxed font-sans">
+                Fini les commandes désordonnées dans le chat. Le panier du client se convertit instantanément en un message structuré envoyé sur votre WhatsApp.
+              </p>
+            </div>
+            <div className="bg-slate-950/80 border border-white/5 rounded-2xl p-3 text-[10px] font-mono text-emerald-400 flex items-center gap-2">
+              <Check className="w-4 h-4 stroke-[3]" /> Panier validé vers WhatsApp
+            </div>
+          </div>
+
+          {/* Card 3: Mobile Money Simulator */}
+          <div className="p-6 rounded-3xl bg-slate-900/40 border border-white/5 hover:border-cyan-500/20 hover:bg-slate-900/60 transition-all flex flex-col justify-between gap-4 group">
+            <div className="space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-400">
+                <Zap className="w-5 h-5" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Wave & Orange Money</h3>
+              <p className="text-xs text-slate-400 leading-relaxed font-sans">
+                Proposez des simulations d'encaissement Mobile Money. Des QR Codes de paiement sont générés et présentés aux acheteurs lors du checkout.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <span className="px-2 py-1 rounded bg-blue-500/10 text-blue-400 text-[10px] font-bold">Wave</span>
+              <span className="px-2 py-1 rounded bg-orange-500/10 text-orange-400 text-[10px] font-bold">Orange Money</span>
+            </div>
+          </div>
+
+          {/* Card 4: Invoicing (Double size on desktop) */}
+          <div className="md:col-span-2 p-6 rounded-3xl bg-slate-900/40 border border-white/5 hover:border-purple-500/20 hover:bg-slate-900/60 transition-all flex flex-col md:flex-row gap-6 relative overflow-hidden group">
+            <div className="space-y-3 flex-1">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
+                <Printer className="w-5 h-5" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Facturation PDF Pro</h3>
+              <p className="text-xs text-slate-400 leading-relaxed font-sans">
+                Imprimez ou partagez des reçus et factures d'achat PDF soignés pour vos clients en un clin d'œil. Vos documents administratifs sont générés automatiquement avec votre logo de marque et vos coordonnées.
+              </p>
+            </div>
+            <div className="w-full md:w-56 bg-slate-950/80 border border-white/5 rounded-2xl p-4 flex flex-col justify-between gap-2 shrink-0">
+              <div className="flex items-center justify-between text-[8px] text-slate-500 font-bold uppercase">
+                <span>Reçu Client</span>
+                <span>N° 8329</span>
+              </div>
+              <div className="border-t border-dashed border-white/10 my-1" />
+              <div className="space-y-1 text-[10px] font-mono text-slate-350">
+                <div className="flex justify-between"><span>👟 Baskets</span><span>25k F</span></div>
+                <div className="flex justify-between"><span>👜 Sac Chic</span><span>18k F</span></div>
+                <div className="flex justify-between font-bold text-white"><span>TOTAL</span><span>43k F</span></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 5: Custom Branding & Dark Mode */}
+          <div className="p-6 rounded-3xl bg-slate-900/40 border border-white/5 hover:border-pink-500/20 hover:bg-slate-900/60 transition-all flex flex-col justify-between gap-4 group">
+            <div className="space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400">
+                <Palette className="w-5 h-5" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Marque & Mode Sombre</h3>
+              <p className="text-xs text-slate-400 leading-relaxed font-sans">
+                Ajustez vos couleurs de vitrine, description, logo, et profitez d'un Mode Sombre client complet (panier, détails produits) pour une lisibilité parfaite de jour comme de nuit.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <span className="w-4 h-4 rounded-full bg-blue-500 border border-white/10" />
+              <span className="w-4 h-4 rounded-full bg-emerald-500 border border-white/10" />
+              <span className="w-4 h-4 rounded-full bg-slate-900 border border-white/10 flex items-center justify-center text-[8px]" title="Mode Sombre">🌙</span>
+              <span className="w-4 h-4 rounded-full bg-amber-400 border border-white/10 flex items-center justify-center text-[8px]" title="Mode Clair">☀️</span>
+            </div>
+          </div>
+
+          {/* Card 6: Domains */}
+          <div className="p-6 rounded-3xl bg-slate-900/40 border border-white/5 hover:border-blue-500/20 hover:bg-slate-900/60 transition-all flex flex-col justify-between gap-4 group">
+            <div className="space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
+                <Globe className="w-5 h-5" />
+              </div>
+              <h3 className="text-lg font-bold text-white">Nom de domaine</h3>
+              <p className="text-xs text-slate-400 leading-relaxed font-sans">
+                Lie ton propre nom de domaine personnalisé à ta boutique e-commerce pour asseoir le sérieux de ton entreprise et rassurer tes clients.
+              </p>
+            </div>
+            <div className="text-[10px] font-mono text-slate-400 bg-slate-950 p-2 rounded-xl border border-white/5">
+              https://maboutique.sn
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* Workflow steps */}
+      <section className="relative max-w-7xl w-full mx-auto px-6 py-16 md:py-24 border-t border-white/5 text-center">
+        <div className="space-y-3 mb-16">
+          <span className="text-xs font-bold text-blue-400 uppercase tracking-widest bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20">Parcours Entrepreneur</span>
+          <h2 className="text-3xl md:text-5xl font-display font-extrabold tracking-tight mt-3">Prise en main immédiate</h2>
+          <p className="text-slate-400 text-sm md:text-base max-w-xl mx-auto">
+            Trois étapes simples suffisent pour digitaliser votre commerce et encaisser vos ventes.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-          {/* Connector line for large screens */}
-          <div className="hidden md:block absolute top-1/2 left-16 right-16 h-0.5 bg-gradient-to-r from-blue-500/20 via-blue-500/20 to-blue-500/20 -translate-y-14 z-0" />
+          <div className="hidden md:block absolute top-1/2 left-20 right-20 h-0.5 bg-white/5 -translate-y-12 z-0" />
 
           {/* Step 1 */}
-          <div className="bg-slate-900/40 border border-slate-850 p-8 rounded-2xl flex flex-col items-center space-y-4 relative z-10 hover:border-blue-500/30 transition-all hover:scale-[1.02] duration-300">
-            <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shadow shadow-blue-500/10">
-              <span className="text-2xl font-black font-sans">1</span>
+          <div className="bg-slate-900/20 border border-white/5 p-8 rounded-3xl flex flex-col items-center space-y-4 relative z-10 hover:border-blue-500/20 transition-all hover:translate-y-[-2px] duration-300">
+            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 font-display font-extrabold">
+              1
             </div>
-            <h3 className="text-lg font-bold text-white">Créez votre boutique</h3>
+            <h3 className="text-base font-bold text-white">Créez votre vitrine</h3>
             <p className="text-xs text-slate-400 leading-relaxed font-sans">
-              Entrez le nom de votre boutique et votre WhatsApp. Aucun document requis, la création se fait instantanément.
+              Donnez un nom et configurez le WhatsApp de réception des commandes. Votre vitrine est prête.
             </p>
           </div>
 
           {/* Step 2 */}
-          <div className="bg-slate-900/40 border border-slate-850 p-8 rounded-2xl flex flex-col items-center space-y-4 relative z-10 hover:border-emerald-500/30 transition-all hover:scale-[1.02] duration-300">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow shadow-emerald-500/10">
-              <span className="text-2xl font-black font-sans">2</span>
+          <div className="bg-slate-900/20 border border-white/5 p-8 rounded-3xl flex flex-col items-center space-y-4 relative z-10 hover:border-emerald-500/20 transition-all hover:translate-y-[-2px] duration-300">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-display font-extrabold">
+              2
             </div>
-            <h3 className="text-lg font-bold text-white">Ajoutez vos produits</h3>
+            <h3 className="text-base font-bold text-white">Listez vos produits</h3>
             <p className="text-xs text-slate-400 leading-relaxed font-sans">
-              Téléchargez des photos, fixez vos prix et configurez vos frais de livraison. Votre catalogue en ligne est prêt.
+              Téléversez des images de produits, spécifiez vos tarifs et vos zones de livraisons préférées.
             </p>
           </div>
 
           {/* Step 3 */}
-          <div className="bg-slate-900/40 border border-slate-850 p-8 rounded-2xl flex flex-col items-center space-y-4 relative z-10 hover:border-blue-500/30 transition-all hover:scale-[1.02] duration-300">
-            <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shadow shadow-blue-500/10">
-              <span className="text-2xl font-black font-sans">3</span>
+          <div className="bg-slate-900/20 border border-white/5 p-8 rounded-3xl flex flex-col items-center space-y-4 relative z-10 hover:border-cyan-500/20 transition-all hover:translate-y-[-2px] duration-300">
+            <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 font-display font-extrabold">
+              3
             </div>
-            <h3 className="text-lg font-bold text-white">Vendez sur WhatsApp</h3>
+            <h3 className="text-base font-bold text-white">Vendez sur WhatsApp</h3>
             <p className="text-xs text-slate-400 leading-relaxed font-sans">
-              Partagez votre lien. Vos clients commandent en ligne et vous recevez les détails complets directement sur votre WhatsApp.
+              Partagez le lien avec votre communauté. Recevez instantanément des paniers de commande prêts à expédier.
             </p>
           </div>
         </div>
       </section>
 
-      {/* Key Features Grid */}
-      <section className="relative max-w-7xl w-full mx-auto px-6 py-16 md:py-24 border-t border-slate-900/80 text-center">
-        <div className="space-y-3 mb-16">
-          <span className="text-xs font-bold text-blue-400 uppercase tracking-widest bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20">SaaS Complet</span>
-          <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight mt-3">Tout pour gérer votre activité</h2>
+      {/* Directory of Active Shops */}
+      <section id="shops" className="relative max-w-7xl w-full mx-auto px-6 py-16 md:py-24 border-t border-white/5 text-center">
+        <div className="space-y-3 mb-12">
+          <span className="text-xs font-bold text-blue-400 uppercase tracking-widest bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20">Communauté</span>
+          <h2 className="text-3xl md:text-5xl font-display font-extrabold tracking-tight mt-3">Boutiques hébergées</h2>
           <p className="text-slate-400 text-sm md:text-base max-w-xl mx-auto">
-            Bénéficiez d'outils professionnels pour suivre vos ventes, éditer des factures et offrir la meilleure expérience client.
+            Découvrez les vitrines e-commerce créées par nos marchands sur la plateforme Jappandal Tech.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
-          {/* Card 1: Mobile First */}
-          <div className="p-6 rounded-2xl bg-slate-900/30 border border-slate-850 hover:border-slate-850 hover:bg-slate-900/50 hover:shadow-lg hover:shadow-blue-500/5 transition-all flex flex-col space-y-4 hover:scale-[1.02] duration-300 relative overflow-hidden group">
-            <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
-              <Smartphone className="w-6 h-6" />
-            </div>
-            <h3 className="text-base font-bold text-white">Gestion 100% Mobile</h3>
-            <p className="text-xs text-slate-450 leading-relaxed font-sans">
-              Pas besoin d'ordinateur. L'espace marchand est optimisé pour être piloté depuis votre smartphone en déplacement ou depuis votre boutique physique.
-            </p>
-          </div>
-
-          {/* Card 2: Payments */}
-          <div className="p-6 rounded-2xl bg-slate-900/30 border border-slate-850 hover:border-slate-850 hover:bg-slate-900/50 hover:shadow-lg hover:shadow-sky-500/5 transition-all flex flex-col space-y-4 hover:scale-[1.02] duration-300 relative overflow-hidden group">
-            <div className="w-12 h-12 rounded-xl bg-sky-500/10 flex items-center justify-center text-sky-400">
-              <Zap className="w-6 h-6" />
-            </div>
-            <h3 className="text-base font-bold text-white">Paiement Mobile Money</h3>
-            <p className="text-xs text-slate-450 leading-relaxed font-sans">
-              Simulez des encaissements professionnels par Wave ou Orange Money. Vos clients accèdent à des QR Codes uniques pour régler rapidement en ligne.
-            </p>
-          </div>
-
-          {/* Card 3: Stats */}
-          <div className="p-6 rounded-2xl bg-slate-900/30 border border-slate-850 hover:border-slate-850 hover:bg-slate-900/50 hover:shadow-lg hover:shadow-emerald-500/5 transition-all flex flex-col space-y-4 hover:scale-[1.02] duration-300 relative overflow-hidden group">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
-              <PieChart className="w-5 h-5" />
-            </div>
-            <h3 className="text-base font-bold text-white">Statistiques de Vente</h3>
-            <p className="text-xs text-slate-450 leading-relaxed font-sans">
-              Suivez le chiffre d'affaires, le panier moyen, le taux de conversion et identifiez vos best-sellers grâce à des graphiques dynamiques hebdomadaires.
-            </p>
-          </div>
-
-          {/* Card 4: Invoicing */}
-          <div className="p-6 rounded-2xl bg-slate-900/30 border border-slate-850 hover:border-slate-850 hover:bg-slate-900/50 hover:shadow-lg hover:shadow-purple-500/5 transition-all flex flex-col space-y-4 hover:scale-[1.02] duration-300 relative overflow-hidden group">
-            <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
-              <Printer className="w-5 h-5" />
-            </div>
-            <h3 className="text-base font-bold text-white">Facturation PDF Pro</h3>
-            <p className="text-xs text-slate-450 leading-relaxed font-sans">
-              Générez instantanément des reçus et factures détaillées au format PDF d'un simple clic pour rassurer vos clients et archiver votre comptabilité.
-            </p>
-          </div>
-
-          {/* Card 5: Customization */}
-          <div className="p-6 rounded-2xl bg-slate-900/30 border border-slate-850 hover:border-slate-850 hover:bg-slate-900/50 hover:shadow-lg hover:shadow-blue-500/5 transition-all flex flex-col space-y-4 hover:scale-[1.02] duration-300 relative overflow-hidden group">
-            <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
-              <Palette className="w-5 h-5" />
-            </div>
-            <h3 className="text-base font-bold text-white">Thèmes Personnalisables</h3>
-            <p className="text-xs text-slate-450 leading-relaxed font-sans">
-              Modifiez la couleur de votre vitrine, votre description, votre adresse et votre logo en temps réel pour l'aligner parfaitement avec votre marque.
-            </p>
-          </div>
-
-          {/* Card 6: Domains */}
-          <div className="p-6 rounded-2xl bg-slate-900/30 border border-slate-850 hover:border-slate-850 hover:bg-slate-900/50 hover:shadow-lg hover:shadow-blue-500/5 transition-all flex flex-col space-y-4 hover:scale-[1.02] duration-300 relative overflow-hidden group">
-            <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
-              <Globe className="w-5 h-5" />
-            </div>
-            <h3 className="text-base font-bold text-white">Nom de domaine</h3>
-            <p className="text-xs text-slate-450 leading-relaxed font-sans">
-              Liez votre propre domaine personnalisé (ex: maboutique.sn) à votre vitrine e-commerce Jappandal Tech pour plus de professionnalisme.
-            </p>
-          </div>
+        <div className="max-w-2xl mx-auto mb-8 relative">
+          <Search className="w-4.5 h-4.5 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            value={shopSearch}
+            onChange={e => setShopSearch(e.target.value)}
+            placeholder="Rechercher une boutique par nom, secteur ou contact…"
+            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-900 border border-white/5 text-sm text-slate-200 placeholder-slate-650 focus:outline-none focus:border-blue-500 transition-colors"
+          />
         </div>
+
+        {/* Directory Grid Layout */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
+          {boutiques.length === 0 ? (
+            <div className="col-span-full py-16 text-center text-slate-500 text-sm border border-dashed border-white/5 rounded-3xl bg-slate-900/10 p-6">
+              Aucune boutique hébergée pour le moment. Soyez le premier à lancer votre boutique en ligne !
+            </div>
+          ) : filteredShops.length === 0 ? (
+            <div className="col-span-full py-16 text-center text-slate-500 text-sm border border-dashed border-white/5 rounded-3xl bg-slate-900/10 p-6">
+              Aucune boutique ne correspond à votre recherche « {shopSearch} ».
+            </div>
+          ) : (
+            visibleShops.map((b) => (
+              <div key={b.id} className={`p-4 rounded-3xl bg-slate-900/30 border transition-all flex flex-col justify-between gap-4 group ${b.favori ? 'border-amber-400/30 shadow-lg shadow-amber-400/[0.02]' : 'border-white/5 hover:border-slate-800'}`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl bg-slate-900 border border-white/5 overflow-hidden shrink-0">
+                    {b.logo.startsWith('/') || b.logo.startsWith('http') ? (
+                      <img src={b.logo} alt="Logo" className="w-10 h-10 object-contain" />
+                    ) : (
+                      b.logo
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      {b.favori && <Star className="w-3.5 h-3.5 text-amber-400 shrink-0" fill="currentColor" />}
+                      <h4 className="font-bold text-slate-250 group-hover:text-blue-400 transition-colors truncate text-sm">{b.name}</h4>
+                    </div>
+                    <p className="text-[11px] text-slate-500 truncate font-mono">/shop/{b.slug}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-1">
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${
+                    b.abonnement?.plan === 'Premium' ? 'bg-purple-500/15 text-purple-400 border-purple-500/10' :
+                    b.abonnement?.plan === 'Pro' ? 'bg-blue-500/15 text-blue-400 border-blue-500/10' :
+                    'bg-slate-800 text-slate-400 border-slate-700'
+                  }`}>
+                    {b.abonnement?.plan || 'Découverte'}
+                  </span>
+
+                  <Link
+                    to={`/shop/${b.slug}`}
+                    className="inline-flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-bold bg-blue-500 hover:bg-blue-400 text-slate-950 transition-all shadow"
+                  >
+                    Visiter la boutique
+                  </Link>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {!shopSearch && filteredShops.length > SHOPS_PREVIEW && (
+          <button
+            onClick={() => setShowAllShops(v => !v)}
+            className="mt-8 px-6 py-3 rounded-2xl border border-white/5 text-sm font-semibold text-blue-400 hover:text-blue-300 hover:border-slate-800 transition-all cursor-pointer"
+          >
+            {showAllShops ? 'Masquer' : `Afficher les ${filteredShops.length} boutiques`}
+          </button>
+        )}
       </section>
 
-      {/* Pricing Section */}
-      <section className="relative max-w-7xl w-full mx-auto px-6 py-16 md:py-24 border-t border-slate-900">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-72 h-72 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
-        
+      {/* Pricing cards */}
+      <section id="tarifs" className="relative max-w-7xl w-full mx-auto px-6 py-16 md:py-24 border-t border-white/5">
         <div className="text-center max-w-2xl mx-auto space-y-3 mb-16">
-          <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">Des Tarifs Clairs et Adaptés</h2>
+          <span className="text-xs font-bold text-blue-400 uppercase tracking-widest bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20">Abonnement</span>
+          <h2 className="text-3xl md:text-5xl font-display font-extrabold tracking-tight mt-3">Tarifs simples et transparents</h2>
           <p className="text-slate-400 text-sm md:text-base leading-relaxed">
-            Choisissez le plan idéal pour lancer ou faire grandir votre activité de vente en ligne. Sans frais cachés, résiliable à tout moment.
+            Trouvez le plan idéal pour lancer et développer votre commerce en ligne sans commission sur les ventes.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          
           {/* Plan Découverte */}
-          <div className="p-8 rounded-2xl bg-slate-900/40 border border-slate-850 hover:border-slate-800 transition-all flex flex-col justify-between relative group hover:scale-[1.02] duration-300">
+          <div className="p-8 rounded-3xl bg-slate-900/30 border border-white/5 hover:border-slate-800 transition-all flex flex-col justify-between relative group hover:scale-[1.02] duration-300">
             <div className="space-y-6">
               <div>
-                <span className="text-xs font-extrabold text-slate-500 uppercase tracking-widest">Idéal pour débuter</span>
-                <h3 className="text-2xl font-black text-white mt-1">Découverte</h3>
-                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">Testez et lancez votre boutique sans aucun frais mensuel.</p>
+                <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Idéal pour débuter</span>
+                <h3 className="text-xl font-bold text-white mt-1">Découverte</h3>
+                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed font-sans">Lancez-vous sans risque sans frais mensuels.</p>
               </div>
 
-              <div className="py-4 border-y border-slate-850/60">
-                <span className="text-3xl font-black text-white">0 FCFA</span>
+              <div className="py-4 border-y border-white/5 flex items-baseline">
+                <span className="text-3xl font-extrabold text-white">0 FCFA</span>
                 <span className="text-xs text-slate-500 ml-1">/ mois</span>
               </div>
 
@@ -457,38 +670,38 @@ export default function LandingPage() {
                   <span>Commandes WhatsApp illimitées</span>
                 </li>
                 <li className="flex items-start gap-2.5 text-slate-650 line-through">
-                  <span>Thèmes personnalisés</span>
+                  <span>Personnalisation complète du thème</span>
                 </li>
                 <li className="flex items-start gap-2.5 text-slate-650 line-through">
-                  <span>Factures PDF imprimables</span>
+                  <span>Factures & Reçus PDF</span>
                 </li>
               </ul>
             </div>
 
             <button
               onClick={() => navigate('/marchand?creer=1')}
-              className="w-full mt-8 py-3 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-200 font-semibold text-xs transition-all cursor-pointer"
+              className="w-full mt-8 py-3 rounded-xl bg-slate-950 border border-white/5 hover:border-slate-800 text-slate-200 font-semibold text-xs transition-all cursor-pointer"
             >
               Lancer gratuitement
             </button>
           </div>
 
           {/* Plan Pro */}
-          <div className="p-8 rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 border border-blue-500/30 hover:border-blue-500/50 transition-all flex flex-col justify-between relative group hover:scale-[1.02] duration-300 shadow-xl shadow-blue-500/5">
-            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-blue-500 text-white font-extrabold text-[10px] uppercase tracking-widest shadow shadow-blue-500/20">
-              Recommandé
+          <div className="p-8 rounded-3xl bg-gradient-to-b from-slate-900 to-slate-950 border border-blue-500/20 hover:border-blue-500/40 transition-all flex flex-col justify-between relative group hover:scale-[1.02] duration-300 shadow-xl shadow-blue-500/[0.02]">
+            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-blue-500 text-slate-950 font-bold text-[10px] uppercase tracking-widest shadow shadow-blue-500/20">
+              Le plus populaire
             </div>
             
             <div className="space-y-6">
               <div>
-                <span className="text-xs font-extrabold text-blue-400 uppercase tracking-widest">Le choix des vendeurs</span>
-                <h3 className="text-2xl font-black text-white mt-1">SaaS Pro</h3>
-                <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">Une boutique sur mesure avec toutes les fonctionnalités essentielles.</p>
+                <span className="text-[10px] font-extrabold text-blue-400 uppercase tracking-widest font-mono">Croissance</span>
+                <h3 className="text-xl font-bold text-white mt-1">SaaS Pro</h3>
+                <p className="text-xs text-slate-400 mt-1.5 leading-relaxed font-sans font-medium">Boutique personnalisée pour commerçant actif.</p>
               </div>
 
-              <div className="py-4 border-y border-slate-850/60 flex items-baseline gap-1.5">
-                <span className="text-3xl font-black text-white">5 000 FCFA</span>
-                <span className="text-xs text-slate-500">/ mois</span>
+              <div className="py-4 border-y border-white/5 flex items-baseline">
+                <span className="text-3xl font-extrabold text-white">5 000 FCFA</span>
+                <span className="text-xs text-slate-500 ml-1">/ mois</span>
               </div>
 
               <ul className="space-y-3.5 text-xs text-slate-350">
@@ -502,37 +715,37 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-start gap-2.5">
                   <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                  <span>Frais de livraison personnalisés par zone</span>
+                  <span>Frais de livraison par zone</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                  <span>Graphiques de ventes & statistiques</span>
+                  <span>Statistiques & rapports graphiques</span>
                 </li>
-                <li className="flex items-start gap-2.5 text-slate-600">
-                  <span>Simulateurs Wave / OM inclus</span>
+                <li className="flex items-start gap-2.5 text-slate-600 line-through">
+                  <span>Simulateurs Wave / Orange Money</span>
                 </li>
               </ul>
             </div>
 
             <button
               onClick={() => navigate('/marchand?creer=1')}
-              className="w-full mt-8 py-3 rounded-xl bg-blue-500 hover:bg-blue-400 text-white font-extrabold text-xs transition-all cursor-pointer shadow-lg shadow-blue-500/10"
+              className="w-full mt-8 py-3 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-xs transition-all cursor-pointer shadow-lg shadow-blue-500/10"
             >
               Commencer le forfait Pro
             </button>
           </div>
 
           {/* Plan Premium */}
-          <div className="p-8 rounded-2xl bg-slate-900/40 border border-slate-850 hover:border-slate-800 transition-all flex flex-col justify-between relative group hover:scale-[1.02] duration-300">
+          <div className="p-8 rounded-3xl bg-slate-900/30 border border-white/5 hover:border-slate-800 transition-all flex flex-col justify-between relative group hover:scale-[1.02] duration-300">
             <div className="space-y-6">
               <div>
-                <span className="text-xs font-extrabold text-slate-500 uppercase tracking-widest">Expérience intégrale</span>
-                <h3 className="text-2xl font-black text-white mt-1">Premium VIP</h3>
-                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">Paiement mobile money en ligne simulé et facturation PDF pro.</p>
+                <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Fonctionnalités complètes</span>
+                <h3 className="text-xl font-bold text-white mt-1">Premium VIP</h3>
+                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed font-sans">Simulateur Mobile Money et facturation soignée.</p>
               </div>
 
-              <div className="py-4 border-y border-slate-850/60">
-                <span className="text-3xl font-black text-white">15 000 FCFA</span>
+              <div className="py-4 border-y border-white/5 flex items-baseline">
+                <span className="text-3xl font-extrabold text-white">15 000 FCFA</span>
                 <span className="text-xs text-slate-500 ml-1">/ mois</span>
               </div>
 
@@ -543,11 +756,11 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-start gap-2.5">
                   <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                  <span>Intégration de Wave & OM (simulation)</span>
+                  <span>Intégration simulations Wave & OM</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                  <span>Factures & Reçus PDF imprimables</span>
+                  <span>Factures & Reçus PDF téléchargeables</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
@@ -555,58 +768,58 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-start gap-2.5">
                   <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                  <span>Nom de domaine propre (prochainement)</span>
+                  <span>Nom de domaine propre (bientôt)</span>
                 </li>
               </ul>
             </div>
 
             <button
-              onClick={() => navigate('/marchand?creer=1')}
-              className="w-full mt-8 py-3 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-200 font-semibold text-xs transition-all cursor-pointer"
+              disabled
+              className="w-full mt-8 py-3 rounded-xl bg-slate-950/40 border border-white/5 text-slate-500 font-semibold text-xs transition-all cursor-not-allowed"
             >
-              Lancer la version Premium
+              Bientôt disponible
             </button>
           </div>
+
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section className="relative max-w-4xl w-full mx-auto px-6 py-16 md:py-24 border-t border-slate-900/80 text-left">
-        <div className="absolute bottom-10 right-10 w-64 h-64 bg-indigo-500/5 rounded-full blur-[120px] pointer-events-none" />
-        <div className="text-center space-y-3 mb-12">
-          <span className="text-xs font-bold text-blue-400 uppercase tracking-widest bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20">Des Réponses à vos questions</span>
-          <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight mt-3">Questions Fréquentes</h2>
+      {/* FAQ accordion */}
+      <section id="faq" className="relative max-w-4xl w-full mx-auto px-6 py-16 md:py-24 border-t border-white/5 text-left">
+        <div className="text-center space-y-3 mb-16">
+          <span className="text-xs font-bold text-blue-400 uppercase tracking-widest bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20">FAQ</span>
+          <h2 className="text-3xl md:text-4xl font-display font-extrabold tracking-tight mt-3">Des réponses à vos questions</h2>
           <p className="text-slate-400 text-sm md:text-base max-w-xl mx-auto">
-            Vous avez des questions sur Jappandal Tech ? Voici les réponses aux interrogations les plus fréquentes des commerçants.
+            Retrouvez les réponses aux questions les plus récurrentes posées par nos marchands.
           </p>
         </div>
 
-        <div className="space-y-4 relative z-10">
+        <div className="space-y-4">
           {faqData.map((item, index) => {
             const isOpen = openFaq === index;
             return (
               <div 
                 key={index}
-                className="rounded-2xl border border-slate-850 bg-slate-900/20 overflow-hidden transition-all duration-300 hover:border-slate-800"
+                className="rounded-2xl border border-white/5 bg-slate-900/10 overflow-hidden transition-all duration-300 hover:border-slate-800/60"
               >
                 <button
                   type="button"
                   onClick={() => setOpenFaq(isOpen ? null : index)}
-                  className="w-full px-6 py-5 flex items-center justify-between font-bold text-slate-100 hover:text-white hover:bg-slate-900/30 transition-colors text-left text-sm md:text-base cursor-pointer"
+                  className="w-full px-6 py-4.5 flex items-center justify-between font-bold text-slate-200 hover:text-white hover:bg-slate-900/30 transition-colors text-left text-sm md:text-base cursor-pointer"
                 >
                   <span className="flex items-center gap-3">
                     <HelpCircle className="w-5 h-5 text-blue-400 shrink-0" />
                     {item.q}
                   </span>
                   {isOpen ? (
-                    <ChevronUp className="w-5 h-5 text-blue-400 shrink-0 transition-transform duration-200" />
+                    <ChevronUp className="w-5 h-5 text-blue-400 shrink-0" />
                   ) : (
-                    <ChevronDown className="w-5 h-5 text-slate-500 shrink-0 transition-transform duration-200" />
+                    <ChevronDown className="w-5 h-5 text-slate-500 shrink-0" />
                   )}
                 </button>
 
                 {isOpen && (
-                  <div className="px-6 pb-6 pt-1 text-slate-400 text-xs md:text-sm leading-relaxed border-t border-slate-900/50 font-sans">
+                  <div className="px-6 pb-5 pt-1.5 text-slate-400 text-xs md:text-sm leading-relaxed border-t border-white/5 font-sans">
                     {item.a}
                   </div>
                 )}
@@ -616,104 +829,12 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Creation Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="w-full max-w-md p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl relative">
-            <h3 className="text-xl font-bold mb-1">Créer votre Boutique</h3>
-            <p className="text-slate-400 text-sm mb-6">Configurez votre boutique en quelques secondes.</p>
-
-            <form onSubmit={handleCreateShop} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Nom de la boutique</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Sunu Boutique, Dakar Couture"
-                  value={shopName}
-                  onChange={(e) => setShopName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-blue-500 focus:outline-none text-slate-100 placeholder-slate-600 transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Numéro WhatsApp (pour recevoir les commandes)</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: 780178444"
-                  value={whatsapp}
-                  onChange={(e) => setWhatsapp(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-blue-500 focus:outline-none text-slate-100 placeholder-slate-600 transition-colors"
-                />
-                <span className="text-[10px] text-slate-500 block mt-1">Sera pré-fixé automatiquement avec l'indicatif Sénégal (+221).</span>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Description rapide (optionnel)</label>
-                <textarea
-                  placeholder="Ex: Vente de sacs de luxe, boubous..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={2}
-                  className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl focus:border-blue-500 focus:outline-none text-slate-100 placeholder-slate-600 transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Couleur principale du thème</label>
-                <div className="flex gap-3 mt-1.5">
-                  {[
-                    { hex: '#2563eb', label: 'Bleu' },
-                    { hex: '#3b82f6', label: 'Bleu' },
-                    { hex: '#b45309', label: 'Orange' },
-                    { hex: '#db2777', label: 'Rose' },
-                    { hex: '#6366f1', label: 'Indigo' }
-                  ].map((c) => (
-                    <button
-                      key={c.hex}
-                      type="button"
-                      onClick={() => setColor(c.hex)}
-                      className={`w-8 h-8 rounded-full border-2 transition-transform cursor-pointer hover:scale-110 ${color === c.hex ? 'border-white scale-110' : 'border-transparent'}`}
-                      style={{ backgroundColor: c.hex }}
-                      title={c.label}
-                    />
-                  ))}
-                  <input
-                    type="color"
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                    className="w-8 h-8 bg-transparent border-0 rounded cursor-pointer p-0"
-                    title="Choisir une couleur"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-800 text-slate-400 hover:bg-slate-850 hover:text-white transition-colors cursor-pointer"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-400 text-white font-bold hover:shadow-lg hover:shadow-blue-500/20 transition-all cursor-pointer"
-                >
-                  Créer & Ouvrir
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* Footer */}
-      <footer className="py-10 bg-slate-950 border-t border-slate-900 text-center relative">
-        <img src="/logo-jappandal.png" alt="Jappandal" className="h-10 w-auto object-contain mx-auto mb-3 opacity-80" />
-        <p className="text-xs text-slate-600">© 2026 Jappandal Tech. Conçu pour les entrepreneurs d'Afrique de l'Ouest.</p>
+      <footer className="py-12 bg-slate-950 border-t border-white/5 text-center relative z-10">
+        <img src="/logo-jappandal.png" alt="Jappandal" className="h-10 w-auto object-contain mx-auto mb-4 opacity-80" />
+        <p className="text-xs text-slate-650">© 2026 Jappandal Tech. Conçu pour les entrepreneurs d'Afrique de l'Ouest.</p>
       </footer>
+      
     </div>
   );
 }

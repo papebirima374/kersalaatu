@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   // --- Sécurité : réservé à l'administrateur connecté via Firebase Auth ---
   // (empêche tout relais d'e-mail ouvert : on vérifie le jeton et que c'est bien l'admin)
   const apiKey = process.env.VITE_FIREBASE_API_KEY;
-  const adminEmail = (process.env.VITE_ADMIN_EMAIL || '').trim().toLowerCase();
+  const adminEmail = (process.env.VITE_ADMIN_EMAIL || 'papebirima374@gmail.com').trim().toLowerCase();
   const authHeader = req.headers.authorization || '';
   const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
   if (!idToken || !apiKey || !adminEmail) return res.status(401).json({ error: 'Authentification requise.' });
@@ -26,7 +26,7 @@ export default async function handler(req, res) {
     if (!vr.ok || !userEmail || userEmail !== adminEmail) {
       return res.status(403).json({ error: 'Accès réservé à l’administrateur.' });
     }
-  } catch (e) {
+  } catch {
     return res.status(401).json({ error: 'Vérification de session échouée.' });
   }
 
