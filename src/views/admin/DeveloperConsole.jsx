@@ -180,6 +180,11 @@ export default function DeveloperConsole() {
   const [subModal, setSubModal] = useState(null); // boutique en cours de gestion
   const [subForm, setSubForm] = useState({ mode: 'months', months: 1, date: '', paid: true, amount: '', method: 'Wave' });
 
+  // Modal de suppression
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deletePw, setDeletePw] = useState('');
+  const [deleteErr, setDeleteErr] = useState('');
+
   const handleCreateBoutiqueSubmit = async (e) => {
     e.preventDefault();
     if (!newBoutiqueForm.name.trim() || !newBoutiqueForm.whatsapp.trim()) {
@@ -235,22 +240,28 @@ export default function DeveloperConsole() {
   const requestDelete = (b) => {
     const active = isActiveShop(b);
     if (active) {
-      const pwd = prompt(
-        `⚠️ ATTENTION : La boutique "${b.name}" a déjà commencé ses activités (produits, commandes ou paiements).\n` +
-        `Pour confirmer la suppression définitive de cette boutique et de TOUTES ses données, veuillez saisir le mot de passe de restriction :`
-      );
-      if (pwd === null) return; // Annulation
-      if (pwd !== 'Salaatualaanabi@374') {
-        toast('Mot de passe de restriction incorrect. Suppression annulée.', 'error', 5000);
-        return;
-      }
+      setDeleteTarget(b);
+      setDeletePw('');
+      setDeleteErr('');
     } else {
-      if (!confirm(`Supprimer définitivement la boutique "${b.name}" ?`)) {
-        return;
+      if (confirm(`Supprimer définitivement la boutique "${b.name}" ?`)) {
+        deleteBoutique(b.id);
+        toast(`Boutique "${b.name}" supprimée avec succès.`, 'success');
       }
     }
-    deleteBoutique(b.id);
-    toast(`Boutique "${b.name}" supprimée avec succès.`, 'success');
+  };
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return;
+    if (deletePw !== 'Salaatualaanabi@374') {
+      setDeleteErr('Mot de passe de sécurité incorrect.');
+      return;
+    }
+    deleteBoutique(deleteTarget.id);
+    toast(`Boutique "${deleteTarget.name}" supprimée avec succès.`, 'success');
+    setDeleteTarget(null);
+    setDeletePw('');
+    setDeleteErr('');
   };
 
   // ── Auth screen ────────────────────────────────────────────────────────
