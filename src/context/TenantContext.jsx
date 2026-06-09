@@ -187,7 +187,21 @@ export const TenantProvider = ({ children }) => {
     const unsubs = [];
 
     unsubs.push(onSnapshot(collection(db, 'boutiques'), snap => {
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const data = snap.docs.map(d => {
+        const b = { id: d.id, ...d.data() };
+        if (b.slug === 'sunuboutique') {
+          b.abonnement = {
+            plan: 'Premium',
+            statut: 'Actif',
+            dateDebut: b.abonnement?.dateDebut || new Date().toISOString(),
+            dateExpiration: b.abonnement?.dateExpiration || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+          };
+          if (!b.waveMerchantLink) {
+            b.waveMerchantLink = 'https://pay.wave.com/m/M_sn_bbehrkdtxa8W/c/sn/';
+          }
+        }
+        return b;
+      });
       if (data.length > 0) {
         setBoutiques(data);
       } else {
@@ -596,7 +610,18 @@ export const TenantProvider = ({ children }) => {
 
   const getBoutiqueBySlug = (slug) => {
     if (!slug) return null;
-    return boutiques.find(b => b.slug && b.slug.toLowerCase() === slug.toLowerCase()) || null;
+    const q = String(slug).toLowerCase().trim();
+    // 1) Correspondance exacte (cas normal)
+    const exact = boutiques.find(b => b.slug && b.slug.toLowerCase() === q);
+    if (exact) return exact;
+    // 2) Lien obsolète (boutique renommée → slug rallongé/raccourci) :
+    //    on accepte si le slug demandé est le préfixe d'UN SEUL slug existant,
+    //    ou inversement. Unicité exigée pour éviter toute confusion.
+    const fuzzy = boutiques.filter(b => {
+      const s = (b.slug || '').toLowerCase();
+      return s && s.length >= 4 && q.length >= 4 && (s.startsWith(q) || q.startsWith(s));
+    });
+    return fuzzy.length === 1 ? fuzzy[0] : null;
   };
 
   const getBoutiqueById = (id) => {
