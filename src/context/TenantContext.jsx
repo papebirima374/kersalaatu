@@ -7,7 +7,9 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
-  onSnapshot
+  onSnapshot,
+  query,
+  where
 } from 'firebase/firestore';
 import {
   signInWithEmailAndPassword,
@@ -121,6 +123,8 @@ export const TenantProvider = ({ children }) => {
     return local ? JSON.parse(local) : null;
   });
 
+  const [activeStorefrontBoutiqueId, setActiveStorefrontBoutiqueId] = useState(null);
+
   // true tant que Firebase n'a pas résolu l'état d'auth (évite la page blanche)
   const [authReady, setAuthReady] = useState(!isConfigured);
   // true quand Firestore a répondu au moins une fois (évite "Boutique Introuvable" au refresh)
@@ -214,18 +218,37 @@ export const TenantProvider = ({ children }) => {
       setDataReady(true);
     }));
 
-    unsubs.push(onSnapshot(collection(db, 'products'), snap => {
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      if (data.length > 0) {
-        setProducts(data);
-      } else {
-        DEFAULT_PRODUCTS.forEach(p => setDoc(doc(db, 'products', p.id), p).catch(() => {}));
-        setProducts(DEFAULT_PRODUCTS);
-      }
-    }, err => console.error('products listener:', err)));
-
     return () => unsubs.forEach(u => u());
   }, []);
+
+  // Listen to products of active storefront boutique dynamically
+  useEffect(() => {
+    if (!isConfigured || !activeStorefrontBoutiqueId) return;
+    const q = query(collection(db, 'products'), where('boutiqueId', '==', activeStorefrontBoutiqueId));
+    const unsubscribe = onSnapshot(q, snap => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setProducts(prev => {
+        const filtered = prev.filter(p => p.boutiqueId !== activeStorefrontBoutiqueId);
+        return [...filtered, ...data];
+      });
+    }, err => console.error('storefront products listener:', err));
+    return () => unsubscribe();
+  }, [activeStorefrontBoutiqueId]);
+
+  // Listen to products of current merchant boutique dynamically
+  useEffect(() => {
+    if (!isConfigured || !currentMerchantBoutiqueId) return;
+    if (currentMerchantBoutiqueId === activeStorefrontBoutiqueId) return;
+    const q = query(collection(db, 'products'), where('boutiqueId', '==', currentMerchantBoutiqueId));
+    const unsubscribe = onSnapshot(q, snap => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setProducts(prev => {
+        const filtered = prev.filter(p => p.boutiqueId !== currentMerchantBoutiqueId);
+        return [...filtered, ...data];
+      });
+    }, err => console.error('merchant products listener:', err));
+    return () => unsubscribe();
+  }, [currentMerchantBoutiqueId, activeStorefrontBoutiqueId]);
 
   // Listeners PRIVÉS (commandes, tickets, upgrades) — seulement pour un compte connecté.
   // → un visiteur anonyme de vitrine ne télécharge plus toute la base : vitrine plus rapide + données privées non chargées.
@@ -897,6 +920,8 @@ export const TenantProvider = ({ children }) => {
       merchantUser,
       authReady,
       dataReady,
+      activeStorefrontBoutiqueId,
+      setActiveStorefrontBoutiqueId,
       loginMerchant,
       signupMerchant,
       resetMerchantPassword,

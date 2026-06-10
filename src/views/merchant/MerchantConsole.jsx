@@ -531,10 +531,32 @@ function MerchantDashboard() {
     instagram: activeBoutique?.instagram || '',
     facebook: activeBoutique?.facebook || '',
     texteRemerciement: activeBoutique?.texteRemerciement || '',
-    zonesLivraison: activeBoutique?.zonesLivraison || []
+    zonesLivraison: activeBoutique?.zonesLivraison || [],
+    waveMerchantLink: activeBoutique?.waveMerchantLink || ''
   }));
   const [logoUploading, setLogoUploading] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
+
+  // Sync settings form when active boutique loads or changes
+  React.useEffect(() => {
+    if (activeBoutique) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSettingsForm({
+        name: activeBoutique.name || '',
+        description: activeBoutique.description || '',
+        whatsapp: activeBoutique.whatsapp || '',
+        couleurMarque: activeBoutique.couleurMarque || '#2563eb',
+        logo: activeBoutique.logo || '🛍️',
+        adresse: activeBoutique.adresse || '',
+        emailContact: activeBoutique.emailContact || '',
+        instagram: activeBoutique.instagram || '',
+        facebook: activeBoutique.facebook || '',
+        texteRemerciement: activeBoutique.texteRemerciement || '',
+        zonesLivraison: activeBoutique.zonesLivraison || [],
+        waveMerchantLink: activeBoutique.waveMerchantLink || ''
+      });
+    }
+  }, [activeBoutique]);
 
   // Orders filters
   const [orderSearch, setOrderSearch]       = useState('');
@@ -1207,7 +1229,8 @@ function MerchantDashboard() {
                 instagram: b.instagram || '',
                 facebook: b.facebook || '',
                 texteRemerciement: b.texteRemerciement || '',
-                zonesLivraison: b.zonesLivraison || []
+                zonesLivraison: b.zonesLivraison || [],
+                waveMerchantLink: b.waveMerchantLink || ''
               });
             }
           }}
@@ -2395,6 +2418,20 @@ function MerchantDashboard() {
                         className="w-32 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 font-mono focus:outline-none focus:border-blue-500" />
                     </div>
                   </div>
+                  {activeBoutique.abonnement?.plan === 'Premium' ? (
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1.5">Lien / Code Marchand Wave</label>
+                      <input type="text" value={settingsForm.waveMerchantLink || ''} onChange={e => setSettingsForm(s => ({...s, waveMerchantLink:e.target.value}))}
+                        placeholder="Ex: M_sn_bbehrkdtxa8W ou https://pay.wave.com/m/M_sn_bbehrkdtxa8W/c/sn/"
+                        className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors" />
+                      <p className="text-[10px] text-slate-500 mt-1">Collez votre code marchand Wave (ex: <code>M_sn_bbehrkdtxa8W</code>) ou le lien de paiement de votre boutique. Les montants de commande seront générés automatiquement avec les frais de 1% inclus.</p>
+                    </div>
+                  ) : (
+                    <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/20 text-xs text-slate-500 flex items-center justify-between">
+                      <span>🔒 L'intégration du lien de paiement direct Wave est réservée aux boutiques <strong>Premium</strong>.</span>
+                      <button type="button" onClick={() => { setUpgradePayPlan('Premium'); setShowUpgradeModal(true); }} className="text-blue-500 hover:text-blue-400 hover:underline font-bold cursor-pointer transition-colors">Passer au plan Premium →</button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Zones de livraison */}
