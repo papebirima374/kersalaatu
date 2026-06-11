@@ -392,6 +392,31 @@ export const TenantProvider = ({ children }) => {
     }
   };
 
+  // Maintenance (admin) : supprime de Firestore les produits / commandes / tickets /
+  // demandes dont la boutique n'existe plus (orphelins laissés par d'anciennes
+  // suppressions sans cascade). Renvoie un bilan { scanned, deleted }.
+  const purgeOrphanData = async () => {
+    if (!isConfigured) return { scanned: 0, deleted: 0 };
+    const shopsSnap = await getDocs(collection(db, 'boutiques'));
+    const validIds = new Set(shopsSnap.docs.map(d => d.id));
+    let scanned = 0, deleted = 0;
+    for (const colName of ['products', 'orders', 'tickets', 'upgradeRequests']) {
+      const snap = await getDocs(collection(db, colName));
+      scanned += snap.docs.length;
+      const orphans = snap.docs.filter(d => {
+        const bid = (d.data() || {}).boutiqueId;
+        return bid && !validIds.has(bid);
+      });
+      await Promise.all(orphans.map(d => deleteDoc(d.ref)));
+      deleted += orphans.length;
+    }
+    // Rafraîchit l'état local (retire les éventuels orphelins encore en mémoire)
+    setProducts(prev => prev.filter(p => !p.boutiqueId || validIds.has(p.boutiqueId)));
+    setOrders(prev => prev.filter(o => !o.boutiqueId || validIds.has(o.boutiqueId)));
+    setTickets(prev => prev.filter(t => !t.boutiqueId || validIds.has(t.boutiqueId)));
+    return { scanned, deleted };
+  };
+
   // Applique un delta de stock à un produit (variante ou global). delta négatif = déduction.
   // qtyByVariant : map variantId -> delta. globalDelta : pour produits sans variante.
   const applyStockDelta = (product, qtyByVariant, globalDelta) => {
@@ -891,6 +916,7 @@ export const TenantProvider = ({ children }) => {
       addBoutiqueWithAuth,
       updateBoutique,
       deleteBoutique,
+      purgeOrphanData,
       addProduct,
       updateProduct,
       deleteProduct,

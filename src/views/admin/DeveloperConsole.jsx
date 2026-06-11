@@ -68,7 +68,7 @@ const Sidebar = ({ activeTab, setActiveTab, setSidebarOpen, totalShops, pendingT
 
 export default function DeveloperConsole() {
   const {
-    boutiques, tickets, updateBoutique, deleteBoutique,
+    boutiques, tickets, updateBoutique, deleteBoutique, purgeOrphanData,
     resolveTicket, replyToTicket, addBoutiqueWithAuth,
     upgradeRequests, approveUpgradeRequest, rejectUpgradeRequest,
     dataReady, merchantUser, loginMerchant, logoutMerchant,
@@ -106,6 +106,9 @@ export default function DeveloperConsole() {
   // Auth — accès réservé au compte administrateur Firebase (VITE_ADMIN_EMAIL).
   // (plus de « code d'accès » de secours : il exposait un secret dans le bundle public)
   const adminOk = isFirebaseAdmin;
+
+  // Purge des données orphelines (maintenance)
+  const [purging, setPurging] = useState(false);
 
 
 
@@ -1201,6 +1204,36 @@ export default function DeveloperConsole() {
                   onClick={async () => { await logoutMerchant(); }}
                   className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm transition-all flex items-center justify-center gap-2 border border-slate-700">
                   <LogOut className="w-4 h-4" /> Se déconnecter
+                </button>
+              </div>
+
+              {/* Maintenance de la base */}
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 mt-4">
+                <div>
+                  <h3 className="font-semibold text-white flex items-center gap-2"><Trash2 className="w-4 h-4 text-amber-400" /> Maintenance de la base</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Supprime les produits, commandes et tickets <span className="text-slate-300">orphelins</span> (dont la
+                    boutique n'existe plus). Sans effet sur les boutiques actives.
+                  </p>
+                </div>
+                <button
+                  disabled={purging}
+                  onClick={async () => {
+                    if (!confirm('Purger les données orphelines (produits/commandes/tickets de boutiques supprimées) ?')) return;
+                    setPurging(true);
+                    try {
+                      const { scanned, deleted } = await purgeOrphanData();
+                      toast(deleted > 0
+                        ? `Purge terminée : ${deleted} élément(s) orphelin(s) supprimé(s) sur ${scanned} analysés.`
+                        : `Base impeccable ✓ — ${scanned} éléments analysés, aucun orphelin.`, 'success', 8000);
+                    } catch (err) {
+                      toast('Erreur de purge : ' + (err.message || 'réessayez'));
+                    } finally { setPurging(false); }
+                  }}
+                  className="w-full py-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 disabled:opacity-60 text-amber-400 font-bold text-sm transition-all flex items-center justify-center gap-2 border border-amber-500/30">
+                  {purging
+                    ? <><span className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" /> Purge en cours…</>
+                    : <><Trash2 className="w-4 h-4" /> Purger les données orphelines</>}
                 </button>
               </div>
             </div>
