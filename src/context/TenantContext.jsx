@@ -88,34 +88,50 @@ const DEFAULT_PRODUCTS = [
 const DEFAULT_ORDERS = [];
 const DEFAULT_TICKETS = [];
 
+// En production, purge une fois pour toutes les caches métier hérités du mode
+// démo (ils contenaient produits/boutiques de démonstration et données obsolètes).
+if (isConfigured && typeof window !== 'undefined') {
+  try {
+    ['ks_boutiques', 'ks_products', 'ks_orders', 'ks_tickets', 'ks_upgrade_requests'].forEach(k => localStorage.removeItem(k));
+  } catch { /* stockage indisponible : sans gravité */ }
+}
+
 export const TenantProvider = ({ children }) => {
+  // En PRODUCTION (Firebase configuré), la seule source de vérité est Firestore :
+  // ni données de démonstration, ni cache localStorage (ils faisaient « réapparaître »
+  // des produits/photos démo chez les marchands). Le mode démo local les garde.
   const [boutiques, setBoutiques] = useState(() => {
+    if (isConfigured) return [];
     const local = localStorage.getItem('ks_boutiques');
     return local ? JSON.parse(local) : DEFAULT_BOUTIQUES;
   });
 
   const [products, setProducts] = useState(() => {
+    if (isConfigured) return [];
     const local = localStorage.getItem('ks_products');
     return local ? JSON.parse(local) : DEFAULT_PRODUCTS;
   });
 
   const [orders, setOrders] = useState(() => {
+    if (isConfigured) return [];
     const local = localStorage.getItem('ks_orders');
     return local ? JSON.parse(local) : DEFAULT_ORDERS;
   });
 
   const [tickets, setTickets] = useState(() => {
+    if (isConfigured) return [];
     const local = localStorage.getItem('ks_tickets');
     return local ? JSON.parse(local) : DEFAULT_TICKETS;
   });
 
   const [upgradeRequests, setUpgradeRequests] = useState(() => {
+    if (isConfigured) return [];
     const local = localStorage.getItem('ks_upgrade_requests');
     return local ? JSON.parse(local) : [];
   });
 
   const [currentMerchantBoutiqueId, setCurrentMerchantBoutiqueId] = useState(() => {
-    return localStorage.getItem('ks_current_merchant_id') || 'darou-khoudoss-optique';
+    return localStorage.getItem('ks_current_merchant_id') || (isConfigured ? '' : 'darou-khoudoss-optique');
   });
 
   const [merchantUser, setMerchantUser] = useState(() => {
@@ -130,25 +146,26 @@ export const TenantProvider = ({ children }) => {
   // true quand Firestore a répondu au moins une fois (évite "Boutique Introuvable" au refresh)
   const [dataReady, setDataReady] = useState(!isConfigured);
 
-  // Sync to local storage
+  // Sync localStorage — UNIQUEMENT en mode démo local. En production, persister
+  // ces données dans le navigateur réinjectait d'anciens produits supprimés.
   useEffect(() => {
-    localStorage.setItem('ks_boutiques', JSON.stringify(boutiques));
+    if (!isConfigured) localStorage.setItem('ks_boutiques', JSON.stringify(boutiques));
   }, [boutiques]);
 
   useEffect(() => {
-    localStorage.setItem('ks_products', JSON.stringify(products));
+    if (!isConfigured) localStorage.setItem('ks_products', JSON.stringify(products));
   }, [products]);
 
   useEffect(() => {
-    localStorage.setItem('ks_orders', JSON.stringify(orders));
+    if (!isConfigured) localStorage.setItem('ks_orders', JSON.stringify(orders));
   }, [orders]);
 
   useEffect(() => {
-    localStorage.setItem('ks_tickets', JSON.stringify(tickets));
+    if (!isConfigured) localStorage.setItem('ks_tickets', JSON.stringify(tickets));
   }, [tickets]);
 
   useEffect(() => {
-    localStorage.setItem('ks_upgrade_requests', JSON.stringify(upgradeRequests));
+    if (!isConfigured) localStorage.setItem('ks_upgrade_requests', JSON.stringify(upgradeRequests));
   }, [upgradeRequests]);
 
   useEffect(() => {
@@ -206,12 +223,9 @@ export const TenantProvider = ({ children }) => {
         }
         return b;
       });
-      if (data.length > 0) {
-        setBoutiques(data);
-      } else {
-        DEFAULT_BOUTIQUES.forEach(b => setDoc(doc(db, 'boutiques', b.id), b).catch(() => {}));
-        setBoutiques(DEFAULT_BOUTIQUES);
-      }
+      // Source de vérité = Firestore, même si la collection est vide.
+      // (on n'écrit JAMAIS les boutiques de démonstration en production)
+      setBoutiques(data);
       setDataReady(true);
     }, err => {
       console.error('boutiques listener:', err);

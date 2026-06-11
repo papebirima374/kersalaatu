@@ -272,6 +272,14 @@ function MerchantDashboard() {
 
   const activeBoutique = myBoutiques.find(b => b.id === currentMerchantBoutiqueId) || myBoutiques[0] || null;
 
+  // Aligne l'id mémorisé sur la boutique réellement résolue : c'est lui qui pilote
+  // le listener Firestore des produits (sinon id vide/obsolète = aucun produit affiché).
+  React.useEffect(() => {
+    if (activeBoutique && activeBoutique.id !== currentMerchantBoutiqueId) {
+      setCurrentMerchantBoutiqueId(activeBoutique.id);
+    }
+  }, [activeBoutique?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const activeProducts = React.useMemo(() => {
     return activeBoutique ? getProductsByBoutique(activeBoutique.id) : [];
   }, [activeBoutique, getProductsByBoutique]);
@@ -681,18 +689,41 @@ function MerchantDashboard() {
     }
   };
 
+  // Convertit une data-URL (photo restée en local) en fichier pour l'upload Storage.
+  const dataUrlToFile = (dataUrl, name = 'photo.jpg') => {
+    const [head, b64] = dataUrl.split(',');
+    const mime = (head.match(/data:(.*?);/) || [])[1] || 'image/jpeg';
+    const bin = atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new File([arr], name, { type: mime });
+  };
+
   const handleProductSubmit = async (e) => {
     e.preventDefault();
     setProductSaving(true);
     setProductError('');
     try {
-      const DEFAULT_IMG = 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600&auto=format&fit=crop&q=80';
-
-      // Photos : nettoyer les base64 restants (si Storage pas dispo)
-      const cleanedPhotos = (productForm.photos || []).filter(u => u && u.trim()).map(u =>
-        (u.startsWith('data:') && isConfigured) ? DEFAULT_IMG : u
-      );
-      const finalPhotos = cleanedPhotos.length > 0 ? cleanedPhotos : [DEFAULT_IMG];
+      // Photos : ON N'INVENTE JAMAIS DE PHOTO. Une photo restée en data-URL
+      // (upload raté / ancienne version) est ré-uploadée vers Storage ;
+      // si impossible, elle est écartée — mais jamais remplacée par une image de stock.
+      const rawPhotos = (productForm.photos || []).filter(u => u && u.trim());
+      const finalPhotos = [];
+      for (const u of rawPhotos) {
+        if (u.startsWith('data:') && isConfigured) {
+          try {
+            const url = await uploadProductPhoto(activeBoutique.id, dataUrlToFile(u));
+            finalPhotos.push(url);
+          } catch { /* upload impossible : photo écartée */ }
+        } else {
+          finalPhotos.push(u);
+        }
+      }
+      if (finalPhotos.length === 0) {
+        setProductError('Ajoutez au moins une photo du produit (bouton « Photos »).');
+        setProductSaving(false);
+        return;
+      }
       const mainPhoto = finalPhotos[0];
 
       // Variantes : ne garder que celles avec un nom, nettoyer les base64
