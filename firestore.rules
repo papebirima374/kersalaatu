@@ -34,19 +34,40 @@ service cloud.firestore {
     // Commandes : un client peut créer sans compte ; lecture/gestion par le propriétaire ou l'admin
     match /orders/{id} {
       allow create: if true;
-      allow read, update, delete: if signedIn() && (isBoutiqueOwner(resource.data.boutiqueId) || isAdmin());
+      // lecture/mise à jour par tout compte connecté : le MARCHAND (listener global)
+      // et le CAISSIER (gestion des statuts) ; suppression réservée propriétaire/admin
+      allow read, update: if signedIn();
+      allow delete: if signedIn() && (isBoutiqueOwner(resource.data.boutiqueId) || isAdmin());
+    }
+
+    // Caissiers : comptes restreints créés par le marchand (id = uid Firebase Auth,
+    // AUCUN mot de passe stocké). Lecture par compte connecté (détection du rôle
+    // au login) ; création/suppression par le propriétaire de la boutique ou l'admin.
+    match /caissiers/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && (isBoutiqueOwner(request.resource.data.boutiqueId) || isAdmin());
+      allow delete: if signedIn() && (isBoutiqueOwner(resource.data.boutiqueId) || isAdmin());
+      allow update: if false;
+    }
+
+    // Dépenses (Premium VIP) : gérées par le propriétaire de la boutique ou l'admin
+    match /depenses/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && (isBoutiqueOwner(request.resource.data.boutiqueId) || isAdmin());
+      allow update, delete: if signedIn() && (isBoutiqueOwner(resource.data.boutiqueId) || isAdmin());
     }
 
     // Tickets support : créés par le propriétaire, gérés/résolus par le propriétaire ou l'admin
     match /tickets/{id} {
       allow create: if signedIn() && request.resource.data.boutiqueId != null && isBoutiqueOwner(request.resource.data.boutiqueId);
-      allow read, update, delete: if signedIn() && (isBoutiqueOwner(resource.data.boutiqueId) || isAdmin());
+      allow read: if signedIn();
+      allow update, delete: if signedIn() && (isBoutiqueOwner(resource.data.boutiqueId) || isAdmin());
     }
 
     // Demandes de passage Pro/Premium : créées par le propriétaire, gérées/validées par l'admin
     match /upgradeRequests/{id} {
       allow create: if signedIn() && request.resource.data.boutiqueId != null && isBoutiqueOwner(request.resource.data.boutiqueId);
-      allow read: if signedIn() && (isBoutiqueOwner(resource.data.boutiqueId) || isAdmin());
+      allow read: if signedIn();
       allow update, delete: if isAdmin();
     }
 

@@ -206,7 +206,7 @@ export default function LandingPage() {
       )}
 
       {/* Hero Section */}
-      <main id="demo" className="relative max-w-7xl w-full mx-auto px-6 py-12 md:py-20 flex flex-col lg:flex-row items-center gap-12">
+      <main id="demo" className="relative max-w-7xl w-full mx-auto px-6 py-8 md:py-12 flex flex-col lg:flex-row items-center gap-12">
         <div className="flex-1 space-y-6 text-left relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold animate-fade-up">
             <Sparkles className="w-3.5 h-3.5 animate-floaty" /> Vendez sur WhatsApp facilement
@@ -366,8 +366,8 @@ export default function LandingPage() {
       </main>
 
       {/* Bento Grid: Fonctionnalités */}
-      <section id="features" className="relative max-w-7xl w-full mx-auto px-6 py-16 md:py-24 border-t border-white/5 text-center">
-        <div className="space-y-3 mb-16">
+      <section id="features" className="relative max-w-7xl w-full mx-auto px-6 py-10 md:py-14 border-t border-white/5 text-center">
+        <div className="space-y-3 mb-10">
           <span className="text-xs font-bold text-blue-400 uppercase tracking-widest bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20">SaaS Premium</span>
           <h2 className="text-3xl md:text-5xl font-display font-extrabold tracking-tight mt-3">Tout pour gérer votre activité</h2>
           <p className="text-slate-400 text-sm md:text-base max-w-xl mx-auto">
@@ -510,55 +510,8 @@ export default function LandingPage() {
       </section>
 
       {/* Workflow steps */}
-      <section className="relative max-w-7xl w-full mx-auto px-6 py-16 md:py-24 border-t border-white/5 text-center">
-        <div className="space-y-3 mb-16">
-          <span className="text-xs font-bold text-blue-400 uppercase tracking-widest bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20">Parcours Entrepreneur</span>
-          <h2 className="text-3xl md:text-5xl font-display font-extrabold tracking-tight mt-3">Prise en main immédiate</h2>
-          <p className="text-slate-400 text-sm md:text-base max-w-xl mx-auto">
-            Trois étapes simples suffisent pour digitaliser votre commerce et encaisser vos ventes.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-          <div className="hidden md:block absolute top-1/2 left-20 right-20 h-0.5 bg-white/5 -translate-y-12 z-0" />
-
-          {/* Step 1 */}
-          <div className="bg-slate-900/20 border border-white/5 p-8 rounded-3xl flex flex-col items-center space-y-4 relative z-10 hover:border-blue-500/20 transition-all hover:translate-y-[-2px] duration-300">
-            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 font-display font-extrabold">
-              1
-            </div>
-            <h3 className="text-base font-bold text-white">Créez votre vitrine</h3>
-            <p className="text-xs text-slate-400 leading-relaxed font-sans">
-              Donnez un nom et configurez le WhatsApp de réception des commandes. Votre vitrine est prête.
-            </p>
-          </div>
-
-          {/* Step 2 */}
-          <div className="bg-slate-900/20 border border-white/5 p-8 rounded-3xl flex flex-col items-center space-y-4 relative z-10 hover:border-emerald-500/20 transition-all hover:translate-y-[-2px] duration-300">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-display font-extrabold">
-              2
-            </div>
-            <h3 className="text-base font-bold text-white">Listez vos produits</h3>
-            <p className="text-xs text-slate-400 leading-relaxed font-sans">
-              Téléversez des images de produits, spécifiez vos tarifs et vos zones de livraisons préférées.
-            </p>
-          </div>
-
-          {/* Step 3 */}
-          <div className="bg-slate-900/20 border border-white/5 p-8 rounded-3xl flex flex-col items-center space-y-4 relative z-10 hover:border-cyan-500/20 transition-all hover:translate-y-[-2px] duration-300">
-            <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 font-display font-extrabold">
-              3
-            </div>
-            <h3 className="text-base font-bold text-white">Vendez sur WhatsApp</h3>
-            <p className="text-xs text-slate-400 leading-relaxed font-sans">
-              Partagez le lien avec votre communauté. Recevez instantanément des paniers de commande prêts à expédier.
-            </p>
-          </div>
-        </div>
-      </section>
-
       {/* Directory of Active Shops */}
-      <section id="shops" className="relative max-w-7xl w-full mx-auto px-6 py-16 md:py-24 border-t border-white/5 text-center">
+      <section id="shops" className="relative max-w-7xl w-full mx-auto px-6 py-10 md:py-14 border-t border-white/5 text-center">
         <div className="space-y-3 mb-12">
           <span className="text-xs font-bold text-blue-400 uppercase tracking-widest bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20">Communauté</span>
           <h2 className="text-3xl md:text-5xl font-display font-extrabold tracking-tight mt-3">Boutiques hébergées</h2>
@@ -609,8 +562,8 @@ export default function LandingPage() {
 
                 <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-1">
                   <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${
-                    b.abonnement?.plan === 'Premium' ? 'bg-purple-500/15 text-purple-400 border-purple-500/10' :
-                    b.abonnement?.plan === 'Pro' ? 'bg-blue-500/15 text-blue-400 border-blue-500/10' :
+                    (b.abonnement?.plan === 'Premium' || b.abonnement?.plan === 'Premium VIP') ? 'bg-purple-500/15 text-purple-400 border-purple-500/10' :
+                    (b.abonnement?.plan === 'Pro' || b.abonnement?.plan === 'SaaS Pro') ? 'bg-blue-500/15 text-blue-400 border-blue-500/10' :
                     'bg-slate-800 text-slate-400 border-slate-700'
                   }`}>
                     {b.abonnement?.plan || 'Découverte'}
@@ -639,8 +592,8 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing cards */}
-      <section id="tarifs" className="relative max-w-7xl w-full mx-auto px-6 py-16 md:py-24 border-t border-white/5">
-        <div className="text-center max-w-2xl mx-auto space-y-3 mb-16">
+      <section id="tarifs" className="relative max-w-7xl w-full mx-auto px-6 py-10 md:py-14 border-t border-white/5">
+        <div className="text-center max-w-2xl mx-auto space-y-3 mb-10">
           <span className="text-xs font-bold text-blue-400 uppercase tracking-widest bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20">Abonnement</span>
           <h2 className="text-3xl md:text-5xl font-display font-extrabold tracking-tight mt-3">Tarifs simples et transparents</h2>
           <p className="text-slate-400 text-sm md:text-base leading-relaxed">
@@ -723,14 +676,14 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-start gap-2.5">
                   <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                  <span>Frais de livraison par zone</span>
+                  <span>Lien de paiement Wave direct</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                  <span>Statistiques & rapports graphiques</span>
+                  <span>1 compte caissier inclus</span>
                 </li>
                 <li className="flex items-start gap-2.5 text-slate-600 line-through">
-                  <span>Simulateurs Wave / Orange Money</span>
+                  <span>Multi-boutique & Dépenses</span>
                 </li>
               </ul>
             </div>
@@ -739,53 +692,53 @@ export default function LandingPage() {
               onClick={() => navigate('/marchand?creer=1')}
               className="w-full mt-8 py-3 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-xs transition-all cursor-pointer shadow-lg shadow-blue-500/10"
             >
-              Commencer le forfait Pro
+              Commencer le forfait SaaS Pro
             </button>
           </div>
 
           {/* Plan Premium */}
-          <div className="p-8 rounded-3xl bg-slate-900/30 border border-white/5 hover:border-slate-800 transition-all flex flex-col justify-between relative group hover:scale-[1.02] duration-300">
+          <div className="p-8 rounded-3xl bg-slate-900/30 border border-purple-500/20 hover:border-purple-500/40 hover:bg-slate-900/40 transition-all flex flex-col justify-between relative group hover:scale-[1.02] duration-300 shadow-xl shadow-purple-500/[0.01]">
             <div className="space-y-6">
               <div>
-                <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Fonctionnalités complètes</span>
+                <span className="text-[10px] font-extrabold text-purple-400 uppercase tracking-widest font-mono">Entreprise</span>
                 <h3 className="text-xl font-bold text-white mt-1">Premium VIP</h3>
-                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed font-sans">Simulateur Mobile Money et facturation soignée.</p>
+                <p className="text-xs text-slate-400 mt-1.5 leading-relaxed font-sans font-medium">Multi-boutiques, plusieurs caissiers et gestion de dépenses.</p>
               </div>
 
               <div className="py-4 border-y border-white/5 flex items-baseline">
-                <span className="text-3xl font-extrabold text-white">15 000 FCFA</span>
+                <span className="text-3xl font-extrabold text-white">10 000 FCFA</span>
                 <span className="text-xs text-slate-500 ml-1">/ mois</span>
               </div>
 
-              <ul className="space-y-3.5 text-xs text-slate-400">
+              <ul className="space-y-3.5 text-xs text-slate-350">
                 <li className="flex items-start gap-2.5">
-                  <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                  <span>Toutes les fonctionnalités Pro</span>
+                  <Check className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                  <span>Multi-boutiques (lier plusieurs comptes)</span>
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                  <span>Intégration simulations Wave & OM</span>
+                  <Check className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                  <span>Comptes caissiers illimités</span>
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                  <span>Factures & Reçus PDF téléchargeables</span>
+                  <Check className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                  <span>Gestion des dépenses & revenu net</span>
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                  <span>Support prioritaire 24h/7 par ticket</span>
+                  <Check className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                  <span>Lien de paiement Wave direct</span>
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                  <span>Nom de domaine propre (bientôt)</span>
+                  <Check className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                  <span>Factures & Reçus PDF professionnels</span>
                 </li>
               </ul>
             </div>
 
             <button
-              disabled
-              className="w-full mt-8 py-3 rounded-xl bg-slate-950/40 border border-white/5 text-slate-500 font-semibold text-xs transition-all cursor-not-allowed"
+              onClick={() => navigate('/marchand?creer=1')}
+              className="w-full mt-8 py-3 rounded-xl bg-purple-650 hover:bg-purple-600 text-white font-bold text-xs transition-all cursor-pointer shadow-lg shadow-purple-500/10"
             >
-              Bientôt disponible
+              Commencer le forfait Premium VIP
             </button>
           </div>
 
@@ -793,8 +746,8 @@ export default function LandingPage() {
       </section>
 
       {/* FAQ accordion */}
-      <section id="faq" className="relative max-w-4xl w-full mx-auto px-6 py-16 md:py-24 border-t border-white/5 text-left">
-        <div className="text-center space-y-3 mb-16">
+      <section id="faq" className="relative max-w-4xl w-full mx-auto px-6 py-10 md:py-14 border-t border-white/5 text-left">
+        <div className="text-center space-y-3 mb-10">
           <span className="text-xs font-bold text-blue-400 uppercase tracking-widest bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20">FAQ</span>
           <h2 className="text-3xl md:text-4xl font-display font-extrabold tracking-tight mt-3">Des réponses à vos questions</h2>
           <p className="text-slate-400 text-sm md:text-base max-w-xl mx-auto">

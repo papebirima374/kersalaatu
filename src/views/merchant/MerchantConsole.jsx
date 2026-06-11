@@ -12,11 +12,9 @@ import {
   Plus, Trash2, Edit3, Check, Clock, AlertTriangle, DollarSign,
   TrendingUp, Store, ExternalLink, Save, MessageSquare, Printer,
   ShoppingCart, Minus, User, Phone, MapPin, Receipt, Search,
-  X, ChevronDown, Zap, Calendar
+  X, ChevronDown, Zap, Calendar, Users, TrendingDown
 } from 'lucide-react';
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-const fmt = (n) => new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
 
 // Version courte dérivée du logo (+ nom). Elle change quand le marchand met à jour
 // son logo, ce qui modifie l'URL de partage et FORCE WhatsApp / Facebook à
@@ -77,6 +75,7 @@ const STATUT_COLORS = {
   Livrée:  'bg-purple-500/10 text-purple-400 border-purple-500/20',
   Payée:   'bg-blue-500/10 text-blue-400 border-blue-500/20',
   Annulée: 'bg-red-500/10 text-red-400 border-red-500/20',
+  'Attente Annulation': 'bg-rose-500/10 text-rose-400 border-rose-500/20',
 };
 
 // ─── Auth Shell ──────────────────────────────────────────────────────────────
@@ -229,7 +228,8 @@ function MerchantDashboard() {
     updateOrder, cancelOrder, updateOrderStatus, updateOrderPaymentStatus, updateClientOrdersInfo,
     addTicket, getProductsByBoutique, getOrdersByBoutique,
     uploadBoutiqueLogo, uploadProductPhoto,
-    upgradeRequests, createUpgradeRequest, createOrder
+    upgradeRequests, createUpgradeRequest, createOrder,
+    caissiers, depenses, addCaissier, deleteCaissier, addDepense, deleteDepense
   } = useTenant();
 
   const [now] = useState(() => Date.now());
@@ -239,11 +239,16 @@ function MerchantDashboard() {
   const [hoveredDataPoint, setHoveredDataPoint] = useState(null);
 
   const [activeTab, setActiveTab] = useState(() => {
+    const isCaissier = merchantUser?.role === 'caissier';
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      return params.get('tab') || 'dashboard';
+      const urlTab = params.get('tab');
+      if (isCaissier) {
+        return ['caisse', 'orders'].includes(urlTab) ? urlTab : 'caisse';
+      }
+      return urlTab || 'dashboard';
     }
-    return 'dashboard';
+    return isCaissier ? 'caisse' : 'dashboard';
   });
 
   React.useEffect(() => {
@@ -271,6 +276,9 @@ function MerchantDashboard() {
   // Boutiques du marchand
   const myBoutiques = React.useMemo(() => {
     if (!merchantUser) return [];
+    if (merchantUser.role === 'caissier') {
+      return boutiques.filter(b => b.id === merchantUser.boutiqueId);
+    }
     if (!isConfigured) return boutiques;
     return boutiques.filter(b => b.ownerUid === merchantUser.uid || b.ownerEmail === merchantUser.email);
   }, [boutiques, merchantUser]);
@@ -279,7 +287,6 @@ function MerchantDashboard() {
 
   // Devise de la boutique active : tous les montants de la console la suivent
   // (remplace localement le fmt module FCFA). FCFA par défaut, € pour l'Europe.
-  // eslint-disable-next-line no-shadow
   const fmt = (n) => formatPrice(n, activeBoutique?.devise);
 
   // Aligne l'id mémorisé sur la boutique réellement résolue : c'est lui qui pilote
@@ -310,6 +317,15 @@ function MerchantDashboard() {
   const totalRevenue = React.useMemo(() => {
     return completedOrders.reduce((s, o) => s + o.total, 0);
   }, [completedOrders]);
+
+  const totalExpenses = React.useMemo(() => {
+    if (!activeBoutique) return 0;
+    const plan = activeBoutique.abonnement?.plan || 'Découverte';
+    if (plan !== 'Premium' && plan !== 'Premium VIP') return 0;
+    return depenses
+      .filter(d => d.boutiqueId === activeBoutique.id)
+      .reduce((s, d) => s + Number(d.montant || 0), 0);
+  }, [depenses, activeBoutique]);
 
   const pendingOrders = React.useMemo(() => {
     return activeOrders.filter(o => o.statut === 'Reçue' || o.statut === 'Préparée').length;
@@ -1206,17 +1222,38 @@ function MerchantDashboard() {
   };
 
   // ── Nav items ─────────────────────────────────────────────────────────────
+  const plan = activeBoutique?.abonnement?.plan || 'Découverte';
+  const isFree = plan === 'Découverte';
+  const isPro = plan === 'SaaS Pro' || plan === 'Pro';
+  const isVIP = plan === 'Premium VIP' || plan === 'Premium';
+
   const NAV = [
     { id:'dashboard', label:'Tableau de bord', icon: LayoutDashboard },
     { id:'products',  label:'Produits',         icon: ShoppingBag, badge: activeProducts.length },
     { id:'orders',    label:'Commandes',         icon: ClipboardList, badge: pendingOrders || null },
     { id:'clients',   label:'Clients',           icon: User, badge: clientsList.length || null },
     { id:'caisse',    label:'Caisse',            icon: Receipt },
-    { id:'settings',  label:'Configuration',    icon: Settings },
-    { id:'support',   label:'Support',           icon: MessageSquare, badge: activeTickets.filter(t=>t.statut==='En attente').length || null },
   ];
 
-  const isFree = !activeBoutique.abonnement?.plan || activeBoutique.abonnement.plan === 'Découverte';
+  if (isPro || isVIP) {
+    const activeCaissiersCount = caissiers.filter(c => c.boutiqueId === activeBoutique?.id).length;
+    NAV.push({ id:'caissiers', label:'Caissiers', icon: Users, badge: activeCaissiersCount || null });
+  }
+
+  if (isVIP) {
+    const activeDepensesCount = depenses.filter(d => d.boutiqueId === activeBoutique?.id).length;
+    NAV.push({ id:'depenses', label:'Dépenses', icon: TrendingDown, badge: activeDepensesCount || null });
+  }
+
+  NAV.push({ id:'settings',  label:'Configuration',    icon: Settings });
+  NAV.push({ id:'support',   label:'Support',           icon: MessageSquare, badge: activeTickets.filter(t=>t.statut==='En attente').length || null });
+
+  const filteredNAV = NAV.filter(item => {
+    if (merchantUser?.role === 'caissier') {
+      return ['caisse', 'orders'].includes(item.id);
+    }
+    return true;
+  });
 
   // ── Filtered orders ───────────────────────────────────────────────────────
   const dFrom = orderFrom ? new Date(orderFrom + 'T00:00:00') : null;
@@ -1312,7 +1349,7 @@ function MerchantDashboard() {
 
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-        {NAV.map(({ id, label, icon: Icon, badge }) => (
+        {filteredNAV.map(({ id, label, icon: Icon, badge }) => (
           <button key={id} onClick={() => { setActiveTab(id); setSidebarOpen(false); }}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
               activeTab === id
@@ -1470,7 +1507,13 @@ function MerchantDashboard() {
               {/* KPIs principaux et analytiques avancés */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                  { label: 'Revenus', value: fmt(totalRevenue), sub: 'Commandes payées/livrées', icon: DollarSign, color: 'teal' },
+                  {
+                    label: isVIP ? 'Revenu Net' : 'Revenus',
+                    value: fmt(isVIP ? Math.max(0, totalRevenue - totalExpenses) : totalRevenue),
+                    sub: isVIP ? `Brut: ${fmt(totalRevenue)} | Dépenses: ${fmt(totalExpenses)}` : 'Commandes payées/livrées',
+                    icon: DollarSign,
+                    color: 'teal'
+                  },
                   { label: 'Panier Moyen (AOV)', value: fmt(averageOrderValue), sub: 'Chiffre d\'affaires / commande', icon: Zap, color: 'indigo' },
                   { label: 'Top Catégorie', value: topCategory, sub: 'Catégorie la plus vendue', icon: Store, color: 'orange' },
                   { label: 'Taux de Conversion', value: `${conversionRate}%`, sub: `Sur un total de ${simulatedVisits} visites`, icon: TrendingUp, color: 'emerald' },
@@ -1857,7 +1900,7 @@ function MerchantDashboard() {
                   </div>
                   <select value={orderStatut} onChange={e => setOrderStatut(e.target.value)}
                     className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-300 focus:outline-none">
-                    {['Tous','Reçue','Préparée','Livrée','Payée','Annulée'].map(s => <option key={s}>{s}</option>)}
+                    {['Tous','Reçue','Préparée','Livrée','Payée','Attente Annulation','Annulée'].map(s => <option key={s}>{s}</option>)}
                   </select>
                   <select value={orderPaiement} onChange={e => setOrderPaiement(e.target.value)}
                     className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-300 focus:outline-none">
@@ -1952,6 +1995,42 @@ function MerchantDashboard() {
                             <Printer className="w-3.5 h-3.5" /> Facture
                           </button>
                         </div>
+                      ) : o.statut === 'Attente Annulation' ? (
+                        <div className="flex flex-wrap gap-2 items-center">
+                          {merchantUser?.role === 'caissier' ? (
+                            <span className="text-xs text-amber-400 font-medium flex items-center gap-1.5 bg-amber-500/5 border border-amber-500/20 px-2 py-1.5 rounded-lg">
+                              <Clock className="w-3.5 h-3.5" /> Annulation demandée au marchand
+                            </span>
+                          ) : (
+                            <>
+                              <span className="text-xs text-rose-400 font-bold bg-rose-500/10 border border-rose-500/20 px-2 py-1.5 rounded-lg flex items-center gap-1">
+                                <AlertTriangle className="w-3.5 h-3.5" /> Demande d'annulation caissier
+                              </span>
+                              <button onClick={() => {
+                                if (window.confirm("Approuver l'annulation de cette commande ? Les articles seront remis en stock.")) {
+                                  cancelOrder(o.id);
+                                  toast('Annulation approuvée.', 'success');
+                                }
+                              }}
+                              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500 text-white hover:bg-red-600 transition-colors flex items-center gap-1">
+                                Approuver
+                              </button>
+                              <button onClick={() => {
+                                if (window.confirm("Rejeter la demande d'annulation ?")) {
+                                  updateOrderStatus(o.id, 'Reçue');
+                                  toast("Annulation rejetée. Commande rétablie.", 'info');
+                                }
+                              }}
+                              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors flex items-center gap-1">
+                                Rejeter
+                              </button>
+                            </>
+                          )}
+                          <button onClick={() => setActivePrintInvoice(o)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors flex items-center gap-1">
+                            <Printer className="w-3.5 h-3.5" /> Facture
+                          </button>
+                        </div>
                       ) : (
                       <div className="flex flex-wrap gap-2">
                         <select value={o.statut} onChange={e => updateOrderStatus(o.id, e.target.value)}
@@ -1984,14 +2063,21 @@ function MerchantDashboard() {
                           <Printer className="w-3.5 h-3.5" /> Facture
                         </button>
                         <button onClick={() => {
-                            if (window.confirm(`Annuler la commande ${o.id} ?\n\nLes articles seront automatiquement remis en stock (retour client).`)) {
-                              cancelOrder(o.id);
-                              toast('Commande annulée — articles remis en stock.', 'success');
+                            if (merchantUser?.role === 'caissier') {
+                              if (window.confirm(`Demander l'annulation de la commande ${o.id} ?`)) {
+                                updateOrderStatus(o.id, 'Attente Annulation');
+                                toast("Demande d'annulation envoyée.", 'info');
+                              }
+                            } else {
+                              if (window.confirm(`Annuler la commande ${o.id} ?\n\nLes articles seront automatiquement remis en stock (retour client).`)) {
+                                cancelOrder(o.id);
+                                toast('Commande annulée — articles remis en stock.', 'success');
+                              }
                             }
                           }}
                           title="Annuler la commande / retour produit — remet les articles en stock"
                           className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors flex items-center gap-1">
-                          <X className="w-3.5 h-3.5" /> Annuler / Retour
+                          <X className="w-3.5 h-3.5" /> {merchantUser?.role === 'caissier' ? 'Annuler' : 'Annuler / Retour'}
                         </button>
                       </div>
                       )}
@@ -2489,7 +2575,7 @@ function MerchantDashboard() {
                         className="w-32 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 font-mono focus:outline-none focus:border-blue-500" />
                     </div>
                   </div>
-                  {activeBoutique.abonnement?.plan === 'Premium' ? (
+                  {['Pro', 'SaaS Pro', 'Premium', 'Premium VIP'].includes(activeBoutique.abonnement?.plan) ? (
                     <div>
                       <label className="block text-xs font-medium text-slate-500 mb-1.5">Lien / Code Marchand Wave</label>
                       <input type="text" value={settingsForm.waveMerchantLink || ''} onChange={e => setSettingsForm(s => ({...s, waveMerchantLink:e.target.value}))}
@@ -2568,6 +2654,28 @@ function MerchantDashboard() {
                 )}
               </div>
             </div>
+          )}
+
+          {/* ── CAISSIERS (Pro & Premium VIP) ───────────────────────────── */}
+          {activeTab === 'caissiers' && (
+            <CaissiersTab
+              plan={plan}
+              activeBoutique={activeBoutique}
+              caissiers={caissiers}
+              addCaissier={addCaissier}
+              deleteCaissier={deleteCaissier}
+            />
+          )}
+
+          {/* ── DÉPENSES (Premium VIP uniquement) ─────────────────────────── */}
+          {activeTab === 'depenses' && (
+            <DepensesTab
+              activeBoutique={activeBoutique}
+              depenses={depenses}
+              addDepense={addDepense}
+              deleteDepense={deleteDepense}
+              fmt={fmt}
+            />
           )}
 
           {/* ── SUPPORT ───────────────────────────────────────────────────── */}
@@ -2904,7 +3012,7 @@ function MerchantDashboard() {
 
                 <form onSubmit={handleUpgradeSubmit} className="space-y-4">
                   <div className="grid grid-cols-2 gap-2">
-                    {[{p:'Pro', price:'5 000'},{p:'Premium', price:'15 000'}].map(({p, price}) => (
+                    {[{p:'Pro', price:'5 000'},{p:'Premium', price:'10 000'}].map(({p, price}) => (
                       <button key={p} type="button" onClick={() => setUpgradePayPlan(p)}
                         className={`p-3 rounded-xl border text-center transition-all ${upgradePayPlan===p ? 'border-blue-500 bg-blue-500/10 text-blue-300' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'}`}>
                         <p className="font-bold text-sm">{p}</p>
@@ -3135,16 +3243,396 @@ function MerchantDashboard() {
                   <Save className="w-4 h-4" /> Enregistrer
                 </button>
               </div>
-              {editingOrder.statut !== 'Annulée' && (
-                <button onClick={() => { cancelOrder(editingOrder.id); setEditingOrder(null); }}
+              {editingOrder.statut !== 'Annulée' && editingOrder.statut !== 'Attente Annulation' && (
+                <button onClick={() => {
+                  if (merchantUser?.role === 'caissier') {
+                    if (window.confirm(`Demander l'annulation de la commande ${editingOrder.id} ?`)) {
+                      updateOrderStatus(editingOrder.id, 'Attente Annulation');
+                      toast("Demande d'annulation envoyée.", 'info');
+                      setEditingOrder(null);
+                    }
+                  } else {
+                    if (window.confirm(`Annuler la commande ${editingOrder.id} ?`)) {
+                      cancelOrder(editingOrder.id);
+                      setEditingOrder(null);
+                    }
+                  }
+                }}
                   className="w-full mt-2 py-2.5 rounded-xl bg-red-500/5 text-red-400 border border-red-500/20 hover:bg-red-500/10 font-bold text-sm transition-all flex items-center justify-center gap-2">
-                  <X className="w-4 h-4" /> Annuler cette commande (rembourse le stock)
+                  <X className="w-4 h-4" /> {merchantUser?.role === 'caissier' ? "Demander l'annulation" : "Annuler cette commande (rembourse le stock)"}
                 </button>
               )}
             </div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function CaissiersTab({ plan, activeBoutique, caissiers, addCaissier, deleteCaissier }) {
+  const [nom, setNom] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const shopCaissiers = caissiers.filter(c => c.boutiqueId === activeBoutique.id);
+  const limit = (plan === 'Pro' || plan === 'SaaS Pro') ? 1 : (plan === 'Premium VIP' || plan === 'Premium') ? Infinity : 0;
+  const isLimitReached = shopCaissiers.length >= limit;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    if (isLimitReached) {
+      setError(`Limite de caissiers atteinte pour votre forfait (${limit} max).`);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      await addCaissier({
+        nom: nom.trim(),
+        email: email.trim().toLowerCase(),
+        password: password.trim(),
+        boutiqueId: activeBoutique.id
+      });
+      setNom('');
+      setEmail('');
+      setPassword('');
+      toast('Caissier ajouté avec succès !', 'success');
+    } catch (err) {
+      setError(err.message || "Une erreur est survenue lors de l'ajout.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 max-w-6xl">
+      {/* Formulaire d'ajout */}
+      <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Users className="w-5 h-5 text-blue-500" />
+          <h3 className="font-bold text-white text-base">Ajouter un Caissier</h3>
+        </div>
+        
+        {plan === 'Découverte' ? (
+          <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-sm">
+            La gestion des caissiers n'est pas disponible sous le forfait Découverte. Veuillez mettre à jour votre abonnement.
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+                {error}
+              </div>
+            )}
+            
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">Nom complet</label>
+              <input
+                required
+                type="text"
+                value={nom}
+                onChange={e => setNom(e.target.value)}
+                placeholder="Ex: Babacar Ndiaye"
+                className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">Adresse email de connexion</label>
+              <input
+                required
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="nom.caissier@jappandal.sn"
+                className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">Mot de passe</label>
+              <input
+                required
+                type="text"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Saisir un mot de passe sécurisé"
+                className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none transition-colors font-mono"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || isLimitReached}
+              className="w-full py-3 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                  Ajout en cours...
+                </>
+              ) : (
+                'Enregistrer le Caissier'
+              )}
+            </button>
+
+            {isLimitReached && (
+              <p className="text-xs text-amber-400/80 mt-2">
+                ⚠️ Limite de caissiers atteinte pour votre forfait actuel ({limit} max).
+              </p>
+            )}
+          </form>
+        )}
+      </div>
+
+      {/* Liste des caissiers */}
+      <div className="lg:col-span-3 bg-slate-900 border border-slate-800 rounded-2xl p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="font-bold text-white text-base">Comptes Caissier Actifs</h3>
+          <span className="text-xs font-medium px-2.5 py-1 bg-slate-800 border border-slate-700 text-slate-400 rounded-full font-mono">
+            {shopCaissiers.length} {limit !== Infinity ? `/ ${limit}` : ''}
+          </span>
+        </div>
+
+        {shopCaissiers.length === 0 ? (
+          <div className="text-center py-12 border border-dashed border-slate-800 rounded-xl">
+            <Users className="w-10 h-10 text-slate-700 mx-auto mb-3" />
+            <p className="text-sm text-slate-500">Aucun caissier enregistré pour cette boutique.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {shopCaissiers.map(c => (
+              <div key={c.id} className="flex items-center justify-between p-4 bg-slate-800/40 border border-slate-800 rounded-xl group hover:border-slate-700 transition-colors">
+                <div className="min-w-0">
+                  <p className="font-semibold text-slate-200 text-sm truncate">{c.nom}</p>
+                  <p className="text-xs text-slate-500 font-mono truncate">{c.email}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold uppercase tracking-wider">Caissier</span>
+                    <span className="text-[10px] text-slate-500 font-mono">MDP: {c.password}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (window.confirm(`Voulez-vous vraiment supprimer le compte caissier de ${c.nom} ?`)) {
+                      try {
+                        await deleteCaissier(c.id);
+                        toast('Compte caissier supprimé.', 'success');
+                      } catch (e) {
+                        toast(e.message);
+                      }
+                    }
+                  }}
+                  className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/5 rounded-lg transition-all"
+                  title="Supprimer le caissier"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DepensesTab({ activeBoutique, depenses, addDepense, deleteDepense, fmt }) {
+  const [motif, setMotif] = useState('');
+  const [montant, setMontant] = useState('');
+  const [date, setDate] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  });
+  const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const shopDepenses = depenses
+    .filter(d => d.boutiqueId === activeBoutique.id)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const total = shopDepenses.reduce((acc, d) => acc + Number(d.montant || 0), 0);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    if (Number(montant) <= 0) {
+      setError("Le montant doit être supérieur à 0.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      await addDepense({
+        motif: motif.trim(),
+        montant: Number(montant),
+        date,
+        notes: notes.trim(),
+        boutiqueId: activeBoutique.id
+      });
+      setMotif('');
+      setMontant('');
+      setNotes('');
+      toast('Dépense enregistrée avec succès !', 'success');
+    } catch (err) {
+      setError(err.message || "Une erreur est survenue lors de l'ajout.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 max-w-6xl">
+      {/* Formulaire d'ajout */}
+      <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+        <div className="flex items-center gap-2 mb-2">
+          <TrendingDown className="w-5 h-5 text-red-400" />
+          <h3 className="font-bold text-white text-base">Nouvelle Dépense</h3>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5">Motif / Description *</label>
+            <input
+              required
+              type="text"
+              value={motif}
+              onChange={e => setMotif(e.target.value)}
+              placeholder="Ex: Achat emballages, Facture électricité"
+              className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none transition-colors"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">Montant ({activeBoutique?.devise || 'FCFA'}) *</label>
+              <input
+                required
+                type="number"
+                min="1"
+                value={montant}
+                onChange={e => setMontant(e.target.value)}
+                placeholder="5000"
+                className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none transition-colors font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">Date *</label>
+              <input
+                required
+                type="date"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+                className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white focus:border-blue-500 focus:outline-none transition-colors font-mono"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5">Notes additionnelles (Optionnel)</label>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Détails facultatifs sur la dépense..."
+              rows={3}
+              className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none transition-colors resize-none"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 rounded-xl bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 font-bold text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <span className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                Enregistrement...
+              </>
+            ) : (
+              'Enregistrer la Dépense'
+            )}
+          </button>
+        </form>
+      </div>
+
+      {/* Historique des dépenses */}
+      <div className="lg:col-span-3 bg-slate-900 border border-slate-800 rounded-2xl p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="font-bold text-white text-base">Historique des Dépenses</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Total cumulé : <span className="font-bold text-red-400 font-mono">{fmt(total)}</span></p>
+          </div>
+          <span className="text-xs font-medium px-2.5 py-1 bg-slate-800 border border-slate-700 text-slate-400 rounded-full font-mono">
+            {shopDepenses.length}
+          </span>
+        </div>
+
+        {shopDepenses.length === 0 ? (
+          <div className="text-center py-12 border border-dashed border-slate-800 rounded-xl">
+            <TrendingDown className="w-10 h-10 text-slate-700 mx-auto mb-3" />
+            <p className="text-sm text-slate-500">Aucune dépense enregistrée pour le moment.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-slate-400 border-collapse">
+              <thead>
+                <tr className="border-b border-slate-800 text-slate-500 text-xs uppercase font-bold">
+                  <th className="py-2.5">Date</th>
+                  <th className="py-2.5">Motif</th>
+                  <th className="py-2.5 text-right">Montant</th>
+                  <th className="py-2.5 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/50">
+                {shopDepenses.map(d => (
+                  <tr key={d.id} className="hover:bg-slate-850/20 group">
+                    <td className="py-3 text-xs text-slate-500 font-mono">{new Date(d.date).toLocaleDateString('fr-FR')}</td>
+                    <td className="py-3 text-slate-200">
+                      <div className="font-medium">{d.motif}</div>
+                      {d.notes && <div className="text-[10px] text-slate-500 mt-0.5">{d.notes}</div>}
+                    </td>
+                    <td className="py-3 text-right font-mono font-bold text-red-400">{fmt(d.montant)}</td>
+                    <td className="py-3 text-center">
+                      <button
+                        onClick={async () => {
+                          if (window.confirm("Voulez-vous vraiment supprimer cette dépense ?")) {
+                            try {
+                              await deleteDepense(d.id);
+                              toast('Dépense supprimée.', 'success');
+                            } catch (e) {
+                              toast(e.message);
+                            }
+                          }
+                        }}
+                        className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/5 rounded-lg transition-all"
+                        title="Supprimer la dépense"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

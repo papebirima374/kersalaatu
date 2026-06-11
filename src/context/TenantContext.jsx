@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { db, auth, storage, isConfigured } from '../firebase/config';
+import { db, auth, storage, isConfigured, app } from '../firebase/config';
+import { initializeApp, deleteApp } from 'firebase/app';
 import {
   collection,
   doc,
@@ -17,7 +18,8 @@ import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  getAuth
 } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -79,6 +81,18 @@ export const TenantProvider = ({ children }) => {
 
   const [activeStorefrontBoutiqueId, setActiveStorefrontBoutiqueId] = useState(null);
 
+  const [caissiers, setCaissiers] = useState(() => {
+    if (isConfigured) return [];
+    const local = localStorage.getItem('ks_caissiers');
+    return local ? JSON.parse(local) : [];
+  });
+
+  const [depenses, setDepenses] = useState(() => {
+    if (isConfigured) return [];
+    const local = localStorage.getItem('ks_depenses');
+    return local ? JSON.parse(local) : [];
+  });
+
   // true tant que Firebase n'a pas résolu l'état d'auth (évite la page blanche)
   const [authReady, setAuthReady] = useState(!isConfigured);
   // true quand Firestore a répondu au moins une fois (évite "Boutique Introuvable" au refresh)
@@ -107,6 +121,14 @@ export const TenantProvider = ({ children }) => {
   }, [upgradeRequests]);
 
   useEffect(() => {
+    if (!isConfigured) localStorage.setItem('ks_caissiers', JSON.stringify(caissiers));
+  }, [caissiers]);
+
+  useEffect(() => {
+    if (!isConfigured) localStorage.setItem('ks_depenses', JSON.stringify(depenses));
+  }, [depenses]);
+
+  useEffect(() => {
     localStorage.setItem('ks_current_merchant_id', currentMerchantBoutiqueId);
   }, [currentMerchantBoutiqueId]);
 
@@ -121,13 +143,21 @@ export const TenantProvider = ({ children }) => {
   // Firebase auth state listener
   useEffect(() => {
     if (!isConfigured) return;
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        // Le compte est-il un CAISSIER ? (requête authentifiée — règles signedIn OK)
+        let cashier = null;
+        try {
+          const snap = await getDocs(query(collection(db, 'caissiers'), where('email', '==', (user.email || '').toLowerCase())));
+          if (snap.docs.length > 0) cashier = snap.docs[0].data();
+        } catch { /* pas caissier / lecture impossible : marchand normal */ }
         setMerchantUser({
           uid: user.uid,
           email: user.email,
-          displayName: user.displayName || user.email.split('@')[0]
+          displayName: cashier?.nom || user.displayName || user.email.split('@')[0],
+          ...(cashier ? { role: 'caissier', boutiqueId: cashier.boutiqueId } : {})
         });
+        if (cashier?.boutiqueId) setCurrentMerchantBoutiqueId(cashier.boutiqueId);
       } else {
         setMerchantUser(null);
         setOrders([]);
@@ -226,6 +256,16 @@ export const TenantProvider = ({ children }) => {
       setUpgradeRequests(data);
     }, err => console.error('upgradeRequests listener:', err)));
 
+    unsubs.push(onSnapshot(collection(db, 'caissiers'), snap => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setCaissiers(data);
+    }, err => console.error('caissiers listener:', err)));
+
+    unsubs.push(onSnapshot(collection(db, 'depenses'), snap => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setDepenses(data);
+    }, err => console.error('depenses listener:', err)));
+
     return () => unsubs.forEach(u => u());
   }, [merchantUser?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -304,6 +344,12 @@ export const TenantProvider = ({ children }) => {
     if (options.linkExistingAccount && newBoutique.ownerEmail) {
       // Réutilise le compte du marchand : même uid que sa boutique existante
       const sibling = boutiques.find(b => normEmail(b.ownerEmail) === normEmail(newBoutique.ownerEmail));
+      if (sibling) {
+        const siblingPlan = sibling.abonnement?.plan || 'Découverte';
+        if (siblingPlan !== 'Premium' && siblingPlan !== 'Premium VIP') {
+          throw new Error(`La liaison de plusieurs boutiques au même compte est réservée aux abonnements Premium VIP. La boutique existante « ${sibling.name} » est actuellement sous le forfait ${siblingPlan === 'Premium' ? 'Premium VIP' : (siblingPlan === 'Pro' ? 'SaaS Pro' : siblingPlan)}.`);
+        }
+      }
       ownerUid = sibling?.ownerUid || `existing-${newBoutique.ownerEmail.replace(/[^a-z0-9]/g, '')}`;
     } else if (isConfigured && newBoutique.ownerEmail && password) {
       try {
@@ -852,26 +898,48 @@ export const TenantProvider = ({ children }) => {
   };
 
   const loginMerchant = async (email, password) => {
+    const cleanEmail = email.trim().toLowerCase();
+
     if (isConfigured) {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // Marchands ET caissiers sont de VRAIS comptes Firebase Auth :
+      // connexion d'abord, puis détection du rôle (requête authentifiée).
+      const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
       const user = userCredential.user;
+      let cashier = null;
+      try {
+        const snap = await getDocs(query(collection(db, 'caissiers'), where('email', '==', cleanEmail)));
+        if (snap.docs.length > 0) cashier = snap.docs[0].data();
+      } catch { /* marchand normal */ }
       const loggedUser = {
         uid: user.uid,
         email: user.email,
-        displayName: user.displayName || user.email.split('@')[0]
+        displayName: cashier?.nom || user.displayName || user.email.split('@')[0],
+        ...(cashier ? { role: 'caissier', boutiqueId: cashier.boutiqueId } : {})
       };
       setMerchantUser(loggedUser);
-      return loggedUser;
-    } else {
-      // Simulation mode
-      const loggedUser = {
-        uid: `simulated-${email.replace(/[^a-z0-9]/g, '')}`,
-        email: email,
-        displayName: email.split('@')[0]
-      };
-      setMerchantUser(loggedUser);
+      if (cashier?.boutiqueId) setCurrentMerchantBoutiqueId(cashier.boutiqueId);
       return loggedUser;
     }
+
+    // Mode démo local : caissier simulé (localStorage), sinon marchand simulé
+    const cashierDoc = caissiers.find(c => c.email.trim().toLowerCase() === cleanEmail);
+    if (cashierDoc) {
+      if (cashierDoc.password !== password) throw new Error('Mot de passe caissier incorrect.');
+      const loggedUser = {
+        uid: cashierDoc.id, email: cashierDoc.email, displayName: cashierDoc.nom,
+        role: 'caissier', boutiqueId: cashierDoc.boutiqueId
+      };
+      setMerchantUser(loggedUser);
+      setCurrentMerchantBoutiqueId(cashierDoc.boutiqueId);
+      return loggedUser;
+    }
+    const loggedUser = {
+      uid: `simulated-${email.replace(/[^a-z0-9]/g, '')}`,
+      email: email,
+      displayName: email.split('@')[0]
+    };
+    setMerchantUser(loggedUser);
+    return loggedUser;
   };
 
   const signupMerchant = async (email, password, boutiqueName, whatsapp) => {
@@ -949,6 +1017,8 @@ export const TenantProvider = ({ children }) => {
     setOrders([]);
     setTickets([]);
     setUpgradeRequests([]);
+    setCaissiers([]);
+    setDepenses([]);
     localStorage.removeItem('ks_merchant_user');
   };
 
@@ -996,7 +1066,92 @@ export const TenantProvider = ({ children }) => {
       upgradeRequests,
       createUpgradeRequest,
       approveUpgradeRequest,
-      rejectUpgradeRequest
+      rejectUpgradeRequest,
+      caissiers,
+      depenses,
+      addCaissier: async (caissier) => {
+        const b = boutiques.find(x => x.id === caissier.boutiqueId);
+        const plan = b?.abonnement?.plan || 'Découverte';
+        const activeCount = caissiers.filter(c => c.boutiqueId === caissier.boutiqueId).length;
+        if (plan === 'Découverte') {
+          throw new Error("Le forfait Découverte ne permet pas d'ajouter des caissiers.");
+        }
+        if ((plan === 'Pro' || plan === 'SaaS Pro') && activeCount >= 1) {
+          throw new Error("Le forfait SaaS Pro est limité à un seul caissier. Veuillez passer au forfait Premium VIP pour ajouter plusieurs caissiers.");
+        }
+        const cleanEmail = caissier.email.trim().toLowerCase();
+        const emailDup = caissiers.find(c => c.email.trim().toLowerCase() === cleanEmail);
+        if (emailDup) {
+          throw new Error("Cette adresse e-mail est déjà attribuée à un caissier.");
+        }
+        if ((caissier.password || '').length < 6) {
+          throw new Error('Le mot de passe doit contenir au moins 6 caractères.');
+        }
+
+        // VRAI compte Firebase Auth, créé via une app secondaire pour ne pas
+        // déconnecter le marchand. Le mot de passe n'est JAMAIS stocké en base.
+        let uid = `caissier-${Date.now()}`;
+        if (isConfigured) {
+          const secApp = initializeApp(app.options, `caissier-${Date.now()}`);
+          try {
+            const secAuth = getAuth(secApp);
+            const cred = await createUserWithEmailAndPassword(secAuth, cleanEmail, caissier.password);
+            uid = cred.user.uid;
+            await signOut(secAuth);
+          } catch (err) {
+            if (err.code === 'auth/email-already-in-use') throw new Error('Cet e-mail est déjà utilisé par un autre compte.');
+            if (err.code === 'auth/weak-password') throw new Error('Mot de passe trop faible (6 caractères minimum).');
+            if (err.code === 'auth/invalid-email') throw new Error('Adresse e-mail invalide.');
+            throw err;
+          } finally {
+            deleteApp(secApp).catch(() => {});
+          }
+        }
+
+        const newCaissier = {
+          id: uid,
+          nom: caissier.nom,
+          email: cleanEmail,
+          boutiqueId: caissier.boutiqueId,
+          dateCreation: new Date().toISOString(),
+          // mode démo local uniquement : mot de passe simulé (jamais en production)
+          ...(isConfigured ? {} : { password: caissier.password })
+        };
+        setCaissiers(prev => [newCaissier, ...prev]);
+        if (isConfigured) {
+          await setDoc(doc(db, 'caissiers', newCaissier.id), newCaissier);
+        }
+        return newCaissier;
+      },
+      deleteCaissier: async (caissierId) => {
+        setCaissiers(prev => prev.filter(c => c.id !== caissierId));
+        if (isConfigured) {
+          await deleteDoc(doc(db, 'caissiers', caissierId));
+        }
+      },
+      addDepense: async (depense) => {
+        const b = boutiques.find(x => x.id === depense.boutiqueId);
+        const plan = b?.abonnement?.plan || 'Découverte';
+        if (plan !== 'Premium' && plan !== 'Premium VIP') {
+          throw new Error("La gestion des dépenses est réservée aux boutiques Premium VIP.");
+        }
+        const newDepense = {
+          id: `depense-${Date.now()}`,
+          ...depense,
+          dateCreation: new Date().toISOString()
+        };
+        setDepenses(prev => [newDepense, ...prev]);
+        if (isConfigured) {
+          await setDoc(doc(db, 'depenses', newDepense.id), newDepense);
+        }
+        return newDepense;
+      },
+      deleteDepense: async (depenseId) => {
+        setDepenses(prev => prev.filter(d => d.id !== depenseId));
+        if (isConfigured) {
+          await deleteDoc(doc(db, 'depenses', depenseId));
+        }
+      }
     }}>
       {children}
     </TenantContext.Provider>

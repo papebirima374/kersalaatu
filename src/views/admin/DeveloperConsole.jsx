@@ -176,7 +176,7 @@ export default function DeveloperConsole() {
   // Create boutique modal
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newBoutiqueForm, setNewBoutiqueForm] = useState({
-    name: '', whatsapp: '', description: '', ownerEmail: '', password: '', plan: 'Pro', couleurMarque: '#2563eb',
+    name: '', whatsapp: '', description: '', ownerEmail: '', password: '', plan: 'SaaS Pro', couleurMarque: '#2563eb',
     devise: 'FCFA', linkExisting: false, copyProducts: false
   });
 
@@ -229,7 +229,7 @@ export default function DeveloperConsole() {
       }
 
       setShowCreateModal(false);
-      setNewBoutiqueForm({ name:'', whatsapp:'', description:'', ownerEmail:'', password:'', plan:'Pro', couleurMarque:'#2563eb', devise:'FCFA', linkExisting:false, copyProducts:false });
+      setNewBoutiqueForm({ name:'', whatsapp:'', description:'', ownerEmail:'', password:'', plan:'SaaS Pro', couleurMarque:'#2563eb', devise:'FCFA', linkExisting:false, copyProducts:false });
       toast(linking
         ? `Boutique créée et liée au compte ${ownerEmail} ✓${copied ? `\n${copied} produit(s) copiés depuis « ${siblingBoutique.name} ».` : ''}\nLe marchand la verra dans son sélecteur de boutiques.`
         : `Boutique créée !\n\nIdentifiants du marchand :\nEmail : ${ownerEmail}\nMot de passe : ${tempPassword}`, 'success', 12000);
@@ -338,8 +338,8 @@ export default function DeveloperConsole() {
   const pendingUpgrades = upgradeRequests.filter(r => r.statut === 'En attente').length;
   const platformMRR = boutiques.reduce((sum, b) => {
     if (b.abonnement?.statut !== 'Actif') return sum;
-    if (b.abonnement?.plan === 'Pro') return sum + 5000;
-    if (b.abonnement?.plan === 'Premium') return sum + 15000;
+    if (b.abonnement?.plan === 'Pro' || b.abonnement?.plan === 'SaaS Pro') return sum + 5000;
+    if (b.abonnement?.plan === 'Premium' || b.abonnement?.plan === 'Premium VIP') return sum + 10000;
     return sum;
   }, 0);
 
@@ -357,7 +357,7 @@ export default function DeveloperConsole() {
 
   // ── Abonnements / mensualités ────────────────────────────────────────
   const DAY_MS = 86400000;
-  const PLAN_PRICE = { Pro: 5000, Premium: 15000 };
+  const PLAN_PRICE = { Pro: 5000, 'SaaS Pro': 5000, Premium: 10000, 'Premium VIP': 10000 };
   // Renvoie l'état d'abonnement d'une boutique
   const subInfo = (b) => {
     const plan = b.abonnement?.plan || 'Découverte';
@@ -845,13 +845,13 @@ export default function DeveloperConsole() {
                               </td>
                               <td className="py-3 px-4">
                                 <select
-                                  value={b.abonnement?.plan || 'Découverte'}
+                                  value={b.abonnement?.plan === 'Pro' ? 'SaaS Pro' : (b.abonnement?.plan === 'Premium' ? 'Premium VIP' : (b.abonnement?.plan || 'Découverte'))}
                                   onChange={e => handlePlanChange(b.id, e.target.value)}
                                   className="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 font-semibold focus:outline-none focus:border-blue-500 cursor-pointer"
                                 >
                                   <option value="Découverte">Découverte · gratuit</option>
-                                  <option value="Pro">Pro · 5 000</option>
-                                  <option value="Premium">Premium · 15 000</option>
+                                  <option value="SaaS Pro">SaaS Pro · 5 000</option>
+                                  <option value="Premium VIP">Premium VIP · 10 000</option>
                                 </select>
                               </td>
                               <td className="py-3 px-4">
@@ -957,13 +957,13 @@ export default function DeveloperConsole() {
 
                           <div className="flex items-center justify-between text-xs border-t border-slate-800/60 pt-2.5">
                             <select
-                              value={b.abonnement?.plan || 'Découverte'}
+                              value={b.abonnement?.plan === 'Pro' ? 'SaaS Pro' : (b.abonnement?.plan === 'Premium' ? 'Premium VIP' : (b.abonnement?.plan || 'Découverte'))}
                               onChange={e => handlePlanChange(b.id, e.target.value)}
                               className="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-[10px] text-slate-200 font-semibold focus:outline-none"
                             >
                               <option value="Découverte">Découverte · gratuit</option>
-                              <option value="Pro">Pro · 5 000</option>
-                              <option value="Premium">Premium · 15 000</option>
+                              <option value="SaaS Pro">SaaS Pro · 5 000</option>
+                              <option value="Premium VIP">Premium VIP · 10 000</option>
                             </select>
                             <div className="text-[10px] text-slate-400">
                               {!s.isFree && s.exp ? (
@@ -1168,7 +1168,7 @@ export default function DeveloperConsole() {
                         </div>
                       </div>
 
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${req.planName === 'Premium' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${(req.planName === 'Premium' || req.planName === 'Premium VIP') ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
                         {req.planName}
                       </span>
 
@@ -1265,7 +1265,7 @@ export default function DeveloperConsole() {
       {subModal && (() => {
         const b = subModal;
         const s = subInfo(b);
-        const planNow = (b.abonnement?.plan && b.abonnement.plan !== 'Découverte') ? b.abonnement.plan : 'Pro';
+        const planNow = (b.abonnement?.plan && b.abonnement.plan !== 'Découverte') ? b.abonnement.plan : 'SaaS Pro';
         const paiements = (b.abonnement?.paiements || []).slice().reverse();
         return (
         <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto" onClick={() => setSubModal(null)}>
@@ -1280,7 +1280,7 @@ export default function DeveloperConsole() {
 
             <div className="p-5 space-y-4">
               <div className="text-xs bg-slate-800/60 rounded-lg p-3">
-                <span className="text-slate-400">Forfait : </span><span className="text-slate-200 font-semibold">{b.abonnement?.plan || 'Pro'}</span>
+                <span className="text-slate-400">Forfait : </span><span className="text-slate-200 font-semibold">{b.abonnement?.plan || 'SaaS Pro'}</span>
                 {s.exp && <span className="block text-slate-400 mt-1">Échéance actuelle : <span className={s.expired ? 'text-red-400' : 'text-slate-200'}>{s.exp.toLocaleDateString('fr-FR')}{s.expired ? ' (expiré)' : ` — dans ${s.daysLeft} j`}</span></span>}
               </div>
 
@@ -1461,8 +1461,8 @@ export default function DeveloperConsole() {
                   <select value={newBoutiqueForm.plan} onChange={e => setNewBoutiqueForm({...newBoutiqueForm, plan:e.target.value})}
                     className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 font-semibold focus:border-blue-500 focus:outline-none cursor-pointer">
                     <option value="Découverte">Découverte</option>
-                    <option value="Pro">Pro · 5 000</option>
-                    <option value="Premium">Premium · 15 000</option>
+                    <option value="SaaS Pro">SaaS Pro · 5 000</option>
+                    <option value="Premium VIP">Premium VIP · 10 000</option>
                   </select>
                 </div>
                 <div>

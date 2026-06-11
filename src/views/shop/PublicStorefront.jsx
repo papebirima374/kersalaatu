@@ -52,6 +52,12 @@ export default function PublicStorefront() {
 
   const activeShop = getBoutiqueBySlug(shopSlug);
   const isFreePlan = activeShop && (!activeShop.abonnement?.plan || activeShop.abonnement.plan === 'Découverte');
+  const hasWaveDirectLink = activeShop && activeShop.waveMerchantLink && (
+    activeShop.abonnement?.plan === 'Premium' ||
+    activeShop.abonnement?.plan === 'Premium VIP' ||
+    activeShop.abonnement?.plan === 'Pro' ||
+    activeShop.abonnement?.plan === 'SaaS Pro'
+  );
 
 
   // Produits directement depuis le contexte (réactif aux onSnapshot Firestore)
@@ -1166,7 +1172,7 @@ export default function PublicStorefront() {
                             <div className="flex-1 min-w-0 text-left">
                               <span className={`font-extrabold text-sm block ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>Wave Mobile Money</span>
                               <span className={`text-[10px] block ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                                {activeShop.abonnement?.plan === 'Premium' && activeShop.waveMerchantLink 
+                                {hasWaveDirectLink 
                                   ? 'Paiement direct Wave (frais de 1% inclus).' 
                                   : 'Règlement instantané sécurisé par l\'application Wave.'}
                               </span>
@@ -1214,7 +1220,7 @@ export default function PublicStorefront() {
 
                           {/* Step-by-Step Instructions */}
                           <div className={`space-y-2.5 text-xs leading-relaxed font-sans ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                            {payMethod === 'wave' && activeShop.abonnement?.plan === 'Premium' && activeShop.waveMerchantLink ? (
+                            {payMethod === 'wave' && hasWaveDirectLink ? (
                               <div className="space-y-3.5">
                                 <p className="flex gap-2.5 items-start">
                                   <span className="w-5 h-5 rounded-full bg-sky-500 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">1</span>
@@ -1263,7 +1269,7 @@ export default function PublicStorefront() {
                           </div>
 
                           {/* Beautiful simulated QR Code OR Wave Link info box */}
-                          {payMethod === 'wave' && activeShop.abonnement?.plan === 'Premium' && activeShop.waveMerchantLink ? (
+                          {payMethod === 'wave' && hasWaveDirectLink ? (
                             <div className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-2 text-center relative overflow-hidden group ${darkMode ? 'bg-slate-950/20 border-slate-805' : 'bg-sky-50/50 border-sky-100'}`}>
                               <span className="text-3xl animate-bounce">🌊</span>
                               <h4 className="text-xs font-bold text-sky-600 dark:text-sky-400 uppercase tracking-wider">Lien Wave Généré</h4>
@@ -1331,7 +1337,7 @@ export default function PublicStorefront() {
                           )}
 
                           {/* Account details and user verification */}
-                          {!(payMethod === 'wave' && activeShop.abonnement?.plan === 'Premium' && activeShop.waveMerchantLink) && (
+                          {!(payMethod === 'wave' && hasWaveDirectLink) && (
                             <div className="space-y-3 border-t border-slate-200 pt-4">
                               <div>
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Votre numéro de téléphone payeur</label>
@@ -1400,7 +1406,7 @@ export default function PublicStorefront() {
                       >
                         <MessageSquare className="w-4 h-4" /> Confirmer & Commander sur WhatsApp
                       </button>
-                    ) : payMethod === 'wave' && activeShop.abonnement?.plan === 'Premium' && activeShop.waveMerchantLink ? (
+                    ) : payMethod === 'wave' && hasWaveDirectLink ? (
                       waveOpened ? (
                         <button
                           onClick={() => {
