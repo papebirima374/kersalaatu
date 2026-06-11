@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { toast } from '../components/toast';
 import { useTenant } from '../context/TenantContext';
 import {
   ArrowRight,
@@ -91,13 +92,20 @@ export default function LandingPage() {
       }
     }
 
-    const newShop = addBoutique({
-      name: shopName,
-      description: description || 'Une nouvelle boutique propulsée par Jappandal Tech.',
-      whatsapp: cleanWhatsapp,
-      couleurMarque: color,
-      logo: '🛍️'
-    });
+    let newShop;
+    try {
+      newShop = addBoutique({
+        name: shopName,
+        description: description || 'Une nouvelle boutique propulsée par Jappandal Tech.',
+        whatsapp: cleanWhatsapp,
+        couleurMarque: color,
+        logo: '🛍️'
+      });
+    } catch (err) {
+      // Doublon (numéro déjà utilisé) : on informe et on n'en crée pas une deuxième
+      toast(err.message || 'Impossible de créer la boutique.', 'error', 7000);
+      return;
+    }
 
     // Set as current merchant shop and navigate to merchant console
     setCurrentMerchantBoutiqueId(newShop.id);

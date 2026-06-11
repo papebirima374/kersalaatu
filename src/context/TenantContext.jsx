@@ -238,7 +238,29 @@ export const TenantProvider = ({ children }) => {
     }
   };
 
+  // ─── Anti-doublons : un e-mail / un numéro WhatsApp = UNE seule boutique ───
+  const normPhone = (p) => { const d = String(p || '').replace(/\D/g, ''); return d.startsWith('221') ? d.slice(3) : d; };
+  const normEmail = (e) => String(e || '').trim().toLowerCase();
+  const assertNoDuplicateBoutique = ({ email, whatsapp, excludeId = null }) => {
+    const e = normEmail(email);
+    const p = normPhone(whatsapp);
+    const PLACEHOLDER = 'vendeur@jappandal.sn'; // email générique posé par l'admin : pas un doublon
+    const dup = boutiques.find(b => {
+      if (excludeId && b.id === excludeId) return false;
+      if (e && e !== PLACEHOLDER && normEmail(b.ownerEmail) === e) return true;
+      if (p && (normPhone(b.whatsapp) === p || (b.whatsapp2 && normPhone(b.whatsapp2) === p))) return true;
+      return false;
+    });
+    if (dup) {
+      const byEmail = e && normEmail(dup.ownerEmail) === e;
+      throw new Error(byEmail
+        ? `Un compte existe déjà avec cet e-mail (boutique « ${dup.name} »). Connectez-vous plutôt que de créer un nouveau compte.`
+        : `Une boutique (« ${dup.name} ») utilise déjà ce numéro WhatsApp. Connectez-vous à votre compte existant.`);
+    }
+  };
+
   const addBoutique = (newBoutique) => {
+    assertNoDuplicateBoutique({ email: newBoutique.ownerEmail, whatsapp: newBoutique.whatsapp });
     const boutique = {
       id: `boutique-${Date.now()}`,
       slug: newBoutique.name.toLowerCase().replace(/[^a-z0-9]/g, ''),
@@ -268,6 +290,9 @@ export const TenantProvider = ({ children }) => {
   };
 
   const addBoutiqueWithAuth = async (newBoutique, password) => {
+    // Bloque les doublons (même e-mail propriétaire ou même numéro WhatsApp)
+    assertNoDuplicateBoutique({ email: newBoutique.ownerEmail, whatsapp: newBoutique.whatsapp });
+
     let ownerUid = `admin-created-${Date.now()}`;
     
     if (isConfigured && newBoutique.ownerEmail && password) {
@@ -829,6 +854,9 @@ export const TenantProvider = ({ children }) => {
         cleanWhatsapp = '+221' + cleanWhatsapp;
       }
     }
+
+    // Bloque les comptes en double (même e-mail ou même numéro WhatsApp)
+    assertNoDuplicateBoutique({ email, whatsapp: cleanWhatsapp });
 
     let newUser;
     if (isConfigured) {

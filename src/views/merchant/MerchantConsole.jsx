@@ -536,6 +536,7 @@ function MerchantDashboard() {
     name: activeBoutique?.name || '',
     description: activeBoutique?.description || '',
     whatsapp: activeBoutique?.whatsapp || '',
+    whatsapp2: activeBoutique?.whatsapp2 || '',
     couleurMarque: activeBoutique?.couleurMarque || '#2563eb',
     logo: activeBoutique?.logo || '🛍️',
     adresse: activeBoutique?.adresse || '',
@@ -557,6 +558,7 @@ function MerchantDashboard() {
         name: activeBoutique.name || '',
         description: activeBoutique.description || '',
         whatsapp: activeBoutique.whatsapp || '',
+        whatsapp2: activeBoutique.whatsapp2 || '',
         couleurMarque: activeBoutique.couleurMarque || '#2563eb',
         logo: activeBoutique.logo || '🛍️',
         adresse: activeBoutique.adresse || '',
@@ -856,6 +858,9 @@ function MerchantDashboard() {
 
   const handleSettingsSubmit = (e) => {
     e.preventDefault();
+    if (!String(settingsForm.whatsapp || '').trim()) {
+      toast('Le numéro WhatsApp principal est obligatoire.'); return;
+    }
     updateBoutique(activeBoutique.id, settingsForm);
     setSettingsSaved(true);
     setTimeout(() => setSettingsSaved(false), 3000);
@@ -1262,6 +1267,7 @@ function MerchantDashboard() {
                 name: b.name || '',
                 description: b.description || '',
                 whatsapp: b.whatsapp || '',
+                whatsapp2: b.whatsapp2 || '',
                 couleurMarque: b.couleurMarque || '#2563eb',
                 logo: b.logo || '🛍️',
                 adresse: b.adresse || '',
@@ -2426,7 +2432,8 @@ function MerchantDashboard() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {[
                       {label:'Nom de la boutique', key:'name', type:'text'},
-                      {label:'WhatsApp', key:'whatsapp', type:'text'},
+                      {label:'WhatsApp principal (obligatoire)', key:'whatsapp', type:'text'},
+                      {label:'2e numéro WhatsApp (optionnel)', key:'whatsapp2', type:'text'},
                       {label:'Adresse physique', key:'adresse', type:'text'},
                       {label:'Email de contact', key:'emailContact', type:'email'},
                       {label:'Instagram (@compte)', key:'instagram', type:'text'},
