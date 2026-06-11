@@ -6,10 +6,28 @@ import { Toaster } from './components/toast';
 import PullToRefresh from './PullToRefresh';
 import ScrollToTop from './ScrollToTop';
 
-const LandingPage = lazy(() => import('./views/LandingPage'));
-const MerchantConsole = lazy(() => import('./views/merchant/MerchantConsole'));
-const PublicStorefront = lazy(() => import('./views/shop/PublicStorefront'));
-const DeveloperConsole = lazy(() => import('./views/admin/DeveloperConsole'));
+// Après un déploiement, les fichiers de l'ancienne version n'existent plus :
+// si un onglet resté ouvert tente de charger une page, l'import échoue
+// (« Failed to fetch dynamically imported module »). On recharge alors la page
+// UNE fois automatiquement pour récupérer la nouvelle version.
+const lazyReload = (importer) => lazy(() =>
+  importer().then((m) => {
+    sessionStorage.removeItem('jp_chunk_reload');
+    return m;
+  }).catch((err) => {
+    if (!sessionStorage.getItem('jp_chunk_reload')) {
+      sessionStorage.setItem('jp_chunk_reload', '1');
+      window.location.reload();
+      return new Promise(() => {}); // bloque le rendu le temps du rechargement
+    }
+    throw err;
+  })
+);
+
+const LandingPage = lazyReload(() => import('./views/LandingPage'));
+const MerchantConsole = lazyReload(() => import('./views/merchant/MerchantConsole'));
+const PublicStorefront = lazyReload(() => import('./views/shop/PublicStorefront'));
+const DeveloperConsole = lazyReload(() => import('./views/admin/DeveloperConsole'));
 
 function App() {
   return (

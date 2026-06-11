@@ -1095,14 +1095,28 @@ export const TenantProvider = ({ children }) => {
           const secApp = initializeApp(app.options, `caissier-${Date.now()}`);
           try {
             const secAuth = getAuth(secApp);
-            const cred = await createUserWithEmailAndPassword(secAuth, cleanEmail, caissier.password);
-            uid = cred.user.uid;
+            try {
+              const cred = await createUserWithEmailAndPassword(secAuth, cleanEmail, caissier.password);
+              uid = cred.user.uid;
+            } catch (err) {
+              if (err.code === 'auth/email-already-in-use') {
+                // Compte déjà créé (ex. tentative précédente interrompue) : si le
+                // mot de passe fourni est le bon, on RÉCUPÈRE le compte et on le lie.
+                try {
+                  const cred = await signInWithEmailAndPassword(secAuth, cleanEmail, caissier.password);
+                  uid = cred.user.uid;
+                } catch {
+                  throw new Error('Cet e-mail est déjà utilisé par un autre compte. (Si c’est un caissier créé précédemment, ressaisis exactement le même mot de passe pour le récupérer.)');
+                }
+              } else if (err.code === 'auth/weak-password') {
+                throw new Error('Mot de passe trop faible (6 caractères minimum).');
+              } else if (err.code === 'auth/invalid-email') {
+                throw new Error('Adresse e-mail invalide.');
+              } else {
+                throw err;
+              }
+            }
             await signOut(secAuth);
-          } catch (err) {
-            if (err.code === 'auth/email-already-in-use') throw new Error('Cet e-mail est déjà utilisé par un autre compte.');
-            if (err.code === 'auth/weak-password') throw new Error('Mot de passe trop faible (6 caractères minimum).');
-            if (err.code === 'auth/invalid-email') throw new Error('Adresse e-mail invalide.');
-            throw err;
           } finally {
             deleteApp(secApp).catch(() => {});
           }
@@ -1117,10 +1131,17 @@ export const TenantProvider = ({ children }) => {
           // mode démo local uniquement : mot de passe simulé (jamais en production)
           ...(isConfigured ? {} : { password: caissier.password })
         };
-        setCaissiers(prev => [newCaissier, ...prev]);
         if (isConfigured) {
-          await setDoc(doc(db, 'caissiers', newCaissier.id), newCaissier);
+          try {
+            await setDoc(doc(db, 'caissiers', newCaissier.id), newCaissier);
+          } catch (err) {
+            if (err.code === 'permission-denied') {
+              throw new Error('Enregistrement refusé par la base : les règles Firestore doivent être republiées (fichier firestore.rules → Console Firebase → Règles → Publier).');
+            }
+            throw err;
+          }
         }
+        setCaissiers(prev => [newCaissier, ...prev]);
         return newCaissier;
       },
       deleteCaissier: async (caissierId) => {

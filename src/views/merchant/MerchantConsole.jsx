@@ -3271,176 +3271,186 @@ function MerchantDashboard() {
 }
 
 function CaissiersTab({ plan, activeBoutique, caissiers, addCaissier, deleteCaissier }) {
+  const [showModal, setShowModal] = useState(false);
   const [nom, setNom] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [lastCreated, setLastCreated] = useState(null); // identifiants à partager
 
   const shopCaissiers = caissiers.filter(c => c.boutiqueId === activeBoutique.id);
   const limit = (plan === 'Pro' || plan === 'SaaS Pro') ? 1 : (plan === 'Premium VIP' || plan === 'Premium') ? Infinity : 0;
   const isLimitReached = shopCaissiers.length >= limit;
 
+  const openModal = () => {
+    if (isLimitReached) {
+      toast(limit === 1
+        ? 'Le forfait SaaS Pro est limité à 1 caissier. Passez au Premium VIP pour en ajouter plusieurs.'
+        : 'Limite de caissiers atteinte pour votre forfait.');
+      return;
+    }
+    setNom(''); setEmail(''); setPassword(''); setError('');
+    setShowModal(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (!nom.trim() || !email.trim() || !password.trim()) { setError('Tous les champs sont obligatoires.'); return; }
+    if (password.trim().length < 6) { setError('Le mot de passe doit contenir au moins 6 caractères.'); return; }
     setLoading(true);
-
-    if (isLimitReached) {
-      setError(`Limite de caissiers atteinte pour votre forfait (${limit} max).`);
-      setLoading(false);
-      return;
-    }
-
     try {
-      await addCaissier({
+      const created = await addCaissier({
         nom: nom.trim(),
         email: email.trim().toLowerCase(),
         password: password.trim(),
         boutiqueId: activeBoutique.id
       });
-      setNom('');
-      setEmail('');
-      setPassword('');
-      toast('Caissier ajouté avec succès !', 'success');
+      setLastCreated({ nom: created.nom, email: created.email, password: password.trim() });
+      setShowModal(false);
+      toast(`Caissier « ${created.nom} » créé ✓`, 'success');
     } catch (err) {
-      setError(err.message || "Une erreur est survenue lors de l'ajout.");
+      setError(err.message || 'Erreur lors de la création du caissier.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 max-w-6xl">
-      {/* Formulaire d'ajout */}
-      <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Users className="w-5 h-5 text-blue-500" />
-          <h3 className="font-bold text-white text-base">Ajouter un Caissier</h3>
+    <div className="space-y-4">
+      {/* En-tête + bouton Nouveau caissier */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="font-bold text-white flex items-center gap-2"><Users className="w-4 h-4 text-blue-400" /> Caissiers</h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {limit === Infinity
+              ? `${shopCaissiers.length} compte(s) — illimité avec Premium VIP`
+              : `${shopCaissiers.length}/${limit} compte inclus dans votre forfait`}
+            {' · '}accès Caisse + Commandes uniquement, annulation soumise à votre accord.
+          </p>
         </div>
-        
-        {plan === 'Découverte' ? (
-          <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-sm">
-            La gestion des caissiers n'est pas disponible sous le forfait Découverte. Veuillez mettre à jour votre abonnement.
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
-                {error}
-              </div>
-            )}
-            
-            <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5">Nom complet</label>
-              <input
-                required
-                type="text"
-                value={nom}
-                onChange={e => setNom(e.target.value)}
-                placeholder="Ex: Babacar Ndiaye"
-                className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none transition-colors"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5">Adresse email de connexion</label>
-              <input
-                required
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="nom.caissier@jappandal.sn"
-                className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none transition-colors"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5">Mot de passe</label>
-              <input
-                required
-                type="text"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Saisir un mot de passe sécurisé"
-                className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none transition-colors font-mono"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading || isLimitReached}
-              className="w-full py-3 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                  Ajout en cours...
-                </>
-              ) : (
-                'Enregistrer le Caissier'
-              )}
-            </button>
-
-            {isLimitReached && (
-              <p className="text-xs text-amber-400/80 mt-2">
-                ⚠️ Limite de caissiers atteinte pour votre forfait actuel ({limit} max).
-              </p>
-            )}
-          </form>
-        )}
+        <button onClick={openModal}
+          className={`px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${
+            isLimitReached
+              ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
+              : 'bg-blue-500 hover:bg-blue-400 text-slate-950'
+          }`}>
+          <Plus className="w-4 h-4" /> Nouveau caissier
+        </button>
       </div>
+
+      {/* Identifiants du dernier caissier créé (à transmettre) */}
+      {lastCreated && (
+        <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-sm">
+              <p className="font-bold text-emerald-300">Identifiants à transmettre à {lastCreated.nom} :</p>
+              <p className="text-slate-300 mt-1 font-mono text-xs">E-mail : {lastCreated.email}</p>
+              <p className="text-slate-300 font-mono text-xs">Mot de passe : {lastCreated.password}</p>
+              <p className="text-[11px] text-slate-500 mt-1.5">Connexion sur jappandal.com → « Accès Marchand » avec ces identifiants.</p>
+            </div>
+            <div className="flex flex-col gap-1.5 shrink-0">
+              <button
+                onClick={() => { try { navigator.clipboard?.writeText(`Connexion caissier — ${activeBoutique.name}\nLien : ${window.location.origin}/marchand\nE-mail : ${lastCreated.email}\nMot de passe : ${lastCreated.password}`); toast('Identifiants copiés ✓', 'success'); } catch { /* */ } }}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 text-slate-950 hover:bg-emerald-400 transition-colors">
+                Copier
+              </button>
+              <button onClick={() => setLastCreated(null)} className="px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white border border-slate-700">Fermer</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Liste des caissiers */}
-      <div className="lg:col-span-3 bg-slate-900 border border-slate-800 rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="font-bold text-white text-base">Comptes Caissier Actifs</h3>
-          <span className="text-xs font-medium px-2.5 py-1 bg-slate-800 border border-slate-700 text-slate-400 rounded-full font-mono">
-            {shopCaissiers.length} {limit !== Infinity ? `/ ${limit}` : ''}
-          </span>
+      {shopCaissiers.length === 0 ? (
+        <div className="bg-slate-900 border border-dashed border-slate-700 rounded-xl py-14 text-center">
+          <Users className="w-10 h-10 text-slate-700 mx-auto mb-3" />
+          <p className="text-slate-400 font-semibold">Aucun caissier pour cette boutique</p>
+          <p className="text-xs text-slate-600 mt-1 max-w-sm mx-auto">
+            Créez un compte caissier : il pourra encaisser les ventes et gérer les commandes,
+            sans accès à vos produits, réglages ou statistiques.
+          </p>
+          <button onClick={openModal}
+            className="mt-4 px-4 py-2.5 rounded-xl text-sm font-bold bg-blue-500 hover:bg-blue-400 text-slate-950 inline-flex items-center gap-2">
+            <Plus className="w-4 h-4" /> Nouveau caissier
+          </button>
         </div>
+      ) : (
+        <div className="space-y-3">
+          {shopCaissiers.map(c => (
+            <div key={c.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 font-bold shrink-0">
+                {String(c.nom || 'C').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-slate-200 truncate">{c.nom}</p>
+                <p className="text-xs text-slate-500 truncate font-mono">{c.email}</p>
+                {c.dateCreation && <p className="text-[10px] text-slate-600 mt-0.5">Créé le {new Date(c.dateCreation).toLocaleDateString('fr-FR')}</p>}
+              </div>
+              <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Actif</span>
+              <button
+                onClick={() => {
+                  if (confirm(`Retirer le caissier « ${c.nom} » ?\n\nIl ne pourra plus accéder à la caisse de votre boutique.`)) {
+                    deleteCaissier(c.id);
+                    toast(`Caissier « ${c.nom} » retiré.`, 'success');
+                  }
+                }}
+                title="Retirer ce caissier"
+                className="shrink-0 px-2.5 py-2 rounded-lg bg-red-500/5 text-red-400 border border-red-500/10 hover:bg-red-500 hover:text-slate-950 transition-all">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
-        {shopCaissiers.length === 0 ? (
-          <div className="text-center py-12 border border-dashed border-slate-800 rounded-xl">
-            <Users className="w-10 h-10 text-slate-700 mx-auto mb-3" />
-            <p className="text-sm text-slate-500">Aucun caissier enregistré pour cette boutique.</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {shopCaissiers.map(c => (
-              <div key={c.id} className="flex items-center justify-between p-4 bg-slate-800/40 border border-slate-800 rounded-xl group hover:border-slate-700 transition-colors">
-                <div className="min-w-0">
-                  <p className="font-semibold text-slate-200 text-sm truncate">{c.nom}</p>
-                  <p className="text-xs text-slate-500 font-mono truncate">{c.email}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold uppercase tracking-wider">Caissier</span>
-                    <span className="text-[10px] text-slate-500 font-mono">MDP: {c.password}</span>
-                  </div>
-                </div>
-                <button
-                  onClick={async () => {
-                    if (window.confirm(`Voulez-vous vraiment supprimer le compte caissier de ${c.nom} ?`)) {
-                      try {
-                        await deleteCaissier(c.id);
-                        toast('Compte caissier supprimé.', 'success');
-                      } catch (e) {
-                        toast(e.message);
-                      }
-                    }
-                  }}
-                  className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/5 rounded-lg transition-all"
-                  title="Supprimer le caissier"
-                >
-                  <Trash2 className="w-4 h-4" />
+      {/* Modal Nouveau caissier */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => !loading && setShowModal(false)}>
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-white flex items-center gap-2"><Users className="w-4 h-4 text-blue-400" /> Nouveau caissier</h3>
+              <button onClick={() => !loading && setShowModal(false)} className="text-slate-500 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-3">
+              {error && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs">{error}</div>}
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Nom complet</label>
+                <input required value={nom} onChange={e => setNom(e.target.value)} placeholder="Ex : Caisse 1 — Awa"
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">E-mail de connexion</label>
+                <input required type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="caisse1@maboutique.sn"
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Mot de passe (min. 6 caractères)</label>
+                <input required type="text" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••"
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 font-mono focus:border-blue-500 focus:outline-none" />
+              </div>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Le caissier n'aura accès qu'à la <b className="text-slate-300">Caisse</b> et aux <b className="text-slate-300">Commandes</b>.
+                Toute annulation devra être approuvée par vous.
+              </p>
+              <div className="flex gap-2 pt-1">
+                <button type="button" disabled={loading} onClick={() => setShowModal(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-400 hover:text-white text-sm font-medium transition-colors">Annuler</button>
+                <button type="submit" disabled={loading}
+                  className="flex-1 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:opacity-60 text-slate-950 font-bold text-sm transition-all flex items-center justify-center gap-2">
+                  {loading ? <span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" /> : <Plus className="w-4 h-4" />}
+                  Créer le compte
                 </button>
               </div>
-            ))}
+            </form>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
+
 
 function DepensesTab({ activeBoutique, depenses, addDepense, deleteDepense, fmt }) {
   const [motif, setMotif] = useState('');
