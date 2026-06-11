@@ -1,4 +1,5 @@
 import { toast } from '../../components/toast';
+import { thumb, fallbackSrc } from '../../utils/img';
 import QRCode from 'qrcode';
 import { unlockAudio, playOrderSound, requestNotifPermission, showOrderNotification } from '../../notify';
 import React, { useState, useRef } from 'react';
@@ -38,7 +39,8 @@ const proxiedImg = (url) =>
 // Objectif : les photos de téléphone (souvent 3-5 Mo) deviennent de petits
 // fichiers (< 512 px), donc l'upload ne peut plus échouer à cause de la taille,
 // et le logo reste léger (affichage rapide + aperçu de lien fiable).
-const compressImage = (file, maxDim = 512) =>
+// mime 'image/png' (logos : transparence) ou 'image/jpeg' (photos : ~10x plus léger).
+const compressImage = (file, maxDim = 512, mime = 'image/png', quality = 0.92) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('Lecture du fichier impossible.'));
@@ -54,12 +56,14 @@ const compressImage = (file, maxDim = 512) =>
         }
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        // PNG : conserve la transparence des logos de marque.
+        const ctx = canvas.getContext('2d');
+        if (mime === 'image/jpeg') { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h); } // fond blanc (JPEG sans alpha)
+        ctx.drawImage(img, 0, 0, w, h);
+        const ext = mime === 'image/jpeg' ? 'jpg' : 'png';
         canvas.toBlob((blob) => {
           if (!blob) { reject(new Error('Compression de l’image échouée.')); return; }
-          resolve(new File([blob], 'logo.png', { type: 'image/png' }));
-        }, 'image/png');
+          resolve(new File([blob], `photo.${ext}`, { type: mime }));
+        }, mime, quality);
       };
       img.src = reader.result;
     };
@@ -677,10 +681,11 @@ function MerchantDashboard() {
   const handleVariantPhoto = async (index, e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { toast('Image trop lourde (max 5 Mo).'); return; }
+    if (file.size > 15 * 1024 * 1024) { toast('Image trop lourde (max 15 Mo).'); return; }
     setVariantUploading(index);
     try {
-      const url = await uploadProductPhoto(activeBoutique.id, file);
+      const optimized = await compressImage(file, 800, 'image/jpeg', 0.85).catch(() => file);
+      const url = await uploadProductPhoto(activeBoutique.id, optimized);
       setProductForm(p => ({ ...p, variantes: p.variantes.map((v, i) => i === index ? { ...v, photo: url } : v) }));
     } catch (err) {
       toast('Erreur upload image variante : ' + (err.message || ''));
@@ -782,9 +787,9 @@ function MerchantDashboard() {
     if (canAdd <= 0) { toast('Maximum 5 photos atteint.'); return; }
 
     const toProcess = files.slice(0, canAdd);
-    const oversized = toProcess.filter(f => f.size > 5 * 1024 * 1024);
-    if (oversized.length) { toast('Certaines images dépassent 5 Mo et seront ignorées.'); }
-    const validFiles = toProcess.filter(f => f.size <= 5 * 1024 * 1024);
+    const oversized = toProcess.filter(f => f.size > 15 * 1024 * 1024);
+    if (oversized.length) { toast('Certaines images dépassent 15 Mo et seront ignorées.'); }
+    const validFiles = toProcess.filter(f => f.size <= 15 * 1024 * 1024);
     if (!validFiles.length) return;
 
     // Indices des slots en cours d'upload
@@ -794,8 +799,12 @@ function MerchantDashboard() {
 
     try {
       if (isConfigured) {
-        // Upload Firebase Storage en parallèle
-        const urls = await Promise.all(validFiles.map(f => uploadProductPhoto(activeBoutique.id, f)));
+        // Compression côté navigateur (1200 px max, JPEG) PUIS upload Storage en parallèle :
+        // une photo de téléphone de 4 Mo devient ~150-250 Ko → vitrines bien plus rapides.
+        const urls = await Promise.all(validFiles.map(async f => {
+          const optimized = await compressImage(f, 1200, 'image/jpeg', 0.85).catch(() => f);
+          return uploadProductPhoto(activeBoutique.id, optimized);
+        }));
         setProductForm(p => ({ ...p, photos: [...(p.photos || []), ...urls] }));
       } else {
         // Mode local : base64 preview
@@ -1762,7 +1771,7 @@ function MerchantDashboard() {
                   {activeProducts.map(p => (
                     <div key={p.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden hover:border-slate-700 transition-all group flex flex-col">
                       <div className="relative h-28 sm:h-32 bg-slate-800 overflow-hidden shrink-0">
-                        <img src={p.photo} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <img src={thumb(p.photo, 400)} onError={fallbackSrc(p.photo)} alt={p.name} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                         {p.stock === 0 && (
                           <div className="absolute inset-0 bg-slate-950/70 flex items-center justify-center">
                             <span className="text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">Épuisé</span>
@@ -2009,7 +2018,7 @@ function MerchantDashboard() {
                         return (
                           <button key={p.id} onClick={() => addToPos(p)} disabled={inCart?.quantity >= p.stock}
                             className={`text-left rounded-xl border p-3 transition-all cursor-pointer ${inCart ? 'border-blue-500/50 bg-blue-500/5' : 'border-slate-700 bg-slate-800 hover:border-slate-600'} ${inCart?.quantity >= p.stock ? 'opacity-40 cursor-not-allowed' : ''}`}>
-                            <img src={p.photo} alt={p.name} className="w-full h-20 object-cover rounded-lg mb-2 bg-slate-700" />
+                            <img src={thumb(p.photo, 300)} onError={fallbackSrc(p.photo)} alt={p.name} loading="lazy" className="w-full h-20 object-cover rounded-lg mb-2 bg-slate-700" />
                             <p className="text-xs font-semibold text-slate-200 line-clamp-1">{p.name}</p>
                             <p className="text-xs font-bold text-blue-400 mt-1">{fmt(p.price)}</p>
                             {inCart && <span className="text-[10px] text-blue-300">{inCart.quantity} au panier</span>}
@@ -2678,7 +2687,7 @@ function MerchantDashboard() {
                   <div className="grid grid-cols-5 gap-2">
                     {(productForm.photos||[]).map((url, idx) => (
                       <div key={idx} className="relative group">
-                        <img src={url} alt={`Photo ${idx+1}`}
+                        <img src={thumb(url, 300)} onError={fallbackSrc(url)} alt={`Photo ${idx+1}`} loading="lazy"
                           className={`w-full aspect-square object-cover rounded-lg border-2 transition-all ${idx===0 ? 'border-blue-500' : 'border-slate-700'}`} />
                         {/* Badge "principale" */}
                         {idx === 0 && (
@@ -2750,7 +2759,7 @@ function MerchantDashboard() {
                       {variantUploading === i
                         ? <span className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
                         : v.photo
-                          ? <img src={v.photo} alt={v.nom} className="w-full h-full object-cover" />
+                          ? <img src={thumb(v.photo, 200)} onError={fallbackSrc(v.photo)} alt={v.nom} loading="lazy" className="w-full h-full object-cover" />
                           : <span className="text-slate-500 text-[9px]">photo</span>}
                     </div>
                     {/* Nom + stock + upload */}
@@ -3060,7 +3069,7 @@ function MerchantDashboard() {
                     {activeProducts.filter(p => p.name.toLowerCase().includes(editAddSearch.toLowerCase())).slice(0, 6).map(p => (
                       <button key={p.id} onClick={() => editAddProduct(p)}
                         className="w-full flex items-center gap-2 p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-left transition-colors">
-                        <img src={p.photo} alt={p.name} className="w-8 h-8 rounded object-cover bg-slate-700 shrink-0" />
+                        <img src={thumb(p.photo, 100)} onError={fallbackSrc(p.photo)} alt={p.name} loading="lazy" className="w-8 h-8 rounded object-cover bg-slate-700 shrink-0" />
                         <span className="flex-1 text-xs text-slate-200 truncate">{p.name}</span>
                         <span className="text-xs font-bold text-blue-400">{fmt(p.price)}</span>
                         <Plus className="w-4 h-4 text-blue-400 shrink-0" />

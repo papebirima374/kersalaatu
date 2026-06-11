@@ -1,4 +1,5 @@
 import { toast } from '../../components/toast';
+import { thumb, fallbackSrc } from '../../utils/img';
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTenant } from '../../context/TenantContext';
@@ -725,16 +726,20 @@ export default function PublicStorefront() {
                   {gallery[0] ? (
                     <>
                       <img
-                        src={gallery[0]}
+                        src={thumb(gallery[0], 600)}
+                        onError={fallbackSrc(gallery[0])}
                         alt={prod.name}
                         loading="lazy"
+                        decoding="async"
                         className={`absolute inset-0 w-full h-full object-contain p-4 rounded-3xl transition-all duration-750 ${secondPhoto ? 'group-hover:opacity-0 group-hover:scale-105' : 'group-hover:scale-105'}`}
                       />
                       {secondPhoto && (
                         <img
-                          src={secondPhoto}
+                          src={thumb(secondPhoto, 600)}
+                          onError={fallbackSrc(secondPhoto)}
                           alt=""
                           loading="lazy"
+                          decoding="async"
                           className="absolute inset-0 w-full h-full object-contain p-4 rounded-3xl opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-750"
                         />
                       )}
@@ -896,8 +901,10 @@ export default function PublicStorefront() {
                     cart.map((item) => (
                       <div key={item.cartKey} className={`flex gap-4 p-3 rounded-xl border relative transition-colors ${darkMode ? 'bg-slate-950/40 border-slate-850' : 'bg-slate-50 border-slate-150'}`}>
                         <img
-                          src={item.photo}
+                          src={thumb(item.photo, 200)}
+                          onError={fallbackSrc(item.photo)}
                           alt={item.name}
+                          loading="lazy"
                           className={`w-16 h-16 rounded-lg object-cover border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-200 border-slate-100'}`}
                         />
                         <div className="flex-1 flex flex-col justify-between py-0.5">
@@ -1536,7 +1543,8 @@ export default function PublicStorefront() {
                 <div className={`w-full h-72 sm:h-96 md:h-[400px] border rounded-2xl relative flex items-center justify-center overflow-hidden group shadow-sm transition-colors ${darkMode ? 'bg-slate-950 border-slate-850' : 'bg-slate-50 border-slate-100'}`}>
                   {displayPhoto ? (
                     <img
-                      src={displayPhoto}
+                      src={thumb(displayPhoto, 1000)}
+                      onError={fallbackSrc(displayPhoto)}
                       alt={selectedProduct.name}
                       onClick={() => setLightboxOpen(true)}
                       className="max-w-full max-h-full object-contain transition-transform duration-300 group-hover:scale-105 cursor-zoom-in"
@@ -1589,7 +1597,7 @@ export default function PublicStorefront() {
                         onClick={() => setActivePhotoIdx(i)}
                         className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer shadow-sm ${i === activePhotoIdx ? 'border-[var(--tenant-color)] ring-2 ring-[var(--tenant-color)]/20' : (darkMode ? 'border-slate-800 hover:border-slate-700 opacity-80 hover:opacity-100' : 'border-slate-200 hover:border-slate-300 opacity-80 hover:opacity-100')}`}
                       >
-                        <img src={url} alt={`${i+1}`} className="w-full h-full object-cover" />
+                        <img src={thumb(url, 200)} onError={fallbackSrc(url)} alt={`${i+1}`} loading="lazy" className="w-full h-full object-cover" />
                       </button>
                     ))}
                   </div>
@@ -1649,7 +1657,7 @@ export default function PublicStorefront() {
                             >
                               <div className={`w-full h-16 relative ${darkMode ? 'bg-slate-950' : 'bg-slate-100'}`}>
                                 {v.photo
-                                  ? <img src={v.photo} alt={v.nom} className="w-full h-full object-cover" />
+                                  ? <img src={thumb(v.photo, 200)} onError={fallbackSrc(v.photo)} alt={v.nom} loading="lazy" className="w-full h-full object-cover" />
                                   : <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">—</div>}
                                 {vOut && (
                                   <div className="absolute inset-0 bg-slate-950/60 flex items-center justify-center">
