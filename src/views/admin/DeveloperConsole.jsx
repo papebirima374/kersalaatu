@@ -68,7 +68,7 @@ const Sidebar = ({ activeTab, setActiveTab, setSidebarOpen, totalShops, pendingT
 
 export default function DeveloperConsole() {
   const {
-    boutiques, tickets, updateBoutique, deleteBoutique, purgeOrphanData,
+    boutiques, tickets, updateBoutique, deleteBoutique, purgeOrphanData, copyProductsToBoutique,
     resolveTicket, replyToTicket, addBoutiqueWithAuth,
     upgradeRequests, approveUpgradeRequest, rejectUpgradeRequest,
     dataReady, merchantUser, loginMerchant, logoutMerchant,
@@ -176,7 +176,8 @@ export default function DeveloperConsole() {
   // Create boutique modal
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newBoutiqueForm, setNewBoutiqueForm] = useState({
-    name: '', whatsapp: '', description: '', ownerEmail: '', password: '', plan: 'Pro', couleurMarque: '#2563eb'
+    name: '', whatsapp: '', description: '', ownerEmail: '', password: '', plan: 'Pro', couleurMarque: '#2563eb',
+    devise: 'FCFA', linkExisting: false, copyProducts: false
   });
 
   // Gestion d'abonnement (modal)
@@ -187,6 +188,13 @@ export default function DeveloperConsole() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletePw, setDeletePw] = useState('');
   const [deleteErr, setDeleteErr] = useState('');
+
+  // Boutique existante du même e-mail (→ proposition de liaison multi-boutiques)
+  const siblingBoutique = (() => {
+    const e = newBoutiqueForm.ownerEmail.trim().toLowerCase();
+    if (!e || e === 'vendeur@jappandal.sn') return null;
+    return boutiques.find(b => (b.ownerEmail || '').toLowerCase() === e) || null;
+  })();
 
   const handleCreateBoutiqueSubmit = async (e) => {
     e.preventDefault();
@@ -199,22 +207,32 @@ export default function DeveloperConsole() {
     }
     const ownerEmail = newBoutiqueForm.ownerEmail.trim() || 'vendeur@jappandal.sn';
     const tempPassword = newBoutiqueForm.password || '123456';
+    const linking = !!(siblingBoutique && newBoutiqueForm.linkExisting);
     try {
-      await addBoutiqueWithAuth({
+      const created = await addBoutiqueWithAuth({
         name: newBoutiqueForm.name,
         description: newBoutiqueForm.description || `Boutique en ligne ${newBoutiqueForm.name} propulsée par Jappandal Tech.`,
         whatsapp: cleanWhatsapp,
         ownerEmail,
+        devise: newBoutiqueForm.devise || 'FCFA',
         couleurMarque: newBoutiqueForm.couleurMarque,
         abonnement: {
           plan: newBoutiqueForm.plan, statut: 'Actif',
           dateDebut: new Date().toISOString(),
           dateExpiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
         }
-      }, tempPassword);
+      }, tempPassword, { linkExistingAccount: linking });
+
+      let copied = 0;
+      if (linking && newBoutiqueForm.copyProducts && siblingBoutique) {
+        copied = await copyProductsToBoutique(siblingBoutique.id, created.id);
+      }
+
       setShowCreateModal(false);
-      setNewBoutiqueForm({ name:'', whatsapp:'', description:'', ownerEmail:'', password:'', plan:'Pro', couleurMarque:'#2563eb' });
-      toast(`Boutique créée !\n\nIdentifiants du marchand :\nEmail : ${ownerEmail}\nMot de passe : ${tempPassword}`, 'success', 12000);
+      setNewBoutiqueForm({ name:'', whatsapp:'', description:'', ownerEmail:'', password:'', plan:'Pro', couleurMarque:'#2563eb', devise:'FCFA', linkExisting:false, copyProducts:false });
+      toast(linking
+        ? `Boutique créée et liée au compte ${ownerEmail} ✓${copied ? `\n${copied} produit(s) copiés depuis « ${siblingBoutique.name} ».` : ''}\nLe marchand la verra dans son sélecteur de boutiques.`
+        : `Boutique créée !\n\nIdentifiants du marchand :\nEmail : ${ownerEmail}\nMot de passe : ${tempPassword}`, 'success', 12000);
     } catch (error) {
       toast(`Erreur : ${error.message || error}`);
     }
@@ -1397,6 +1415,40 @@ export default function DeveloperConsole() {
                     className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none" />
                 </div>
               </div>
+
+              {/* Devise des prix de la boutique */}
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Devise des prix</label>
+                <select value={newBoutiqueForm.devise || 'FCFA'} onChange={e => setNewBoutiqueForm({...newBoutiqueForm, devise:e.target.value})}
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white focus:border-blue-500 focus:outline-none cursor-pointer">
+                  <option value="FCFA">FCFA (Franc CFA — Sénégal)</option>
+                  <option value="EUR">€ Euro (Europe)</option>
+                </select>
+              </div>
+
+              {/* E-mail déjà titulaire d'une boutique → liaison multi-boutiques */}
+              {siblingBoutique && (
+                <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 space-y-2">
+                  <p className="text-xs text-blue-300 font-semibold">
+                    Cet e-mail possède déjà la boutique « {siblingBoutique.name} ».
+                  </p>
+                  <label className="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
+                    <input type="checkbox" checked={!!newBoutiqueForm.linkExisting}
+                      onChange={e => setNewBoutiqueForm({...newBoutiqueForm, linkExisting: e.target.checked})}
+                      className="mt-0.5 accent-blue-500" />
+                    <span>Lier cette nouvelle boutique au <b>même compte</b> (le marchand basculera entre ses boutiques avec le même e-mail / mot de passe).</span>
+                  </label>
+                  {newBoutiqueForm.linkExisting && (
+                    <label className="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
+                      <input type="checkbox" checked={!!newBoutiqueForm.copyProducts}
+                        onChange={e => setNewBoutiqueForm({...newBoutiqueForm, copyProducts: e.target.checked})}
+                        className="mt-0.5 accent-blue-500" />
+                      <span>Copier les produits de « {siblingBoutique.name} » (stocks et prix gérés ensuite séparément — penser à ressaisir les prix dans la nouvelle devise).</span>
+                    </label>
+                  )}
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1.5">Description</label>
                 <textarea value={newBoutiqueForm.description} onChange={e => setNewBoutiqueForm({...newBoutiqueForm, description:e.target.value})} rows={2}

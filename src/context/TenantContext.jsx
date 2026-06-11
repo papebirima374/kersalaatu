@@ -289,13 +289,23 @@ export const TenantProvider = ({ children }) => {
     return boutique;
   };
 
-  const addBoutiqueWithAuth = async (newBoutique, password) => {
-    // Bloque les doublons (même e-mail propriétaire ou même numéro WhatsApp)
-    assertNoDuplicateBoutique({ email: newBoutique.ownerEmail, whatsapp: newBoutique.whatsapp });
+  // options.linkExistingAccount : crée une 2e boutique POUR UN COMPTE EXISTANT
+  // (ex. un marchand avec un représentant au Sénégal et un autre en Europe :
+  //  même e-mail de connexion, boutiques/stocks/devises séparés).
+  const addBoutiqueWithAuth = async (newBoutique, password, options = {}) => {
+    // Doublons bloqués — sauf l'e-mail quand on lie volontairement au même compte
+    assertNoDuplicateBoutique({
+      email: options.linkExistingAccount ? '' : newBoutique.ownerEmail,
+      whatsapp: newBoutique.whatsapp
+    });
 
     let ownerUid = `admin-created-${Date.now()}`;
-    
-    if (isConfigured && newBoutique.ownerEmail && password) {
+
+    if (options.linkExistingAccount && newBoutique.ownerEmail) {
+      // Réutilise le compte du marchand : même uid que sa boutique existante
+      const sibling = boutiques.find(b => normEmail(b.ownerEmail) === normEmail(newBoutique.ownerEmail));
+      ownerUid = sibling?.ownerUid || `existing-${newBoutique.ownerEmail.replace(/[^a-z0-9]/g, '')}`;
+    } else if (isConfigured && newBoutique.ownerEmail && password) {
       try {
         const userCredential = await createUserWithEmailAndPassword(auth, newBoutique.ownerEmail, password);
         ownerUid = userCredential.user.uid;
@@ -331,11 +341,30 @@ export const TenantProvider = ({ children }) => {
     };
 
     setBoutiques(prev => [...prev, boutique]);
-    
+
     if (isConfigured) {
       await setDoc(doc(db, 'boutiques', boutique.id), boutique);
     }
     return boutique;
+  };
+
+  // Copie le catalogue d'une boutique vers une autre (boutiques sœurs d'un même
+  // marchand : mêmes produits, stocks et prix gérés ensuite séparément).
+  const copyProductsToBoutique = async (fromBoutiqueId, toBoutiqueId) => {
+    if (!isConfigured) {
+      const src = products.filter(p => p.boutiqueId === fromBoutiqueId);
+      const copies = src.map((p, i) => ({ ...p, id: `prod-${Date.now() + i}`, boutiqueId: toBoutiqueId }));
+      setProducts(prev => [...copies, ...prev]);
+      return copies.length;
+    }
+    const snap = await getDocs(query(collection(db, 'products'), where('boutiqueId', '==', fromBoutiqueId)));
+    let i = 0;
+    for (const d of snap.docs) {
+      const data = d.data();
+      const id = `prod-${Date.now() + i++}`;
+      await setDoc(doc(db, 'products', id), { ...data, id, boutiqueId: toBoutiqueId });
+    }
+    return snap.docs.length;
   };
 
   const addProduct = async (boutiqueId, productData) => {
@@ -942,6 +971,7 @@ export const TenantProvider = ({ children }) => {
       logoutMerchant,
       addBoutique,
       addBoutiqueWithAuth,
+      copyProductsToBoutique,
       updateBoutique,
       deleteBoutique,
       purgeOrphanData,

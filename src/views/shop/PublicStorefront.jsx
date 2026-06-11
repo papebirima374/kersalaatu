@@ -1,5 +1,6 @@
 import { toast } from '../../components/toast';
 import { thumb, fallbackSrc } from '../../utils/img';
+import { formatPrice } from '../../utils/money';
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTenant } from '../../context/TenantContext';
@@ -337,10 +338,8 @@ export default function PublicStorefront() {
   const cartTotal = cartSubtotal + deliveryCost;
 
   // Format currency
-  const formatMoney = (amount) => {
-    const num = Number(amount) || 0;
-    return new Intl.NumberFormat('fr-FR').format(num) + ' FCFA';
-  };
+  // Suit la devise de la boutique (FCFA par défaut, € pour les boutiques Europe)
+  const formatMoney = (amount) => formatPrice(amount, activeShop?.devise);
 
   // Live stock validation in direct with Firestore or Local State
   const validateCartStock = async () => {

@@ -1,5 +1,6 @@
 import { toast } from '../../components/toast';
 import { thumb, fallbackSrc } from '../../utils/img';
+import { formatPrice } from '../../utils/money';
 import QRCode from 'qrcode';
 import { unlockAudio, playOrderSound, requestNotifPermission, showOrderNotification } from '../../notify';
 import React, { useState, useRef } from 'react';
@@ -275,6 +276,11 @@ function MerchantDashboard() {
   }, [boutiques, merchantUser]);
 
   const activeBoutique = myBoutiques.find(b => b.id === currentMerchantBoutiqueId) || myBoutiques[0] || null;
+
+  // Devise de la boutique active : tous les montants de la console la suivent
+  // (remplace localement le fmt module FCFA). FCFA par défaut, € pour l'Europe.
+  // eslint-disable-next-line no-shadow
+  const fmt = (n) => formatPrice(n, activeBoutique?.devise);
 
   // Aligne l'id mémorisé sur la boutique réellement résolue : c'est lui qui pilote
   // le listener Firestore des produits (sinon id vide/obsolète = aucun produit affiché).
@@ -952,7 +958,7 @@ function MerchantDashboard() {
   const buildReceiptPdf = async (jsPDF) => {
     const inv = activePrintInvoice, b = activeBoutique;
     const W = 80, m = 5, cw = W - 2 * m;
-    const money = (n) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' FCFA';
+    const money = (n) => formatPrice(n, b?.devise); // suit la devise de la boutique (FCFA / €)
 
     // Logo image (les emojis ne se rendent pas en PDF → ignorés)
     let logoData = null;
@@ -975,7 +981,25 @@ function MerchantDashboard() {
       };
       const solid = () => { pdf.setDrawColor(30); pdf.setLineWidth(0.4); pdf.line(m, y, W - m, y); y += 3.5; };
 
-      if (logoData) { if (!measure) { try { pdf.addImage(logoData, 'PNG', W / 2 - 9, y, 18, 18); } catch { /* */ } } y += 20; }
+      // Logo TOUJOURS présent : image de la boutique si disponible, sinon badge
+      // rond aux couleurs de la marque avec les initiales du nom.
+      if (logoData) {
+        if (!measure) { try { pdf.addImage(logoData, 'PNG', W / 2 - 9, y, 18, 18); } catch { /* */ } }
+        y += 20;
+      } else {
+        if (!measure) {
+          const hex = String(b.couleurMarque || '#2563eb').replace('#', '');
+          const cr = parseInt(hex.slice(0, 2), 16) || 37;
+          const cg = parseInt(hex.slice(2, 4), 16) || 99;
+          const cb = parseInt(hex.slice(4, 6), 16) || 235;
+          const initials = String(b.name || 'B').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+          pdf.setFillColor(cr, cg, cb);
+          pdf.circle(W / 2, y + 8, 8, 'F');
+          pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11); pdf.setTextColor(255, 255, 255);
+          pdf.text(initials, W / 2, y + 8, { align: 'center', baseline: 'middle' });
+        }
+        y += 19;
+      }
       center(b.name.toUpperCase(), 13, 'bold');
       if (b.adresse) center(b.adresse, 8, 'normal', [110, 110, 110]);
       if (b.whatsapp) center(b.whatsapp, 8.5, 'normal', [110, 110, 110]);
@@ -1040,7 +1064,7 @@ function MerchantDashboard() {
       const cW = pageW - 2 * m;
       let y = m;
       // Formateur SANS U+202F (espace fine insécable que jsPDF n'affiche pas).
-      const fmtNum = (n) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' FCFA';
+      const fmtNum = (n) => formatPrice(n, activeBoutique?.devise); // devise de la boutique (FCFA / €)
 
       // ── Logo : data URL (local) ou URL distante via canvas ──
       const logo = activeBoutique.logo;
@@ -2241,7 +2265,7 @@ function MerchantDashboard() {
                               <div className="p-3 bg-slate-950 rounded-xl border border-slate-850">
                                 <span className="text-[9px] font-bold text-slate-500 block">Panier Moyen</span>
                                 <span className="text-xs font-black mt-1 block font-mono text-blue-400 truncate">
-                                  {selectedClient.orderCount > 0 ? fmt(Math.round(selectedClient.totalSpent / selectedClient.orderCount)) : '0 FCFA'}
+                                  {selectedClient.orderCount > 0 ? fmt(Math.round(selectedClient.totalSpent / selectedClient.orderCount)) : fmt(0)}
                                 </span>
                               </div>
                             </div>
@@ -2960,8 +2984,13 @@ function MerchantDashboard() {
               <div ref={invoiceRef} className="bg-white w-full max-w-[300px] px-5 py-6 text-slate-900" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
                 {/* En-tête centré */}
                 <div className="text-center">
-                  {activeBoutique.logo && typeof activeBoutique.logo === 'string' && (activeBoutique.logo.startsWith('http') || activeBoutique.logo.startsWith('data:') || activeBoutique.logo.startsWith('/')) && (
+                  {activeBoutique.logo && typeof activeBoutique.logo === 'string' && (activeBoutique.logo.startsWith('http') || activeBoutique.logo.startsWith('data:') || activeBoutique.logo.startsWith('/')) ? (
                     <img src={proxiedImg(activeBoutique.logo)} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-2" crossOrigin="anonymous" />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full mx-auto mb-2 flex items-center justify-center text-white font-bold text-lg"
+                      style={{ backgroundColor: activeBoutique.couleurMarque || '#2563eb' }}>
+                      {String(activeBoutique.name || 'B').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()}
+                    </div>
                   )}
                   <h1 className="text-base font-black uppercase leading-tight">{activeBoutique.name}</h1>
                   {activeBoutique.adresse && <p className="text-[11px] text-slate-500">{activeBoutique.adresse}</p>}
