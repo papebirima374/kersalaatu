@@ -9,7 +9,8 @@ import {
   deleteDoc,
   onSnapshot,
   query,
-  where
+  where,
+  getDocs
 } from 'firebase/firestore';
 import {
   signInWithEmailAndPassword,
@@ -22,71 +23,8 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const TenantContext = createContext();
 
-// Seed data to make the app gorgeous and usable instantly
-const DEFAULT_BOUTIQUES = [
-  {
-    id: 'darou-khoudoss-optique',
-    slug: 'daroukhoudoss',
-    name: 'Darou Khaudoss Optique',
-    description: 'Darou Khaudoss Optique est une boutique spécialisée dans la vente de lunettes et accessoires de qualité. Nous mettons à votre disposition des modèles modernes, élégants et adaptés à tous les styles.',
-    logo: '/logo-darou.jpg',
-    whatsapp: '+221765167094',
-    couleurMarque: '#b45309',
-    couleurMarqueHover: '#92400e',
-    devise: 'FCFA',
-    adresse: 'Touba Marché Ocasse',
-    zonesLivraison: [
-      { id: 'z1', label: 'Touba (Livraison locale)', price: 1000, delai: 'Sous 24h' },
-      { id: 'z2', label: 'Dakar (Livraison rapide)', price: 2000, delai: 'Sous 24h' },
-      { id: 'z3', label: 'Autres Régions du Sénégal', price: 4000, delai: '2 à 3 jours' }
-    ],
-    abonnement: {
-      plan: 'Premium',
-      statut: 'Actif',
-      dateDebut: new Date().toISOString(),
-      dateExpiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-    }
-  }
-];
-
-const DEFAULT_PRODUCTS = [
-  {
-    id: 'dko-p1',
-    boutiqueId: 'darou-khoudoss-optique',
-    name: 'Lunettes Médicales Anti-Lumière Bleue',
-    price: 15000,
-    stock: 10,
-    category: 'Lunettes',
-    photo: 'https://images.unsplash.com/photo-1574258495973-f010dfbb5371?w=600&auto=format&fit=crop&q=80',
-    description: 'Monture moderne et légère avec verres traitants anti-lumière bleue pour protéger vos yeux des écrans.',
-    actif: true
-  },
-  {
-    id: 'dko-p2',
-    boutiqueId: 'darou-khoudoss-optique',
-    name: 'Lunettes de Soleil Vintage Gold',
-    price: 25000,
-    stock: 5,
-    category: 'Lunettes',
-    photo: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=600&auto=format&fit=crop&q=80',
-    description: 'Lunettes de soleil élégantes avec monture dorée et protection UV400 pour un style affirmé.',
-    actif: true
-  },
-  {
-    id: 'dko-p3',
-    boutiqueId: 'darou-khoudoss-optique',
-    name: 'Montre Élégante Classique',
-    price: 35000,
-    stock: 8,
-    category: 'Accessoires',
-    photo: 'https://images.unsplash.com/photo-1524592094714-0f0654e20314?w=600&auto=format&fit=crop&q=80',
-    description: 'Montre de luxe élégante avec bracelet en cuir et cadran épuré pour hommes et femmes.',
-    actif: true
-  }
-];
-
-const DEFAULT_ORDERS = [];
-const DEFAULT_TICKETS = [];
+// Données de démonstration SUPPRIMÉES : le site est en production avec de vrais
+// clients. Sans configuration Firebase (dev local), l'app démarre simplement vide.
 
 // En production, purge une fois pour toutes les caches métier hérités du mode
 // démo (ils contenaient produits/boutiques de démonstration et données obsolètes).
@@ -99,29 +37,29 @@ if (isConfigured && typeof window !== 'undefined') {
 export const TenantProvider = ({ children }) => {
   // En PRODUCTION (Firebase configuré), la seule source de vérité est Firestore :
   // ni données de démonstration, ni cache localStorage (ils faisaient « réapparaître »
-  // des produits/photos démo chez les marchands). Le mode démo local les garde.
+  // des produits/photos démo chez les marchands). En dev local : localStorage.
   const [boutiques, setBoutiques] = useState(() => {
     if (isConfigured) return [];
     const local = localStorage.getItem('ks_boutiques');
-    return local ? JSON.parse(local) : DEFAULT_BOUTIQUES;
+    return local ? JSON.parse(local) : [];
   });
 
   const [products, setProducts] = useState(() => {
     if (isConfigured) return [];
     const local = localStorage.getItem('ks_products');
-    return local ? JSON.parse(local) : DEFAULT_PRODUCTS;
+    return local ? JSON.parse(local) : [];
   });
 
   const [orders, setOrders] = useState(() => {
     if (isConfigured) return [];
     const local = localStorage.getItem('ks_orders');
-    return local ? JSON.parse(local) : DEFAULT_ORDERS;
+    return local ? JSON.parse(local) : [];
   });
 
   const [tickets, setTickets] = useState(() => {
     if (isConfigured) return [];
     const local = localStorage.getItem('ks_tickets');
-    return local ? JSON.parse(local) : DEFAULT_TICKETS;
+    return local ? JSON.parse(local) : [];
   });
 
   const [upgradeRequests, setUpgradeRequests] = useState(() => {
@@ -131,7 +69,7 @@ export const TenantProvider = ({ children }) => {
   });
 
   const [currentMerchantBoutiqueId, setCurrentMerchantBoutiqueId] = useState(() => {
-    return localStorage.getItem('ks_current_merchant_id') || (isConfigured ? '' : 'darou-khoudoss-optique');
+    return localStorage.getItem('ks_current_merchant_id') || '';
   });
 
   const [merchantUser, setMerchantUser] = useState(() => {
@@ -433,15 +371,24 @@ export const TenantProvider = ({ children }) => {
     }
   };
 
-  const deleteBoutique = (boutiqueId) => {
+  const deleteBoutique = async (boutiqueId) => {
     setBoutiques(prev => prev.filter(b => b.id !== boutiqueId));
     setProducts(prev => prev.filter(p => p.boutiqueId !== boutiqueId));
     setOrders(prev => prev.filter(o => o.boutiqueId !== boutiqueId));
     setTickets(prev => prev.filter(t => t.boutiqueId !== boutiqueId));
-    
+
     if (isConfigured) {
-      deleteDoc(doc(db, 'boutiques', boutiqueId))
-        .catch(err => console.error("Error deleting boutique from Firestore:", err));
+      try {
+        await deleteDoc(doc(db, 'boutiques', boutiqueId));
+        // Cascade : purge aussi les produits, commandes et tickets de la boutique
+        // (sinon ils restent orphelins dans Firestore pour toujours).
+        for (const colName of ['products', 'orders', 'tickets']) {
+          const snap = await getDocs(query(collection(db, colName), where('boutiqueId', '==', boutiqueId)));
+          await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+        }
+      } catch (err) {
+        console.error('Error deleting boutique from Firestore:', err);
+      }
     }
   };
 
