@@ -30,3 +30,4 @@ dist-ssr
 
 # Fichier source logo d'origine (remplacé par public/logo-jappandal.png)
 logoj.png
+public/version.json

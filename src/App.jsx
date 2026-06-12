@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { TenantProvider } from './context/TenantContext';
 import ErrorBoundary from './ErrorBoundary';
@@ -24,6 +24,29 @@ const lazyReload = (importer) => lazy(() =>
   })
 );
 
+// Veilleur de version : chaque build embarque /version.json. Quand une nouvelle
+// version est déployée, l'app ouverte (même la PWA iPhone) la détecte au retour
+// au premier plan et se recharge toute seule — fini les vieux écrans en cache.
+function VersionWatcher() {
+  useEffect(() => {
+    let current = null;
+    const check = async () => {
+      try {
+        const r = await fetch('/version.json', { cache: 'no-store' });
+        const { v } = await r.json();
+        if (current === null) current = v;
+        else if (v && v !== current) window.location.reload();
+      } catch { /* hors-ligne : on réessaiera */ }
+    };
+    check();
+    const onVis = () => { if (document.visibilityState === 'visible') check(); };
+    document.addEventListener('visibilitychange', onVis);
+    const timer = setInterval(check, 5 * 60 * 1000);
+    return () => { document.removeEventListener('visibilitychange', onVis); clearInterval(timer); };
+  }, []);
+  return null;
+}
+
 const LandingPage = lazyReload(() => import('./views/LandingPage'));
 const BoutiquesDirectory = lazyReload(() => import('./views/BoutiquesDirectory'));
 const MerchantConsole = lazyReload(() => import('./views/merchant/MerchantConsole'));
@@ -34,6 +57,7 @@ function App() {
   return (
     <ErrorBoundary>
       <TenantProvider>
+        <VersionWatcher />
         <PullToRefresh />
         <ScrollToTop />
         <Toaster />

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
+    "prebuild": "node -e \"require('fs').writeFileSync('public/version.json', JSON.stringify({v: Date.now().toString(36)}))\"",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
