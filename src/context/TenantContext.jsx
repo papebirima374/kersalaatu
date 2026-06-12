@@ -697,18 +697,21 @@ export const TenantProvider = ({ children }) => {
     }));
   };
 
-  const updateClientOrdersInfo = (telephone, nom, adresse) => {
+  // newTelephone (optionnel) : change aussi le numéro du client sur toutes ses commandes
+  const updateClientOrdersInfo = (telephone, nom, adresse, newTelephone = null) => {
+    const telFinal = (newTelephone || telephone).trim();
     setOrders(prev => prev.map(o => {
       if (o.client?.telephone === telephone) {
-        const updated = { 
-          ...o, 
-          client: { ...o.client, nom, adresse }
+        const updated = {
+          ...o,
+          client: { ...o.client, nom, adresse, telephone: telFinal }
         };
-        
+
         if (isConfigured) {
-          updateDoc(doc(db, 'orders', o.id), { 
+          updateDoc(doc(db, 'orders', o.id), {
             'client.nom': nom,
-            'client.adresse': adresse
+            'client.adresse': adresse,
+            'client.telephone': telFinal
           }).catch(err => console.error("Error updating client info in Firestore order:", err));
         }
         return updated;

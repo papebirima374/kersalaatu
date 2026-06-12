@@ -474,6 +474,19 @@ function MerchantDashboard() {
 
   const clientsList = React.useMemo(() => {
     const clientsMap = {};
+    // 1) Clients ajoutés MANUELLEMENT par le marchand (fiche boutique)
+    (activeBoutique?.clientsManuels || []).forEach(c => {
+      if (!c?.telephone) return;
+      clientsMap[String(c.telephone).trim()] = {
+        telephone: String(c.telephone).trim(),
+        nom: c.nom || 'Client',
+        adresse: c.adresse || "Pas d'adresse renseignée",
+        totalSpent: 0, orderCount: 0,
+        lastOrderDate: c.dateCreation || new Date().toISOString(),
+        orders: [], manuel: true
+      };
+    });
+    // 2) Clients dérivés des commandes
     activeOrders.forEach(o => {
       if (!o.client || !o.client.telephone) return;
       const phone = o.client.telephone.trim();
@@ -500,17 +513,77 @@ function MerchantDashboard() {
       }
       clientsMap[phone].orders.push(o);
     });
-    return Object.values(clientsMap).sort((a, b) => b.totalSpent - a.totalSpent);
-  }, [activeOrders]);
+    // 3) Exclut les clients supprimés (masqués) par le marchand
+    const hidden = new Set((activeBoutique?.hiddenClients || []).map(t => String(t).replace(/\D/g, '')));
+    return Object.values(clientsMap)
+      .filter(c => !hidden.has(String(c.telephone).replace(/\D/g, '')))
+      .sort((a, b) => b.totalSpent - a.totalSpent);
+  }, [activeOrders, activeBoutique]);
+
+  // ── Actions clients : ajouter / supprimer ────────────────────────────────
+  const addClientManuel = (client) => {
+    const tel = String(client.telephone || '').trim();
+    if (!client.nom?.trim() || !tel) { toast('Nom et téléphone obligatoires.'); return false; }
+    const norm = tel.replace(/\D/g, '');
+    if (clientsList.some(c => String(c.telephone).replace(/\D/g, '') === norm)) {
+      toast('Un client avec ce numéro existe déjà.'); return false;
+    }
+    const fiche = { id: `cli-${Date.now()}`, nom: client.nom.trim(), telephone: tel, adresse: (client.adresse || '').trim(), dateCreation: new Date().toISOString() };
+    updateBoutique(activeBoutique.id, {
+      clientsManuels: [...(activeBoutique.clientsManuels || []), fiche],
+      // si ce numéro avait été supprimé avant, on le réactive
+      hiddenClients: (activeBoutique.hiddenClients || []).filter(t => String(t).replace(/\D/g, '') !== norm)
+    });
+    toast(`Client « ${fiche.nom} » ajouté ✓`, 'success');
+    return true;
+  };
+
+  const deleteClient = (client) => {
+    const norm = String(client.telephone).replace(/\D/g, '');
+    const updates = {
+      clientsManuels: (activeBoutique.clientsManuels || []).filter(c => String(c.telephone).replace(/\D/g, '') !== norm)
+    };
+    // client issu de commandes : on le masque (les commandes restent intactes)
+    if (client.orderCount > 0) {
+      updates.hiddenClients = [...new Set([...(activeBoutique.hiddenClients || []), client.telephone])];
+    }
+    updateBoutique(activeBoutique.id, updates);
+    if (selectedClient?.telephone === client.telephone) setSelectedClient(null);
+    toast(`Client « ${client.nom} » supprimé.`, 'success');
+  };
 
   const filteredClients = React.useMemo(() => {
     return clientsList.filter(c => {
       const query = clientSearch.toLowerCase();
-      return (c.nom || '').toLowerCase().includes(query) || 
-             (c.telephone || '').includes(query) || 
+      return (c.nom || '').toLowerCase().includes(query) ||
+             (c.telephone || '').includes(query) ||
              (c.adresse || '').toLowerCase().includes(query);
     });
   }, [clientsList, clientSearch]);
+
+  // ── Produits groupés par catégorie (famille) — liste plus lisible ────────
+  const [collapsedCats, setCollapsedCats] = useState(() => new Set());
+  const toggleCat = (cat) => setCollapsedCats(prev => {
+    const next = new Set(prev);
+    next.has(cat) ? next.delete(cat) : next.add(cat);
+    return next;
+  });
+  const productGroups = React.useMemo(() => {
+    const byCat = {};
+    activeProducts.forEach(p => {
+      const cat = (p.category || '').trim() || 'Divers';
+      (byCat[cat] = byCat[cat] || []).push(p);
+    });
+    return Object.entries(byCat)
+      .map(([cat, items]) => ({ cat, items }))
+      .sort((a, b) => (a.cat === 'Divers') - (b.cat === 'Divers') || a.cat.localeCompare(b.cat, 'fr'));
+  }, [activeProducts]);
+
+  // ── Modals clients : ajout manuel + sélection en caisse ─────────────────
+  const [showAddClient, setShowAddClient] = useState(false);
+  const [newClient, setNewClient] = useState({ nom: '', telephone: '', adresse: '' });
+  const [showPosClientPick, setShowPosClientPick] = useState(false);
+  const [posClientSearch, setPosClientSearch] = useState('');
 
   // ── Alertes de commande (son + notification système) ──────────────────
   const [alertsOn, setAlertsOn] = useState(() => localStorage.getItem('jt_alerts_on') === '1');
@@ -1840,8 +1913,24 @@ function MerchantDashboard() {
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                  {activeProducts.map(p => (
+                <div className="space-y-5">
+                  {productGroups.map(({ cat, items }) => {
+                  const collapsed = collapsedCats.has(cat);
+                  return (
+                  <div key={cat} className="space-y-3">
+                    {/* En-tête de famille (repliable) */}
+                    <button onClick={() => toggleCat(cat)}
+                      className="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-slate-800/60 border border-slate-700/60 hover:bg-slate-800 transition-colors text-left">
+                      <span className="flex items-center gap-2 min-w-0">
+                        <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
+                        <span className="font-bold text-slate-100 text-sm truncate">{cat}</span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0">{items.length}</span>
+                      </span>
+                      <span className="text-[10px] text-slate-500 shrink-0">{items.reduce((s, p) => s + (Number(p.stock) || 0), 0)} en stock</span>
+                    </button>
+                    {!collapsed && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                  {items.map(p => (
                     <div key={p.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden hover:border-slate-700 transition-all group flex flex-col">
                       <div className="relative h-28 sm:h-32 bg-slate-800 overflow-hidden shrink-0">
                         <img src={thumb(p.photo, 400)} onError={fallbackSrc(p.photo)} alt={p.name} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -1881,6 +1970,11 @@ function MerchantDashboard() {
                       </div>
                     </div>
                   ))}
+                    </div>
+                    )}
+                  </div>
+                  );
+                  })}
                 </div>
               )}
             </div>
@@ -2177,7 +2271,14 @@ function MerchantDashboard() {
 
                     {/* Client */}
                     <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-                      <h3 className="font-semibold text-slate-200 text-sm">Client</h3>
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold text-slate-200 text-sm">Client</h3>
+                        <button onClick={() => { setPosClientSearch(''); setShowPosClientPick(true); }}
+                          title="Choisir un client déjà enregistré"
+                          className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors flex items-center gap-1">
+                          <Plus className="w-3.5 h-3.5" /> Client enregistré
+                        </button>
+                      </div>
                       {[{key:'nom', placeholder:'Nom complet *', icon: User},{key:'telephone', placeholder:'Téléphone *', icon: Phone},{key:'adresse', placeholder:'Adresse (optionnel)', icon: MapPin}].map(({key, placeholder, icon: Icon}) => (
                         <div key={key} className="relative">
                           <Icon className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
@@ -2232,16 +2333,22 @@ function MerchantDashboard() {
                   </p>
                 </div>
                 
-                {/* Recherche client */}
-                <div className="relative w-full sm:w-72">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
-                  <input
-                    type="text"
-                    placeholder="Rechercher par nom, téléphone..."
-                    value={clientSearch}
-                    onChange={(e) => setClientSearch(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500 text-white"
-                  />
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  {/* Recherche client */}
+                  <div className="relative flex-1 sm:w-72">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+                    <input
+                      type="text"
+                      placeholder="Rechercher par nom, téléphone..."
+                      value={clientSearch}
+                      onChange={(e) => setClientSearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500 text-white"
+                    />
+                  </div>
+                  <button onClick={() => { setNewClient({ nom: '', telephone: '', adresse: '' }); setShowAddClient(true); }}
+                    className="shrink-0 px-3.5 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-all">
+                    <Plus className="w-4 h-4" /> Ajouter
+                  </button>
                 </div>
               </div>
 
@@ -2289,6 +2396,20 @@ function MerchantDashboard() {
                               <span className="text-xs font-black text-slate-200 block font-mono">{fmt(c.totalSpent)}</span>
                               <span className="text-[9px] text-slate-550 font-semibold">{c.orderCount} commande{c.orderCount > 1 ? 's' : ''}</span>
                             </div>
+                            {/* Supprimer (masque le client, ses commandes restent) */}
+                            <span
+                              role="button"
+                              title="Supprimer ce client"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`Supprimer le client « ${c.nom} » ?${c.orderCount > 0 ? '\n\nSes commandes restent dans l’historique ; seule sa fiche disparaît de la liste.' : ''}`)) {
+                                  deleteClient(c);
+                                }
+                              }}
+                              className="shrink-0 p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </span>
                           </button>
                         );
                       })
@@ -2443,20 +2564,33 @@ function MerchantDashboard() {
                       <p className="text-xs text-slate-500 mt-0.5 font-medium">Ces modifications seront appliquées à toutes les commandes de ce numéro ({editingClient.telephone}).</p>
                     </div>
 
-                    <form 
+                    <form
                       onSubmit={(e) => {
                         e.preventDefault();
-                        updateClientOrdersInfo(editingClient.telephone, editingClient.nom, editingClient.adresse);
-                        
+                        const telFinal = String(editingClient.newTelephone || editingClient.telephone).trim();
+                        if (!telFinal) { toast('Le téléphone est obligatoire.'); return; }
+                        // Propage nom / adresse / NOUVEAU numéro sur toutes les commandes du client
+                        updateClientOrdersInfo(editingClient.telephone, editingClient.nom, editingClient.adresse, telFinal);
+                        // Met aussi à jour la fiche manuelle si elle existe
+                        const norm = String(editingClient.telephone).replace(/\D/g, '');
+                        if ((activeBoutique.clientsManuels || []).some(c => String(c.telephone).replace(/\D/g, '') === norm)) {
+                          updateBoutique(activeBoutique.id, {
+                            clientsManuels: activeBoutique.clientsManuels.map(c =>
+                              String(c.telephone).replace(/\D/g, '') === norm
+                                ? { ...c, nom: editingClient.nom, adresse: editingClient.adresse, telephone: telFinal }
+                                : c)
+                          });
+                        }
                         // Update lists/selection locally
                         if (selectedClient && selectedClient.telephone === editingClient.telephone) {
                           setSelectedClient(prev => ({
                             ...prev,
                             nom: editingClient.nom,
-                            adresse: editingClient.adresse
+                            adresse: editingClient.adresse,
+                            telephone: telFinal
                           }));
                         }
-                        
+
                         setEditingClient(null);
                         toast('Coordonnées client mises à jour avec succès.', 'success');
                       }}
@@ -2470,6 +2604,17 @@ function MerchantDashboard() {
                           value={editingClient.nom}
                           onChange={(e) => setEditingClient({ ...editingClient, nom: e.target.value })}
                           className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500 text-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Téléphone</label>
+                        <input
+                          type="tel"
+                          required
+                          value={editingClient.newTelephone ?? editingClient.telephone}
+                          onChange={(e) => setEditingClient({ ...editingClient, newTelephone: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs font-semibold font-mono focus:outline-none focus:border-blue-500 text-white"
                         />
                       </div>
 
@@ -2782,7 +2927,10 @@ function MerchantDashboard() {
               </div>
 
               {(() => {
-                const CATS = ['Vêtements','Chaussures','Sacs','Accessoires','Lunettes','Encens','Cosmétiques','Électronique','Alimentation','Divers'];
+                const BASE_CATS = ['Vêtements','Chaussures','Sacs','Accessoires','Lunettes','Encens','Cosmétiques','Électronique','Alimentation','Divers'];
+                // Les catégories déjà créées par le marchand apparaissent EN TÊTE de liste
+                const ownCats = [...new Set(activeProducts.map(p => (p.category || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
+                const CATS = [...new Set([...ownCats, ...BASE_CATS])];
                 const isCustomCat = !CATS.includes(productForm.category); // catégorie personnalisée (ou vide après « Autre »)
                 return (
                   <div>
@@ -3261,6 +3409,78 @@ function MerchantDashboard() {
                   className="w-full mt-2 py-2.5 rounded-xl bg-red-500/5 text-red-400 border border-red-500/20 hover:bg-red-500/10 font-bold text-sm transition-all flex items-center justify-center gap-2">
                   <X className="w-4 h-4" /> {merchantUser?.role === 'caissier' ? "Demander l'annulation" : "Annuler cette commande (rembourse le stock)"}
                 </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL AJOUTER UN CLIENT ───────────────────────────────────────── */}
+      {showAddClient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowAddClient(false)}>
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-white flex items-center gap-2"><User className="w-4 h-4 text-blue-400" /> Ajouter un client</h3>
+              <button onClick={() => setShowAddClient(false)} className="text-slate-500 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); if (addClientManuel(newClient)) setShowAddClient(false); }} className="space-y-3">
+              <input required value={newClient.nom} onChange={e => setNewClient(c => ({ ...c, nom: e.target.value }))} placeholder="Nom complet *"
+                className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none" />
+              <input required value={newClient.telephone} onChange={e => setNewClient(c => ({ ...c, telephone: e.target.value }))} placeholder="Téléphone *"
+                className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 font-mono focus:border-blue-500 focus:outline-none" />
+              <input value={newClient.adresse} onChange={e => setNewClient(c => ({ ...c, adresse: e.target.value }))} placeholder="Adresse (optionnel)"
+                className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none" />
+              <div className="flex gap-2 pt-1">
+                <button type="button" onClick={() => setShowAddClient(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-400 hover:text-white text-sm font-medium transition-colors">Annuler</button>
+                <button type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-sm transition-all">Ajouter</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL CHOISIR UN CLIENT (caisse) ──────────────────────────────── */}
+      {showPosClientPick && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowPosClientPick(false)}>
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-5 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-white flex items-center gap-2"><User className="w-4 h-4 text-blue-400" /> Choisir un client</h3>
+              <button onClick={() => setShowPosClientPick(false)} className="text-slate-500 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="relative mb-3">
+              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+              <input autoFocus value={posClientSearch} onChange={e => setPosClientSearch(e.target.value)} placeholder="Nom ou téléphone…"
+                className="w-full pl-9 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500" />
+            </div>
+            <div className="overflow-y-auto space-y-1.5 flex-1">
+              {clientsList
+                .filter(c => {
+                  const q = posClientSearch.toLowerCase();
+                  return !q || (c.nom || '').toLowerCase().includes(q) || (c.telephone || '').includes(q);
+                })
+                .slice(0, 50)
+                .map(c => (
+                  <button key={c.telephone}
+                    onClick={() => {
+                      setPosClient({ nom: c.nom, telephone: c.telephone, adresse: c.adresse === "Pas d'adresse renseignée" ? '' : (c.adresse || '') });
+                      setShowPosClientPick(false);
+                      toast(`Client « ${c.nom} » sélectionné ✓`, 'success');
+                    }}
+                    className="w-full text-left p-3 rounded-xl bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 flex items-center gap-3 transition-colors">
+                    <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 text-xs font-black shrink-0">
+                      {String(c.nom || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-slate-200 truncate">{c.nom}</p>
+                      <p className="text-[11px] text-slate-500 font-mono">{c.telephone}</p>
+                    </div>
+                    {c.orderCount > 0 && <span className="text-[10px] text-slate-500 shrink-0">{c.orderCount} cmd</span>}
+                  </button>
+                ))}
+              {clientsList.length === 0 && (
+                <p className="text-center text-xs text-slate-500 py-6">Aucun client enregistré pour le moment.<br />Ajoutez-en depuis l'onglet Clients.</p>
               )}
             </div>
           </div>
