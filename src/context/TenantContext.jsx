@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { db, auth, storage, isConfigured, app } from '../firebase/config';
 import { initializeApp, deleteApp } from 'firebase/app';
+import { toast } from '../components/toast';
 import {
   collection,
   doc,
@@ -189,6 +190,10 @@ export const TenantProvider = ({ children }) => {
             b.waveMerchantLink = 'https://pay.wave.com/m/M_sn_bbehrkdtxa8W/c/sn/';
           }
         }
+        // Canonise les noms de forfaits : en base, les valeurs sont « Pro » et
+        // « Premium » (les libellés SaaS Pro / Premium VIP ne sont qu'affichage).
+        if (b.abonnement?.plan === 'SaaS Pro') b.abonnement.plan = 'Pro';
+        if (b.abonnement?.plan === 'Premium VIP') b.abonnement.plan = 'Premium';
         return b;
       });
       // Source de vérité = Firestore, même si la collection est vide.
@@ -274,7 +279,13 @@ export const TenantProvider = ({ children }) => {
     setBoutiques(prev => prev.map(b => b.id === boutiqueId ? { ...b, ...updatedFields } : b));
     if (isConfigured) {
       updateDoc(doc(db, 'boutiques', boutiqueId), updatedFields)
-        .catch(err => console.error("Error updating boutique in Firestore:", err));
+        .catch(err => {
+          console.error("Error updating boutique in Firestore:", err);
+          // Visible : sinon l'échec est silencieux et la modification « revient en arrière »
+          toast(err.code === 'permission-denied'
+            ? 'Modification refusée par la base (permissions Firestore).'
+            : "Échec de l'enregistrement — vérifiez votre connexion.", 'error', 6000);
+        });
     }
   };
 

@@ -850,8 +850,8 @@ export default function DeveloperConsole() {
                                   className="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 font-semibold focus:outline-none focus:border-blue-500 cursor-pointer"
                                 >
                                   <option value="Découverte">Découverte · gratuit</option>
-                                  <option value="SaaS Pro">SaaS Pro · 5 000</option>
-                                  <option value="Premium VIP">Premium VIP · 10 000</option>
+                                  <option value="Pro">SaaS Pro · 5 000</option>
+                                  <option value="Premium">Premium VIP · 10 000</option>
                                 </select>
                               </td>
                               <td className="py-3 px-4">
@@ -962,8 +962,8 @@ export default function DeveloperConsole() {
                               className="px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-[10px] text-slate-200 font-semibold focus:outline-none"
                             >
                               <option value="Découverte">Découverte · gratuit</option>
-                              <option value="SaaS Pro">SaaS Pro · 5 000</option>
-                              <option value="Premium VIP">Premium VIP · 10 000</option>
+                              <option value="Pro">SaaS Pro · 5 000</option>
+                              <option value="Premium">Premium VIP · 10 000</option>
                             </select>
                             <div className="text-[10px] text-slate-400">
                               {!s.isFree && s.exp ? (
@@ -1461,8 +1461,8 @@ export default function DeveloperConsole() {
                   <select value={newBoutiqueForm.plan} onChange={e => setNewBoutiqueForm({...newBoutiqueForm, plan:e.target.value})}
                     className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 font-semibold focus:border-blue-500 focus:outline-none cursor-pointer">
                     <option value="Découverte">Découverte</option>
-                    <option value="SaaS Pro">SaaS Pro · 5 000</option>
-                    <option value="Premium VIP">Premium VIP · 10 000</option>
+                    <option value="Pro">SaaS Pro · 5 000</option>
+                    <option value="Premium">Premium VIP · 10 000</option>
                   </select>
                 </div>
                 <div>
