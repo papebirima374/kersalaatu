@@ -608,11 +608,7 @@ function MerchantDashboard() {
           logoImg = await new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = dataUrl; });
         }
       }
-      const canvas = buildBusinessCardCanvas(activeBoutique, {
-        shopUrlDisplay: `jappandal.com/shop/${activeBoutique.slug}`,
-        qrDataUrl: { img: qrImg },
-        logoImg
-      });
+      const canvas = buildBusinessCardCanvas(activeBoutique, { qrDataUrl: { img: qrImg }, logoImg });
       setCarteUrl(canvas.toDataURL('image/png'));
       setCarteOpen(true);
     } catch (err) {
