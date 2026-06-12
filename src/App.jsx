@@ -32,7 +32,8 @@ function VersionWatcher() {
     let current = null;
     const check = async () => {
       try {
-        const r = await fetch('/version.json', { cache: 'no-store' });
+        // ?t=… : contourne aussi le cache du CDN (sinon X-Vercel-Cache: HIT)
+        const r = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
         const { v } = await r.json();
         if (current === null) current = v;
         else if (v && v !== current) window.location.reload();
