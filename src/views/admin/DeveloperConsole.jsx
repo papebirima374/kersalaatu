@@ -176,7 +176,7 @@ export default function DeveloperConsole() {
   // Create boutique modal
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newBoutiqueForm, setNewBoutiqueForm] = useState({
-    name: '', whatsapp: '', description: '', ownerEmail: '', password: '', plan: 'SaaS Pro', couleurMarque: '#2563eb',
+    name: '', whatsapp: '', description: '', ownerEmail: '', password: '', plan: 'Pro', couleurMarque: '#2563eb',
     devise: 'FCFA', linkExisting: false, copyProducts: false
   });
 
@@ -229,7 +229,7 @@ export default function DeveloperConsole() {
       }
 
       setShowCreateModal(false);
-      setNewBoutiqueForm({ name:'', whatsapp:'', description:'', ownerEmail:'', password:'', plan:'SaaS Pro', couleurMarque:'#2563eb', devise:'FCFA', linkExisting:false, copyProducts:false });
+      setNewBoutiqueForm({ name:'', whatsapp:'', description:'', ownerEmail:'', password:'', plan:'Pro', couleurMarque:'#2563eb', devise:'FCFA', linkExisting:false, copyProducts:false });
       toast(linking
         ? `Boutique créée et liée au compte ${ownerEmail} ✓${copied ? `\n${copied} produit(s) copiés depuis « ${siblingBoutique.name} ».` : ''}\nLe marchand la verra dans son sélecteur de boutiques.`
         : `Boutique créée !\n\nIdentifiants du marchand :\nEmail : ${ownerEmail}\nMot de passe : ${tempPassword}`, 'success', 12000);
