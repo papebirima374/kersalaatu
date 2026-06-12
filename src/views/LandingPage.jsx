@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from '../components/toast';
 import { useTenant } from '../context/TenantContext';
+import { ShopLogo } from './BoutiquesDirectory';
 import {
   ArrowRight,
   LogIn,
@@ -38,26 +39,11 @@ export default function LandingPage() {
   // Mobile menu toggle state
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Recherche boutiques (nom + téléphone)
-  const [shopSearch, setShopSearch] = useState('');
-  const shopQuery = shopSearch.trim().toLowerCase();
-  const shopQueryDigits = shopQuery.replace(/\D/g, '');
-  const filteredShops = boutiques.filter(b => {
-    if (!shopQuery) return true;
-    const name = (b.name || '').toLowerCase();
-    const phone = (b.whatsapp || '').toLowerCase();
-    return name.includes(shopQuery) || phone.includes(shopQuery) ||
-      (shopQueryDigits && phone.replace(/\D/g, '').includes(shopQueryDigits));
-  }).sort((a, b) => {
-    // ⭐ Boutiques épinglées (favori) affichées en premier
-    if (!!a.favori !== !!b.favori) return a.favori ? -1 : 1;
-    return 0;
-  });
-  
-  // Liste compacte : on n'affiche que 6 boutiques par défaut (sauf recherche / « voir tout »)
-  const [showAllShops, setShowAllShops] = useState(false);
-  const SHOPS_PREVIEW = 6;
-  const visibleShops = (shopQuery || showAllShops) ? filteredShops : filteredShops.slice(0, SHOPS_PREVIEW);
+  // Boutiques « partenaires » du carrousel : favoris d'abord, max 20 logos.
+  // (l'annuaire complet avec recherche vit sur la page dédiée /boutiques)
+  const partnerShops = [...boutiques]
+    .sort((a, b) => (!!b.favori) - (!!a.favori))
+    .slice(0, 20);
 
   const faqData = [
     {
@@ -509,86 +495,50 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Workflow steps */}
-      {/* Directory of Active Shops */}
-      <section id="shops" className="relative max-w-7xl w-full mx-auto px-6 py-10 md:py-14 border-t border-white/5 text-center">
-        <div className="space-y-3 mb-12">
-          <span className="text-xs font-bold text-blue-400 uppercase tracking-widest bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20">Communauté</span>
-          <h2 className="text-3xl md:text-5xl font-display font-extrabold tracking-tight mt-3">Boutiques hébergées</h2>
+      {/* Nos boutiques partenaires — logos défilants cliquables */}
+      <section id="shops" className="relative w-full py-10 md:py-14 border-t border-white/5 text-center overflow-hidden">
+        <div className="space-y-3 mb-10 px-6">
+          <span className="text-xs font-bold text-blue-400 uppercase tracking-widest bg-blue-500/10 px-3 py-1.5 rounded-full border border-blue-500/20">Nos partenaires</span>
+          <h2 className="text-3xl md:text-5xl font-display font-extrabold tracking-tight mt-3">Ils vendent avec Jappandal</h2>
           <p className="text-slate-400 text-sm md:text-base max-w-xl mx-auto">
-            Découvrez les vitrines e-commerce créées par nos marchands sur la plateforme Jappandal Tech.
+            {boutiques.length} boutique{boutiques.length > 1 ? 's' : ''} nous font confiance — touchez un logo pour visiter sa vitrine.
           </p>
         </div>
 
-        <div className="max-w-2xl mx-auto mb-8 relative">
-          <Search className="w-4.5 h-4.5 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            value={shopSearch}
-            onChange={e => setShopSearch(e.target.value)}
-            placeholder="Rechercher une boutique par nom, secteur ou contact…"
-            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-900 border border-white/5 text-sm text-slate-200 placeholder-slate-650 focus:outline-none focus:border-blue-500 transition-colors"
-          />
-        </div>
-
-        {/* Directory Grid Layout */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
-          {boutiques.length === 0 ? (
-            <div className="col-span-full py-16 text-center text-slate-500 text-sm border border-dashed border-white/5 rounded-3xl bg-slate-900/10 p-6">
-              Aucune boutique hébergée pour le moment. Soyez le premier à lancer votre boutique en ligne !
+        {partnerShops.length > 0 && (
+          <div className="jp-marquee relative">
+            <div className="jp-marquee-track flex items-stretch gap-3 w-max px-6">
+              {[...partnerShops, ...partnerShops].map((b, i) => (
+                <Link
+                  key={`${b.id}-${i}`}
+                  to={`/shop/${b.slug}`}
+                  className={`w-32 shrink-0 p-4 rounded-2xl bg-slate-900/70 border transition-all flex flex-col items-center gap-2.5 hover:-translate-y-1 ${
+                    b.favori ? 'border-amber-400/40' : 'border-slate-800 hover:border-blue-500/50'
+                  }`}
+                >
+                  <ShopLogo b={b} size="w-14 h-14" text="text-2xl" />
+                  <span className="text-[11px] font-bold text-slate-300 leading-tight line-clamp-2 w-full text-center">{b.name}</span>
+                </Link>
+              ))}
             </div>
-          ) : filteredShops.length === 0 ? (
-            <div className="col-span-full py-16 text-center text-slate-500 text-sm border border-dashed border-white/5 rounded-3xl bg-slate-900/10 p-6">
-              Aucune boutique ne correspond à votre recherche « {shopSearch} ».
-            </div>
-          ) : (
-            visibleShops.map((b) => (
-              <div key={b.id} className={`p-4 rounded-3xl bg-slate-900/30 border transition-all flex flex-col justify-between gap-4 group ${b.favori ? 'border-amber-400/30 shadow-lg shadow-amber-400/[0.02]' : 'border-white/5 hover:border-slate-800'}`}>
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl bg-slate-900 border border-white/5 overflow-hidden shrink-0">
-                    {b.logo.startsWith('/') || b.logo.startsWith('http') ? (
-                      <img src={b.logo} alt="Logo" className="w-10 h-10 object-contain" />
-                    ) : (
-                      b.logo
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      {b.favori && <Star className="w-3.5 h-3.5 text-amber-400 shrink-0" fill="currentColor" />}
-                      <h4 className="font-bold text-slate-250 group-hover:text-blue-400 transition-colors truncate text-sm">{b.name}</h4>
-                    </div>
-                    <p className="text-[11px] text-slate-500 truncate font-mono">/shop/{b.slug}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-1">
-                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${
-                    (b.abonnement?.plan === 'Premium' || b.abonnement?.plan === 'Premium VIP') ? 'bg-purple-500/15 text-purple-400 border-purple-500/10' :
-                    (b.abonnement?.plan === 'Pro' || b.abonnement?.plan === 'SaaS Pro') ? 'bg-blue-500/15 text-blue-400 border-blue-500/10' :
-                    'bg-slate-800 text-slate-400 border-slate-700'
-                  }`}>
-                    {b.abonnement?.plan || 'Découverte'}
-                  </span>
-
-                  <Link
-                    to={`/shop/${b.slug}`}
-                    className="inline-flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-bold bg-blue-500 hover:bg-blue-400 text-slate-950 transition-all shadow"
-                  >
-                    Visiter la boutique
-                  </Link>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {!shopSearch && filteredShops.length > SHOPS_PREVIEW && (
-          <button
-            onClick={() => setShowAllShops(v => !v)}
-            className="mt-8 px-6 py-3 rounded-2xl border border-white/5 text-sm font-semibold text-blue-400 hover:text-blue-300 hover:border-slate-800 transition-all cursor-pointer"
-          >
-            {showAllShops ? 'Masquer' : `Afficher les ${filteredShops.length} boutiques`}
-          </button>
+            {/* fondu sur les bords */}
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-14 bg-gradient-to-r from-slate-950 to-transparent" />
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-14 bg-gradient-to-l from-slate-950 to-transparent" />
+            <style>{`
+              .jp-marquee-track { animation: jp-scroll ${Math.max(25, partnerShops.length * 4)}s linear infinite; }
+              .jp-marquee:hover .jp-marquee-track, .jp-marquee:active .jp-marquee-track { animation-play-state: paused; }
+              @keyframes jp-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+              @media (prefers-reduced-motion: reduce) { .jp-marquee-track { animation: none; } }
+            `}</style>
+          </div>
         )}
+
+        <Link
+          to="/boutiques"
+          className="inline-flex items-center gap-2 mt-10 px-6 py-3 rounded-2xl bg-blue-500 hover:bg-blue-400 text-slate-950 text-sm font-bold transition-all shadow-lg shadow-blue-500/10"
+        >
+          Explorer les {boutiques.length} boutiques <ArrowRight className="w-4 h-4" />
+        </Link>
       </section>
 
       {/* Pricing cards */}

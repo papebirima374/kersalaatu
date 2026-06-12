@@ -25,6 +25,7 @@ const lazyReload = (importer) => lazy(() =>
 );
 
 const LandingPage = lazyReload(() => import('./views/LandingPage'));
+const BoutiquesDirectory = lazyReload(() => import('./views/BoutiquesDirectory'));
 const MerchantConsole = lazyReload(() => import('./views/merchant/MerchantConsole'));
 const PublicStorefront = lazyReload(() => import('./views/shop/PublicStorefront'));
 const DeveloperConsole = lazyReload(() => import('./views/admin/DeveloperConsole'));
@@ -45,6 +46,7 @@ function App() {
           }>
             <Routes>
               <Route path="/"            element={<LandingPage />} />
+              <Route path="/boutiques"   element={<BoutiquesDirectory />} />
               <Route path="/marchand"    element={<MerchantConsole />} />
               <Route path="/marchand/*"  element={<MerchantConsole />} />
               {/* Alias rétro-compatible (anciens liens /merchant) */}
