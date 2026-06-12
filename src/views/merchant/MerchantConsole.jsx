@@ -1,6 +1,7 @@
 import { toast } from '../../components/toast';
 import { thumb, fallbackSrc } from '../../utils/img';
 import { formatPrice } from '../../utils/money';
+import { buildBusinessCardCanvas } from '../../utils/businessCard';
 import QRCode from 'qrcode';
 import { unlockAudio, playOrderSound, requestNotifPermission, showOrderNotification } from '../../notify';
 import React, { useState, useRef } from 'react';
@@ -12,7 +13,7 @@ import {
   Plus, Trash2, Edit3, Check, Clock, AlertTriangle, DollarSign,
   TrendingUp, Store, ExternalLink, Save, MessageSquare, Printer,
   ShoppingCart, Minus, User, Phone, MapPin, Receipt, Search,
-  X, ChevronDown, Zap, Calendar, Users, TrendingDown
+  X, ChevronDown, Zap, Calendar, Users, TrendingDown, Lock, CreditCard
 } from 'lucide-react';
 
 
@@ -584,6 +585,70 @@ function MerchantDashboard() {
   const [newClient, setNewClient] = useState({ nom: '', telephone: '', adresse: '' });
   const [showPosClientPick, setShowPosClientPick] = useState(false);
   const [posClientSearch, setPosClientSearch] = useState('');
+
+  // ── Carte de visite (SaaS Pro / Premium VIP) ─────────────────────────────
+  const [carteOpen, setCarteOpen] = useState(false);
+  const [carteUrl, setCarteUrl] = useState('');
+  const [carteBusy, setCarteBusy] = useState(false);
+
+  const openCarteVisite = async () => {
+    if (!activeBoutique) return;
+    setCarteBusy(true);
+    try {
+      const shopUrl = buildShopUrl(activeBoutique);
+      // QR du lien vitrine
+      const qrData = await QRCode.toDataURL(shopUrl, { width: 600, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } });
+      const qrImg = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = qrData; });
+      // Logo (via proxy anti-CORS) si c'est une image
+      let logoImg = null;
+      const lg = activeBoutique.logo;
+      if (typeof lg === 'string' && (lg.startsWith('http') || lg.startsWith('data:') || lg.startsWith('/'))) {
+        const dataUrl = lg.startsWith('http') ? await loadImgDataURL(lg) : lg;
+        if (dataUrl) {
+          logoImg = await new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = dataUrl; });
+        }
+      }
+      const canvas = buildBusinessCardCanvas(activeBoutique, {
+        shopUrlDisplay: `jappandal.com/shop/${activeBoutique.slug}`,
+        qrDataUrl: { img: qrImg },
+        logoImg
+      });
+      setCarteUrl(canvas.toDataURL('image/png'));
+      setCarteOpen(true);
+    } catch (err) {
+      console.error(err);
+      toast('Erreur lors de la génération de la carte : ' + (err.message || 'réessayez'));
+    } finally {
+      setCarteBusy(false);
+    }
+  };
+
+  const carteFileName = `Carte_${activeBoutique?.slug || 'boutique'}.png`;
+  const downloadCarte = () => {
+    const a = document.createElement('a');
+    a.href = carteUrl; a.download = carteFileName; a.click();
+  };
+  const shareCarte = async () => {
+    try {
+      const blob = await (await fetch(carteUrl)).blob();
+      const file = new File([blob], carteFileName, { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: `Carte de visite — ${activeBoutique.name}` });
+      } else {
+        downloadCarte();
+        toast('Partage indisponible ici — carte téléchargée (joignez-la sur WhatsApp).', 'info', 5000);
+      }
+    } catch (e) { if (e?.name !== 'AbortError') downloadCarte(); }
+  };
+  const printCarte = async () => {
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      // Format carte de visite standard (85,6 × 54 mm), pleine page
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [54, 85.6] });
+      pdf.addImage(carteUrl, 'PNG', 0, 1.8, 85.6, 50);
+      pdf.save(`Carte_${activeBoutique?.slug || 'boutique'}.pdf`);
+    } catch (e) { toast('Erreur PDF : ' + (e.message || '')); }
+  };
 
   // ── Alertes de commande (son + notification système) ──────────────────
   const [alertsOn, setAlertsOn] = useState(() => localStorage.getItem('jt_alerts_on') === '1');
@@ -3133,6 +3198,22 @@ function MerchantDashboard() {
                 </button>
               </div>
 
+              {/* Carte de visite professionnelle (SaaS Pro / Premium VIP) */}
+              {(isPro || isVIP) ? (
+                <button onClick={openCarteVisite} disabled={carteBusy}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500/15 to-amber-400/10 border border-amber-400/30 text-amber-300 font-bold text-sm transition-all hover:border-amber-400/60 flex items-center justify-center gap-2">
+                  {carteBusy
+                    ? <span className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                    : <CreditCard className="w-4 h-4" />}
+                  Ma carte de visite (QR)
+                </button>
+              ) : (
+                <button onClick={() => { setShowShareModal(false); setShowUpgradeModal(true); }}
+                  className="w-full py-2.5 rounded-xl bg-slate-800/60 border border-slate-700 text-slate-500 font-bold text-sm flex items-center justify-center gap-2">
+                  <Lock className="w-4 h-4" /> Carte de visite — dès SaaS Pro
+                </button>
+              )}
+
               {shareQr && (
                 <a href={shareQr} download={`qr-${activeBoutique.slug}.png`}
                   className="block text-center text-xs font-semibold text-blue-400 hover:text-blue-300">
@@ -3410,6 +3491,36 @@ function MerchantDashboard() {
                   <X className="w-4 h-4" /> {merchantUser?.role === 'caissier' ? "Demander l'annulation" : "Annuler cette commande (rembourse le stock)"}
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL CARTE DE VISITE ─────────────────────────────────────────── */}
+      {carteOpen && carteUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setCarteOpen(false)}>
+          <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-2xl p-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-white flex items-center gap-2"><CreditCard className="w-4 h-4 text-amber-400" /> Ma carte de visite</h3>
+              <button onClick={() => setCarteOpen(false)} className="text-slate-500 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <img src={carteUrl} alt="Carte de visite" className="w-full rounded-xl shadow-2xl" />
+            <p className="text-[11px] text-slate-500 text-center mt-3">
+              Partagez-la sur WhatsApp, mettez-la en photo de statut, ou imprimez-la au format carte bancaire (8,5 × 5,4 cm).
+            </p>
+            <div className="grid grid-cols-3 gap-2 mt-4">
+              <button onClick={downloadCarte}
+                className="py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-bold text-xs transition-colors">
+                Télécharger
+              </button>
+              <button onClick={shareCarte}
+                className="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-colors">
+                WhatsApp…
+              </button>
+              <button onClick={printCarte}
+                className="py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 transition-colors flex items-center justify-center gap-1.5">
+                <Printer className="w-3.5 h-3.5" /> PDF
+              </button>
             </div>
           </div>
         </div>

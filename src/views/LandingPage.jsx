@@ -636,6 +636,10 @@ export default function LandingPage() {
                   <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
                   <span>Factures & Reçus PDF</span>
                 </li>
+                <li className="flex items-start gap-2.5">
+                  <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                  <span>Carte de visite pro avec QR code</span>
+                </li>
                 <li className="flex items-start gap-2.5 text-slate-600 line-through">
                   <span>Multi-boutique & Dépenses</span>
                 </li>
@@ -683,7 +687,7 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-start gap-2.5">
                   <Check className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
-                  <span>Factures & Reçus PDF professionnels</span>
+                  <span>Factures, reçus & carte de visite QR</span>
                 </li>
               </ul>
             </div>
