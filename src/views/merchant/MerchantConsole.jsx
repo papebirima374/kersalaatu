@@ -563,6 +563,7 @@ function MerchantDashboard() {
   }, [clientsList, clientSearch]);
 
   // ── Produits groupés par catégorie (famille) — liste plus lisible ────────
+  const [productSearch, setProductSearch] = useState('');
   const [collapsedCats, setCollapsedCats] = useState(() => new Set());
   const toggleCat = (cat) => setCollapsedCats(prev => {
     const next = new Set(prev);
@@ -579,6 +580,15 @@ function MerchantDashboard() {
       .map(([cat, items]) => ({ cat, items }))
       .sort((a, b) => (a.cat === 'Divers') - (b.cat === 'Divers') || a.cat.localeCompare(b.cat, 'fr'));
   }, [activeProducts]);
+
+  // Recherche produit : filtre toutes les familles (et les déplie)
+  const displayedProductGroups = React.useMemo(() => {
+    const q = productSearch.trim().toLowerCase();
+    if (!q) return productGroups;
+    return productGroups
+      .map(g => ({ ...g, items: g.items.filter(p => (p.name || '').toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q)) }))
+      .filter(g => g.items.length > 0);
+  }, [productGroups, productSearch]);
 
   // ── Modals clients : ajout manuel + sélection en caisse ─────────────────
   const [showAddClient, setShowAddClient] = useState(false);
@@ -1975,8 +1985,23 @@ function MerchantDashboard() {
                 </div>
               ) : (
                 <div className="space-y-5">
-                  {productGroups.map(({ cat, items }) => {
-                  const collapsed = collapsedCats.has(cat);
+                  {/* Recherche produit */}
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      value={productSearch}
+                      onChange={e => setProductSearch(e.target.value)}
+                      placeholder="Rechercher un produit (nom ou catégorie)…"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  {displayedProductGroups.length === 0 && (
+                    <div className="bg-slate-900 border border-dashed border-slate-700 rounded-xl py-10 text-center text-slate-500 text-sm">
+                      Aucun produit ne correspond à « {productSearch} ».
+                    </div>
+                  )}
+                  {displayedProductGroups.map(({ cat, items }) => {
+                  const collapsed = !productSearch.trim() && collapsedCats.has(cat);
                   return (
                   <div key={cat} className="space-y-3">
                     {/* En-tête de famille (repliable) */}
