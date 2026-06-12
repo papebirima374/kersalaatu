@@ -8,20 +8,35 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function signedIn() { return request.auth != null; }
-    
+
+    // E-mail du compte connecté, en minuscules ('' si absent).
+    // NB : le langage des règles utilise lower(), pas toLowerCase().
+    function userEmail() {
+      return ('email' in request.auth.token) ? request.auth.token.email.lower() : '';
+    }
+
     function isAdmin() {
-      return signedIn() && (request.auth.token.admin == true || request.auth.token.email.toLowerCase() == 'papebirima374@gmail.com');
+      return signedIn() && userEmail() == 'papebirima374@gmail.com';
+    }
+
+    // Propriétaire d'une boutique : par uid OU par e-mail (certaines boutiques
+    // anciennes n'ont pas d'ownerUid fiable — l'e-mail fait foi en secours).
+    function ownsShopData(shop) {
+      return signedIn() && (
+        (('ownerUid' in shop) && shop.ownerUid == request.auth.uid)
+        || (('ownerEmail' in shop) && shop.ownerEmail.lower() == userEmail())
+      );
     }
 
     function isBoutiqueOwner(boutiqueId) {
-      return get(/databases/$(database)/documents/boutiques/$(boutiqueId)).data.ownerUid == request.auth.uid;
+      return ownsShopData(get(/databases/$(database)/documents/boutiques/$(boutiqueId)).data);
     }
 
     // Boutiques : vitrines publiques (lecture libre), écriture réservée au propriétaire connecté ou à l'admin
     match /boutiques/{id} {
       allow read: if true;
-      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
-      allow update, delete: if signedIn() && (resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow create: if signedIn() && (ownsShopData(request.resource.data) || isAdmin());
+      allow update, delete: if signedIn() && (ownsShopData(resource.data) || isAdmin());
     }
 
     // Produits : catalogues publics (lecture libre), écriture par le propriétaire de la boutique ou l'admin
