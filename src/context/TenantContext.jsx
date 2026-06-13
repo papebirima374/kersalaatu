@@ -244,12 +244,7 @@ export const TenantProvider = ({ children }) => {
     if (!merchantUser) return;
     const unsubs = [];
 
-    unsubs.push(onSnapshot(collection(db, 'orders'), snap => {
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      data.sort((a, b) => new Date(b.date) - new Date(a.date));
-      setOrders(data);
-    }, err => console.error('orders listener:', err)));
-
+    // Tickets & demandes d'upgrade : l'admin a besoin de la vue globale.
     unsubs.push(onSnapshot(collection(db, 'tickets'), snap => {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setTickets(data);
@@ -261,18 +256,34 @@ export const TenantProvider = ({ children }) => {
       setUpgradeRequests(data);
     }, err => console.error('upgradeRequests listener:', err)));
 
-    unsubs.push(onSnapshot(collection(db, 'caissiers'), snap => {
+    return () => unsubs.forEach(u => u());
+  }, [merchantUser?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Commandes / caissiers / dépenses : SCOPÉS à la boutique active du marchand.
+  // Un marchand ne télécharge JAMAIS les commandes (clients) d'une autre boutique.
+  // Re-souscription au changement de boutique (même schéma que les produits).
+  useEffect(() => {
+    if (!isConfigured || !merchantUser || !currentMerchantBoutiqueId) return;
+    if (currentMerchantBoutiqueId === activeStorefrontBoutiqueId) return;
+    const bid = currentMerchantBoutiqueId;
+    const unsubs = [];
+
+    unsubs.push(onSnapshot(query(collection(db, 'orders'), where('boutiqueId', '==', bid)), snap => {
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setCaissiers(data);
+      data.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setOrders(data);
+    }, err => console.error('orders listener:', err)));
+
+    unsubs.push(onSnapshot(query(collection(db, 'caissiers'), where('boutiqueId', '==', bid)), snap => {
+      setCaissiers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     }, err => console.error('caissiers listener:', err)));
 
-    unsubs.push(onSnapshot(collection(db, 'depenses'), snap => {
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setDepenses(data);
+    unsubs.push(onSnapshot(query(collection(db, 'depenses'), where('boutiqueId', '==', bid)), snap => {
+      setDepenses(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     }, err => console.error('depenses listener:', err)));
 
     return () => unsubs.forEach(u => u());
-  }, [merchantUser?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [merchantUser?.uid, currentMerchantBoutiqueId, activeStorefrontBoutiqueId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Actions
   const updateBoutique = (boutiqueId, updatedFields) => {

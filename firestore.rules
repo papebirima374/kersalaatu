@@ -32,6 +32,14 @@ service cloud.firestore {
       return ownsShopData(get(/databases/$(database)/documents/boutiques/$(boutiqueId)).data);
     }
 
+    // Caissier de cette boutique : son document caissier (id = uid Firebase Auth)
+    // pointe vers cette boutiqueId → accès aux commandes de SA boutique uniquement.
+    function isCaissierOf(boutiqueId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/caissiers/$(request.auth.uid))
+        && get(/databases/$(database)/documents/caissiers/$(request.auth.uid)).data.boutiqueId == boutiqueId;
+    }
+
     // Boutiques : vitrines publiques (lecture libre), écriture réservée au propriétaire connecté ou à l'admin
     match /boutiques/{id} {
       allow read: if true;
@@ -49,9 +57,10 @@ service cloud.firestore {
     // Commandes : un client peut créer sans compte ; lecture/gestion par le propriétaire ou l'admin
     match /orders/{id} {
       allow create: if true;
-      // lecture/mise à jour par tout compte connecté : le MARCHAND (listener global)
-      // et le CAISSIER (gestion des statuts) ; suppression réservée propriétaire/admin
-      allow read, update: if signedIn();
+      // Lecture/mise à jour réservées au PROPRIÉTAIRE de la boutique, à son
+      // CAISSIER, ou à l'admin — un marchand ne voit JAMAIS les commandes
+      // (ni les clients) d'une autre boutique. Suppression : propriétaire/admin.
+      allow read, update: if signedIn() && (isBoutiqueOwner(resource.data.boutiqueId) || isCaissierOf(resource.data.boutiqueId) || isAdmin());
       allow delete: if signedIn() && (isBoutiqueOwner(resource.data.boutiqueId) || isAdmin());
     }
 
@@ -65,9 +74,10 @@ service cloud.firestore {
       allow update: if false;
     }
 
-    // Dépenses (Premium VIP) : gérées par le propriétaire de la boutique ou l'admin
+    // Dépenses (Premium VIP) : strictement privées au propriétaire ou à l'admin
+    // (données financières — aucune lecture inter-boutiques).
     match /depenses/{id} {
-      allow read: if signedIn();
+      allow read: if signedIn() && (isBoutiqueOwner(resource.data.boutiqueId) || isAdmin());
       allow create: if signedIn() && (isBoutiqueOwner(request.resource.data.boutiqueId) || isAdmin());
       allow update, delete: if signedIn() && (isBoutiqueOwner(resource.data.boutiqueId) || isAdmin());
     }

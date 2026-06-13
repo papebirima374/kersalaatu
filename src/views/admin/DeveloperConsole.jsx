@@ -254,7 +254,11 @@ export default function DeveloperConsole() {
     const prods = (getProductsByBoutique?.(b.id) || []).length;
     const ords  = (getOrdersByBoutique?.(b.id) || []).length;
     const pays  = (b.abonnement?.paiements || []).length;
-    return prods > 0 || ords > 0 || pays > 0 || !!b.abonnement?.dernierPaiement;
+    // Toute boutique sur un forfait payant est considérée active (protégée) —
+    // fiable même si ses produits/commandes ne sont pas chargés dans ce contexte.
+    const plan  = b.abonnement?.plan;
+    const paid  = plan && plan !== 'Découverte';
+    return paid || prods > 0 || ords > 0 || pays > 0 || !!b.abonnement?.dernierPaiement;
   };
 
   // Suppression : boutique active → mot de passe de restriction ; boutique vide → confirmation simple

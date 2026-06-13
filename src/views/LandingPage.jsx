@@ -6,8 +6,7 @@ import { ShopLogo } from './BoutiquesDirectory';
 import {
   ArrowRight,
   LogIn,
-  Search,
-  MessageSquare, 
+  MessageSquare,
   Sparkles, 
   Check,
   ChevronDown,
