@@ -16,6 +16,28 @@ import {
   X, ChevronDown, Zap, Calendar, Users, TrendingDown, Lock, CreditCard
 } from 'lucide-react';
 
+// ── Texte sûr pour jsPDF ─────────────────────────────────────────────────────
+// Les polices standard de jsPDF ne gèrent que le Latin-1 : les emojis (drapeau
+// 🇸🇳…), l'arabe et certains symboles deviennent du charabia (« Ø<Ýø »). On
+// normalise la ponctuation typographique en ASCII et on retire tout caractère
+// non imprimable en Latin-1 (les accents français é à ç… sont conservés).
+const PDF_MAP = {
+  '’': "'", '‘': "'", '“': '"', '”': '"',
+  '–': '-', '—': '-', '…': '...',
+  ' ': ' ', ' ': ' ', ' ': ' ',
+  'º': 'o', '°': '', 'ª': 'a', '•': '-',
+};
+const sanitizePdf = (s) => {
+  if (s == null) return '';
+  let out = String(s).normalize('NFC')
+    .replace(/[‘’“”–—…   º°ª•]/g, (c) => PDF_MAP[c] ?? '')
+    // emoji, drapeaux, symboles, variation selectors, ZWJ, scripts non latins (arabe…)
+    .replace(/[\u{1F000}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}\u{2190}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}\u{0600}-\u{06FF}\u{0750}-\u{077F}\u{08A0}-\u{08FF}\u{FB50}-\u{FDFF}\u{FE70}-\u{FEFF}]/gu, '')
+    // tout ce qui reste hors Latin-1 imprimable
+    .replace(/[^ -ÿ]/g, '');
+  return out.replace(/\s{2,}/g, ' ').trim();
+};
+
 
 // Version courte dérivée du logo (+ nom). Elle change quand le marchand met à jour
 // son logo, ce qui modifie l'URL de partage et FORCE WhatsApp / Facebook à
@@ -746,6 +768,7 @@ function MerchantDashboard() {
   const [orderTo, setOrderTo]               = useState('');
   const [collapsedDays, setCollapsedDays]   = useState(() => new Set());
   const [activePrintInvoice, setActivePrintInvoice] = useState(null);
+  const [invoiceFormat, setInvoiceFormat] = useState('ticket'); // 'ticket' (80mm) | 'a5'
   const invoiceRef = useRef(null);
   const [pdfLoading, setPdfLoading] = useState(false);
 
@@ -1160,27 +1183,27 @@ function MerchantDashboard() {
         }
         y += 19;
       }
-      center(b.name.toUpperCase(), 13, 'bold');
-      if (b.adresse) center(b.adresse, 8, 'normal', [110, 110, 110]);
-      if (b.whatsapp) center(b.whatsapp, 8.5, 'normal', [110, 110, 110]);
+      center(sanitizePdf(b.name).toUpperCase(), 13, 'bold');
+      if (b.adresse) center(sanitizePdf(b.adresse), 8, 'normal', [110, 110, 110]);
+      if (b.whatsapp) center(sanitizePdf(b.whatsapp), 8.5, 'normal', [110, 110, 110]);
       y += 1.5; dash();
 
       center('FACTURE', 11, 'bold');
       const dt = new Date(inv.date);
-      center(`N° ${inv.id}`, 8.5, 'normal', [110, 110, 110]);
+      center(`N° ${sanitizePdf(inv.id)}`, 8.5, 'normal', [110, 110, 110]);
       center(`${dt.toLocaleDateString('fr-FR')}  ${dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`, 8.5, 'normal', [110, 110, 110]);
       y += 1; dash();
 
       pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8); setC([90, 90, 90]); pdf.text('CLIENT', m, y); y += 4;
       pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); setC([20, 20, 20]);
       [inv.client?.nom, inv.client?.telephone, inv.client?.adresse].filter(Boolean).forEach(t => {
-        pdf.splitTextToSize(String(t), cw).forEach(l => { pdf.text(l, m, y); y += 4; });
+        pdf.splitTextToSize(sanitizePdf(t), cw).forEach(l => { pdf.text(l, m, y); y += 4; });
       });
       y += 0.5; dash();
 
       inv.items.forEach(it => {
         pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9); setC([0, 0, 0]);
-        pdf.splitTextToSize(it.name, cw).forEach(l => { pdf.text(l, m, y); y += 4; });
+        pdf.splitTextToSize(sanitizePdf(it.name), cw).forEach(l => { pdf.text(l, m, y); y += 4; });
         pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); setC([110, 110, 110]);
         pdf.text(`${it.quantity} x ${money(it.price)}`, m, y);
         pdf.setFont('helvetica', 'bold'); setC([0, 0, 0]);
@@ -1203,7 +1226,7 @@ function MerchantDashboard() {
       center(`Paiement : ${inv.paiement?.methode || 'À la livraison'} — ${inv.paiement?.statut || 'En attente'}`, 8.5, 'normal', [90, 90, 90]);
       y += 1; dash();
       center('Merci pour votre achat !', 9, 'bold', [60, 60, 60]);
-      center(`${b.name} · Propulsé par Jappandal Tech`, 7.5, 'normal', [150, 150, 150]);
+      center(`${sanitizePdf(b.name)} · Propulse par Jappandal Tech`, 7.5, 'normal', [150, 150, 150]);
       y += m;
       return y;
     };
@@ -1213,6 +1236,110 @@ function MerchantDashboard() {
     const H = draw(probe, true);
     const pdf = new jsPDF({ unit: 'mm', format: [W, Math.max(70, H)] });
     draw(pdf, false);
+    return pdf;
+  };
+
+  // ── Facture format A5 (148 × 210 mm) — page classique, propre et imprimable ──
+  const buildA5Pdf = async (jsPDF) => {
+    const inv = activePrintInvoice, b = activeBoutique;
+    const money = (n) => formatPrice(n, b?.devise);
+    const T = sanitizePdf;
+    const hex = String(b.couleurMarque || '#2563eb').replace('#', '');
+    const BR = [parseInt(hex.slice(0, 2), 16) || 37, parseInt(hex.slice(2, 4), 16) || 99, parseInt(hex.slice(4, 6), 16) || 235];
+
+    let logoData = null;
+    if (typeof b.logo === 'string') {
+      if (b.logo.startsWith('data:image')) logoData = b.logo;
+      else if (b.logo.startsWith('http')) logoData = await loadImgDataURL(b.logo).catch(() => null);
+    }
+
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
+    const PW = 148, m = 12, cw = PW - 2 * m;
+    const setC = (c) => pdf.setTextColor(c[0], c[1], c[2]);
+    let y = m;
+
+    // En-tête : logo + identité (gauche) · FACTURE + n° + date (droite)
+    if (logoData) { try { pdf.addImage(logoData, 'PNG', m, y, 16, 16); } catch { /* */ } }
+    else {
+      pdf.setFillColor(BR[0], BR[1], BR[2]); pdf.circle(m + 8, y + 8, 8, 'F');
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); setC([255, 255, 255]);
+      pdf.text(T(b.name || 'B').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase(), m + 8, y + 8, { align: 'center', baseline: 'middle' });
+    }
+    const tx = m + 20;
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(13); setC([20, 20, 20]);
+    pdf.splitTextToSize(T(b.name).toUpperCase(), 70).forEach((l, i) => pdf.text(l, tx, y + 4 + i * 5));
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); setC([110, 110, 110]);
+    let hy = y + 13;
+    if (b.adresse) { pdf.text(T(b.adresse), tx, hy); hy += 4; }
+    if (b.whatsapp) { pdf.text(T(b.whatsapp) + (b.whatsapp2 ? ' / ' + T(b.whatsapp2) : ''), tx, hy); hy += 4; }
+
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(16); setC(BR);
+    pdf.text('FACTURE', PW - m, y + 5, { align: 'right' });
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); setC([110, 110, 110]);
+    const dt = new Date(inv.date);
+    pdf.text(`N° ${T(inv.id)}`, PW - m, y + 11, { align: 'right' });
+    pdf.text(`${dt.toLocaleDateString('fr-FR')} ${dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`, PW - m, y + 15.5, { align: 'right' });
+
+    y = Math.max(hy, y + 20) + 2;
+    pdf.setDrawColor(BR[0], BR[1], BR[2]); pdf.setLineWidth(0.6); pdf.line(m, y, PW - m, y); y += 6;
+
+    // Client + Paiement
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8); setC([130, 130, 130]);
+    pdf.text('FACTURE A', m, y);
+    pdf.text('PAIEMENT', PW - m, y, { align: 'right' }); y += 4.5;
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9.5); setC([30, 30, 30]);
+    const cl = [T(inv.client?.nom), T(inv.client?.telephone), T(inv.client?.adresse)].filter(Boolean);
+    const pay = [T(inv.paiement?.methode || 'A la livraison'), T(inv.paiement?.statut || 'En attente')];
+    const rowsN = Math.max(cl.length, pay.length);
+    for (let i = 0; i < rowsN; i++) {
+      if (cl[i]) pdf.splitTextToSize(cl[i], cw * 0.6).forEach((l, k) => k === 0 && pdf.text(l, m, y + i * 4.5));
+      if (pay[i]) pdf.text(pay[i], PW - m, y + i * 4.5, { align: 'right' });
+    }
+    y += rowsN * 4.5 + 4;
+
+    // Tableau des articles (colonnes espacées pour ne pas coller Qté/P.U./Montant)
+    const nameW = cw * 0.44, colQte = m + cw * 0.52, colPU = m + cw * 0.74, colMt = PW - m;
+    pdf.setFillColor(BR[0], BR[1], BR[2]); pdf.rect(m, y, cw, 7, 'F');
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5); setC([255, 255, 255]);
+    pdf.text('DESIGNATION', m + 2, y + 4.7);
+    pdf.text('QTE', colQte, y + 4.7, { align: 'right' });
+    pdf.text('P.U.', colPU, y + 4.7, { align: 'right' });
+    pdf.text('MONTANT', colMt - 2, y + 4.7, { align: 'right' });
+    y += 7;
+
+    pdf.setFontSize(9);
+    inv.items.forEach((it, idx) => {
+      const lines = pdf.splitTextToSize(T(it.name), nameW);
+      const rh = Math.max(7, lines.length * 4 + 3);
+      if (idx % 2) { pdf.setFillColor(247, 249, 252); pdf.rect(m, y, cw, rh, 'F'); }
+      pdf.setFont('helvetica', 'normal'); setC([30, 30, 30]);
+      lines.forEach((l, k) => pdf.text(l, m + 2, y + 4.7 + k * 4));
+      pdf.text(String(it.quantity), colQte, y + 4.7, { align: 'right' });
+      pdf.text(money(it.price), colPU, y + 4.7, { align: 'right' });
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(money(it.price * it.quantity), colMt - 2, y + 4.7, { align: 'right' });
+      y += rh;
+    });
+    pdf.setDrawColor(210, 210, 210); pdf.setLineWidth(0.3); pdf.line(m, y, PW - m, y); y += 6;
+
+    // Totaux
+    const sous = inv.total - (inv.livraison?.frais || 0);
+    const trow = (lbl, val, bold) => {
+      pdf.setFont('helvetica', bold ? 'bold' : 'normal'); pdf.setFontSize(bold ? 13 : 9.5);
+      setC(bold ? [20, 20, 20] : [100, 100, 100]); pdf.text(lbl, PW - m - 45, y, { align: 'right' });
+      setC(bold ? BR : [30, 30, 30]); pdf.text(val, PW - m, y, { align: 'right' }); y += bold ? 8 : 5;
+    };
+    trow('Sous-total', money(sous));
+    trow('Livraison', money(inv.livraison?.frais || 0));
+    y += 1; pdf.setDrawColor(20, 20, 20); pdf.setLineWidth(0.5); pdf.line(PW - m - 55, y, PW - m, y); y += 6;
+    trow('TOTAL', money(inv.total), true);
+
+    // Pied
+    y += 4;
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); setC([60, 60, 60]);
+    pdf.text('Merci pour votre achat !', PW / 2, y, { align: 'center' }); y += 5;
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); setC([150, 150, 150]);
+    pdf.text(`${T(b.name)} · Propulse par Jappandal Tech · jappandal.com`, PW / 2, y, { align: 'center' });
     return pdf;
   };
 
@@ -1336,12 +1463,14 @@ function MerchantDashboard() {
     setPdfLoading(true);
     try {
       const { default: jsPDF } = await import('jspdf');
-      const filename = `Facture_${activePrintInvoice.id}_${activeBoutique.name.replace(/\s+/g,'_')}.pdf`;
+      const safeName = sanitizePdf(activeBoutique.name).replace(/\s+/g, '_') || 'boutique';
+      const suffix = invoiceFormat === 'a5' ? '_A5' : '';
+      const filename = `Facture_${activePrintInvoice.id}_${safeName}${suffix}.pdf`;
       let pdf;
       try {
-        pdf = await buildReceiptPdf(jsPDF);
+        pdf = invoiceFormat === 'a5' ? await buildA5Pdf(jsPDF) : await buildReceiptPdf(jsPDF);
       } catch (capErr) {
-        console.warn('Ticket indisponible, repli facture A4 :', capErr);
+        console.warn('Format indisponible, repli facture A4 :', capErr);
         pdf = await buildManualPdf(jsPDF);
       }
 
@@ -3333,6 +3462,21 @@ function MerchantDashboard() {
                     className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-300 text-slate-600 text-xs font-medium hover:bg-slate-100 transition-all">
                     <X className="w-3.5 h-3.5" /> Fermer
                   </button>
+                </div>
+              </div>
+
+              {/* Choix du format à télécharger / partager */}
+              <div className="flex items-center gap-2 mt-3">
+                <span className="text-[11px] font-semibold text-slate-500">Format :</span>
+                <div className="inline-flex rounded-lg bg-slate-200 p-0.5">
+                  {[['ticket', 'Ticket de caisse'], ['a5', 'Page A5']].map(([val, label]) => (
+                    <button key={val} onClick={() => setInvoiceFormat(val)}
+                      className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                        invoiceFormat === val ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                      }`}>
+                      {label}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
