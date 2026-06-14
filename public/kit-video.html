@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kit vidéo — Jappandal Tech</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--ivory:#FCFAF6;--sand:#F5F0E5;--line:#EBE2D4;--ink:#121F38;--ink2:#576780;--blue:#2563EB;--terra:#B06000}
+  *{margin:0;box-sizing:border-box}
+  body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--ivory);color:var(--ink);line-height:1.6}
+  .serif{font-family:'Fraunces',serif;font-weight:500}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  header{text-align:center;padding:64px 24px 40px}
+  header .logo{height:54px;margin-bottom:18px}
+  header h1{font-size:clamp(32px,5vw,52px);letter-spacing:-.02em;line-height:1.05}
+  header h1 i{color:var(--blue)}
+  header p{color:var(--ink2);max-width:620px;margin:14px auto 0;font-size:17px}
+  .meta{display:inline-flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:22px}
+  .pill{background:#fff;border:1px solid var(--line);border-radius:999px;padding:7px 16px;font-size:13px;font-weight:600;color:var(--ink2)}
+  .chapter{display:flex;align-items:center;gap:16px;margin:56px 0 8px}
+  .chapter span{font-family:'Fraunces',serif;font-size:13px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--terra);white-space:nowrap}
+  .chapter:before,.chapter:after{content:"";height:1px;background:var(--line);flex:1}
+  .scene{display:grid;grid-template-columns:1fr;gap:8px;background:#fff;border:1px solid var(--line);border-radius:24px;padding:24px;margin:18px 0;box-shadow:0 30px 60px -45px rgba(18,31,56,.4)}
+  .scene .num{font-family:'Fraunces',serif;font-size:15px;font-weight:600;color:var(--blue)}
+  .scene h3{font-size:22px;letter-spacing:-.01em}
+  .scene .narr{color:var(--ink2);font-size:15px;font-style:italic;border-left:3px solid var(--line);padding-left:14px;margin-top:4px}
+  .scene .shot{margin-top:14px;text-align:center;background:var(--sand);border-radius:16px;padding:18px}
+  .scene .shot img{max-width:100%;height:auto;display:inline-block}
+  .scene.browser .shot{background:linear-gradient(180deg,#eef2f8,#e7edf5)}
+  footer{text-align:center;color:var(--ink2);font-size:13px;padding:50px 24px 70px}
+  @media(min-width:760px){
+    .scene{grid-template-columns:1fr;}
+    .scene .shot img{max-height:520px}
+  }
+  @media print{.scene{break-inside:avoid;box-shadow:none}}
+</style>
+</head>
+<body>
+<header>
+  <img class="logo" src="https://www.jappandal.com/logo-jappandal.png" alt="Jappandal" onerror="this.style.display='none'">
+  <h1 class="serif">Kit vidéo — <i>Jappandal Tech</i></h1>
+  <p>Storyboard de présentation du site, dans l'ordre. Chaque scène : la capture (mockup net) et la phrase de narration suggérée pour la voix off.</p>
+  <div class="meta">
+    <span class="pill">13 scènes</span>
+    <span class="pill">Captures HD du site en ligne</span>
+    <span class="pill">Mockups téléphone & navigateur</span>
+    <span class="pill">jappandal.com</span>
+  </div>
+</header>
+
+<div class="wrap" id="app"></div>
+
+<footer>Jappandal Tech — kit de présentation · jappandal.com</footer>
+
+<script>
+const SCENES = [
+  { ch:"L'accueil", items:[
+    { n:"01", f:"01-accueil-hero.png", b:1, t:"Votre boutique, en 2 minutes", narr:"Jappandal : créez votre boutique en ligne en 2 minutes, sans aucune commission." },
+    { n:"02", f:"02-accueil-features.png", b:1, t:"Tous vos outils réunis", narr:"Vitrine, commandes WhatsApp, caisse, factures et carte de visite — tout au même endroit." },
+    { n:"03", f:"03-accueil-tarifs.png", b:1, t:"Des tarifs clairs", narr:"Gratuit pour commencer. Des forfaits simples à 5 000 et 10 000 FCFA par mois." },
+    { n:"04", f:"04-accueil-sombre.png", b:1, t:"Un design moderne, clair ou sombre", narr:"Une interface soignée, agréable de jour comme de nuit." },
+    { n:"05", f:"05-boutiques-annuaire.png", b:1, t:"Une communauté de boutiques", narr:"Des dizaines d'entrepreneurs vendent déjà avec Jappandal." },
+    { n:"06", f:"06-accueil-mobile.png", b:0, t:"100 % depuis le téléphone", narr:"Tout se gère depuis votre poche, où que vous soyez." },
+  ]},
+  { ch:"La vitrine, côté client", items:[
+    { n:"07", f:"07-vitrine-decouvrir.png", b:0, t:"Une vitrine à votre image", narr:"Vos clients découvrent une boutique élégante, à vos couleurs et votre logo." },
+    { n:"08", f:"08-vitrine-produits.png", b:0, t:"Le panier en un clic", narr:"Ils parcourent vos produits et commandent en un clic — la commande arrive sur votre WhatsApp." },
+  ]},
+  { ch:"La console, côté marchand", items:[
+    { n:"09", f:"09-console-dashboard.png", b:1, t:"Tableau de bord clair", narr:"Suivez votre chiffre d'affaires, votre panier moyen et vos meilleures ventes." },
+    { n:"10", f:"10-console-produits.png", b:1, t:"Gestion des produits", narr:"Ajoutez vos produits, photos et stocks en quelques secondes." },
+    { n:"11", f:"11-console-commandes.png", b:1, t:"Suivi des commandes", narr:"Suivez chaque commande, du reçu jusqu'au paiement." },
+    { n:"12", f:"12-console-caisse.png", b:1, t:"Caisse intégrée", narr:"Encaissez aussi vos ventes en boutique, et imprimez le reçu." },
+    { n:"13", f:"13-console-clients.png", b:1, t:"Vos clients, fidélisés", narr:"Gardez la fiche et l'historique de chaque client." },
+  ]},
+];
+const app = document.getElementById('app');
+SCENES.forEach(group => {
+  const c = document.createElement('div'); c.className='chapter';
+  c.innerHTML = `<span>${group.ch}</span>`; app.appendChild(c);
+  group.items.forEach(s => {
+    const d = document.createElement('div');
+    d.className = 'scene' + (s.b ? ' browser' : '');
+    d.innerHTML = `<div class="num">Scène ${s.n}</div>
+      <h3 class="serif">${s.t}</h3>
+      <div class="narr">« ${s.narr} »</div>
+      <div class="shot"><img src="kit-assets/mockups/${s.f}" alt="${s.t}" loading="lazy"></div>`;
+    app.appendChild(d);
+  });
+});
+</script>
+</body>
+</html>
