@@ -157,6 +157,7 @@ export default function DeveloperConsole() {
   // Recherche boutiques
   const [boutiqueSearch, setBoutiqueSearch] = useState('');
   const [boutiqueSubTab, setBoutiqueSubTab] = useState('all'); // 'all' | 'subscribers'
+  const [boutiquePlanFilter, setBoutiquePlanFilter] = useState('all'); // 'all' | 'Découverte' | 'Pro' | 'Premium'
 
   const exportSubscribersCSV = () => {
     const headers = [
@@ -374,6 +375,15 @@ export default function DeveloperConsole() {
   const bq = boutiqueSearch.trim().toLowerCase();
   const bqDigits = bq.replace(/\D/g, '');
   const filteredBoutiques = boutiques.filter(b => {
+    // Filtrage par plan
+    const plan = b.abonnement?.plan || 'Découverte';
+    if (boutiquePlanFilter !== 'all') {
+      if (boutiquePlanFilter === 'Découverte' && plan !== 'Découverte') return false;
+      if (boutiquePlanFilter === 'Pro' && plan !== 'Pro' && plan !== 'SaaS Pro') return false;
+      if (boutiquePlanFilter === 'Premium' && plan !== 'Premium' && plan !== 'Premium VIP') return false;
+    }
+
+    // Filtrage par recherche textuelle
     if (!bq) return true;
     const name = (b.name || '').toLowerCase();
     const phone = (b.whatsapp || '').toLowerCase();
@@ -762,6 +772,30 @@ export default function DeveloperConsole() {
                   placeholder="Rechercher (nom, téléphone ou email)…"
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500"
                 />
+              </div>
+
+              {/* Filtre de Plan */}
+              <div className="flex flex-wrap gap-2 items-center text-xs py-1">
+                <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Filtrer par forfait :</span>
+                <div className="flex rounded-lg bg-slate-900 p-0.5 border border-slate-800">
+                  {[
+                    { id: 'all', label: 'Tous' },
+                    { id: 'Découverte', label: 'Gratuit (Découverte)' },
+                    { id: 'Pro', label: 'Pro (SaaS Pro)' },
+                    { id: 'Premium', label: 'VIP (Premium VIP)' }
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setBoutiquePlanFilter(opt.id)}
+                      className={`px-3 py-1 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
+                        boutiquePlanFilter === opt.id ? 'bg-blue-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Résumé abonnements */}

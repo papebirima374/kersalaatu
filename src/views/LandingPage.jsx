@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { toast } from '../components/toast';
 import { useTenant } from '../context/TenantContext';
 import { ShopLogo } from './BoutiquesDirectory';
+import { db, isConfigured } from '../firebase/config';
+import { collection, query, where, limit, getDocs } from 'firebase/firestore';
 import {
   ArrowRight, ArrowUpRight, LogIn, MessageSquare, Check, ChevronDown,
   Receipt, Users, Wallet, QrCode, BarChart3, Globe, Store,
@@ -82,7 +84,7 @@ const H = ({ children, className = '', style, darkMode }) => (
 );
 
 export default function LandingPage() {
-  const { boutiques, addBoutique, setCurrentMerchantBoutiqueId } = useTenant();
+  const { boutiques, products, addBoutique, setCurrentMerchantBoutiqueId } = useTenant();
   const navigate = useNavigate();
 
   const [shopName, setShopName] = useState('');
@@ -112,7 +114,43 @@ export default function LandingPage() {
     };
   }, [darkMode]);
 
-  const partnerShops = [...boutiques].sort((a, b) => (!!b.favori) - (!!a.favori)).slice(0, 20);
+  const [partnerShops, setPartnerShops] = useState([]);
+
+  useEffect(() => {
+    // 1) Filtrer les boutiques qui ont un logo personnalisé et valide (pas vide, pas '🛍️')
+    const candidates = boutiques.filter(b => b.logo && b.logo !== '🛍️' && String(b.logo).trim() !== '');
+
+    if (!isConfigured) {
+      // Mode local / simulation : vérifier dans le tableau local `products`
+      const valid = candidates.filter(b => {
+        return products && products.some(p => p.boutiqueId === b.id);
+      });
+      const sorted = [...valid].sort((a, b) => (!!b.favori) - (!!a.favori)).slice(0, 20);
+      const timer = setTimeout(() => setPartnerShops(sorted), 0);
+      return () => clearTimeout(timer);
+    } else {
+      // Mode production / Firebase : vérifier pour chaque boutique candidate s'il y a au moins 1 produit dans Firestore
+      let active = true;
+      const checkBoutiques = async () => {
+        try {
+          const promises = candidates.map(async (b) => {
+            const q = query(collection(db, 'products'), where('boutiqueId', '==', b.id), limit(1));
+            const snap = await getDocs(q);
+            return { boutique: b, hasProducts: !snap.empty };
+          });
+          const results = await Promise.all(promises);
+          if (!active) return;
+          const valid = results.filter(r => r.hasProducts).map(r => r.boutique);
+          const sorted = [...valid].sort((a, b) => (!!b.favori) - (!!a.favori)).slice(0, 20);
+          setPartnerShops(sorted);
+        } catch (err) {
+          console.error("Error loading partner shops:", err);
+        }
+      };
+      checkBoutiques();
+      return () => { active = false; };
+    }
+  }, [boutiques, products]);
 
   const faqData = [
     {
