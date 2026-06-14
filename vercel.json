@@ -1,4 +1,8 @@
 {
+  "regions": ["cdg1"],
+  "functions": {
+    "api/img.js": { "memory": 1024, "maxDuration": 30 }
+  },
   "crons": [
     {
       "path": "/api/cron-reminders",
