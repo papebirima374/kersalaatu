@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useTenant } from '../context/TenantContext';
 import { thumb, fallbackSrc } from '../utils/img';
 import { Search, Star, ArrowLeft, Store, Sun, Moon } from 'lucide-react';
+import { db, isConfigured } from '../firebase/config';
+import { collection, query, where, limit, getDocs } from 'firebase/firestore';
 
 // Pastille logo : image (miniature CDN) ou cercle de marque avec emoji/initiales
 export function ShopLogo({ b, size = 'w-12 h-12', text = 'text-xl' }) {
@@ -25,8 +27,48 @@ export function ShopLogo({ b, size = 'w-12 h-12', text = 'text-xl' }) {
 }
 
 export default function BoutiquesDirectory() {
-  const { boutiques } = useTenant();
+  const { boutiques, products } = useTenant();
   const [search, setSearch] = useState('');
+  const [validShops, setValidShops] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // 1) Filtrer les boutiques qui ont un logo personnalisé et valide (pas vide, pas '🛍️')
+    const candidates = boutiques.filter(b => b.logo && b.logo !== '🛍️' && String(b.logo).trim() !== '');
+
+    if (!isConfigured) {
+      // Mode local / simulation
+      const valid = candidates.filter(b => {
+        return products && products.some(p => p.boutiqueId === b.id);
+      });
+      const timer = setTimeout(() => {
+        setValidShops(valid);
+        setLoading(false);
+      }, 0);
+      return () => clearTimeout(timer);
+    } else {
+      let active = true;
+      const checkBoutiques = async () => {
+        try {
+          const promises = candidates.map(async (b) => {
+            const q = query(collection(db, 'products'), where('boutiqueId', '==', b.id), limit(1));
+            const snap = await getDocs(q);
+            return { boutique: b, hasProducts: !snap.empty };
+          });
+          const results = await Promise.all(promises);
+          if (!active) return;
+          const valid = results.filter(r => r.hasProducts).map(r => r.boutique);
+          setValidShops(valid);
+        } catch (err) {
+          console.error("Error loading boutiques directory:", err);
+        } finally {
+          if (active) setLoading(false);
+        }
+      };
+      checkBoutiques();
+      return () => { active = false; };
+    }
+  }, [boutiques, products]);
 
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('jappandal-dark');
@@ -51,7 +93,7 @@ export default function BoutiquesDirectory() {
 
   const q = search.trim().toLowerCase();
   const qDigits = q.replace(/\D/g, '');
-  const shops = boutiques
+  const shops = validShops
     .filter(b => {
       if (!q) return true;
       const name = (b.name || '').toLowerCase();
@@ -95,7 +137,7 @@ export default function BoutiquesDirectory() {
         <div className="text-center mb-8">
           <span className="text-[10px] font-bold text-brand uppercase tracking-widest bg-brand-light px-3 py-1.5 rounded-full border border-brand/20">Nos partenaires</span>
           <h1 className="text-3xl md:text-4xl font-serif-display font-normal tracking-tight mt-4">Toutes les boutiques</h1>
-          <p className="text-navy-muted text-sm mt-2">{boutiques.length} boutique{boutiques.length > 1 ? 's' : ''} propulsée{boutiques.length > 1 ? 's' : ''} par Jappandal Tech.</p>
+          <p className="text-navy-muted text-sm mt-2">{loading ? 'Chargement...' : `${validShops.length} boutique${validShops.length > 1 ? 's' : ''} active${validShops.length > 1 ? 's' : ''} propulsée${validShops.length > 1 ? 's' : ''} par Jappandal Tech.`}</p>
         </div>
 
         {/* Recherche */}
