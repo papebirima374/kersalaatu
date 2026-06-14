@@ -487,7 +487,7 @@ export default function PublicStorefront() {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 ${darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'}`} style={themeStyles}>
+    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 public-storefront ${darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'}`} style={themeStyles}>
       
       {/* Top Banner (Header) - Minimalist & Premium layout (matches reference image) */}
       <header className={`sticky top-0 z-30 border-b backdrop-blur-md px-6 py-3.5 pt-safe flex items-center justify-between transition-colors ${

@@ -1,12 +1,12 @@
 import { toast } from '../../components/toast';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import { auth } from '../../firebase/config';
 import { Link } from 'react-router-dom';
 import {
   Shield, Store, ClipboardList, Settings, LogOut, Check, AlertTriangle,
   DollarSign, TrendingUp, Users, Lock, Unlock, MessageSquare, Trash2,
-  Plus, X, ExternalLink, Clock, Search, Star, Copy
+  Plus, X, ExternalLink, Clock, Search, Star, Copy, Sun, Moon
 } from 'lucide-react';
 
 const fmt = (n) => new Intl.NumberFormat('fr-FR').format(n) + ' FCFA';
@@ -74,6 +74,27 @@ export default function DeveloperConsole() {
     dataReady, merchantUser, loginMerchant, logoutMerchant,
     getProductsByBoutique, getOrdersByBoutique
   } = useTenant();
+
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('jappandal-dark');
+    if (saved !== null) return saved === 'true';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    const prev = document.body.style.backgroundColor;
+    if (darkMode) {
+      document.body.style.backgroundColor = '#0b0f19';
+      document.documentElement.classList.add('dark');
+    } else {
+      document.body.style.backgroundColor = '#FCFAF6';
+      document.documentElement.classList.remove('dark');
+    }
+    return () => {
+      document.body.style.backgroundColor = prev;
+      document.documentElement.classList.remove('dark');
+    };
+  }, [darkMode]);
 
   // Connexion admin sécurisée (Firebase Auth) — l'e-mail admin est défini par VITE_ADMIN_EMAIL (avec fallback)
   const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || 'papebirima374@gmail.com').trim().toLowerCase();
@@ -292,7 +313,7 @@ export default function DeveloperConsole() {
   // ── Auth screen ────────────────────────────────────────────────────────
   if (!adminOk) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+      <div className={`min-h-screen bg-slate-950 flex items-center justify-center p-4 ${darkMode ? '' : 'chaleur-console'}`}>
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
             <div className="w-14 h-14 rounded-2xl bg-blue-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">
@@ -329,7 +350,7 @@ export default function DeveloperConsole() {
   }
   if (!dataReady) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className={`min-h-screen bg-slate-950 flex items-center justify-center ${darkMode ? '' : 'chaleur-console'}`}>
         <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -576,7 +597,7 @@ export default function DeveloperConsole() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex font-sans">
+    <div className={`min-h-screen bg-slate-950 text-slate-100 flex font-sans ${darkMode ? '' : 'chaleur-console'}`}>
       <div className="hidden md:flex">
         <Sidebar
           activeTab={activeTab}
@@ -615,6 +636,17 @@ export default function DeveloperConsole() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const next = !darkMode;
+                setDarkMode(next);
+                localStorage.setItem('jappandal-dark', String(next));
+              }}
+              title={darkMode ? 'Mode Clair' : 'Mode Sombre'}
+              className="p-2.5 rounded-xl border border-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer"
+            >
+              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
             {activeTab === 'boutiques' && (
               <button onClick={() => setShowCreateModal(true)}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 text-slate-950 text-sm font-bold transition-all">

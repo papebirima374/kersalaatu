@@ -1,10 +1,23 @@
 @import "tailwindcss";
 
-:root {
+/* Mode sombre piloté par la classe .dark sur <html> (toggle accueil/annuaire)
+   plutôt que par prefers-color-scheme — Tailwind v4 */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
   /* Dynamic brand theme colors */
   --color-brand: var(--tenant-color, #2563eb);
   --color-brand-hover: var(--tenant-color-hover, #3b82f6);
   --color-brand-light: var(--tenant-color-light, rgba(37, 99, 235, 0.1));
+
+  --color-cream: #FCFAF6;
+  --color-sand-soft: #F5F0E5;
+  --color-sand-medium: #EAE1D2;
+  --color-sand-line: #EBE2D4;
+  --color-navy-ink: #121F38;
+  --color-navy-muted: #576780;
+  --color-accent-peach: #FDF2E9;
+  --color-accent-peach-deep: #B06000;
 }
 
 html, body, #root {
@@ -78,16 +91,40 @@ html, body, #root {
   scrollbar-width: none;
 }
 
+/* Apparition au scroll (IntersectionObserver ajoute .is-in) — accueil éditorial */
+.reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+.reveal.is-in { opacity: 1; transform: translateY(0); }
+
+/* Police éditoriale (titres accueil premium) */
+.font-serif-display {
+  font-family: 'Fraunces', 'Outfit', Georgia, serif;
+  font-optical-sizing: auto;
+}
+
+/* Flottement très doux + parallaxe légère (mockup hero) */
+@keyframes floatSoft {
+  0%, 100% { transform: translateY(0) rotate(var(--rot, 0deg)); }
+  50%      { transform: translateY(-14px) rotate(var(--rot, 0deg)); }
+}
+.animate-float-soft { animation: floatSoft 6s ease-in-out infinite; }
+
 /* Respecte les préférences d'accessibilité */
 @media (prefers-reduced-motion: reduce) {
-  .animate-marquee, .animate-fade-up, .animate-floaty { animation: none !important; }
+  .animate-marquee, .animate-fade-up, .animate-floaty, .animate-float-soft { animation: none !important; }
+  .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
 }
 
 body {
   margin: 0;
   font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: #f8fafc;
-  color: #0f172a;
+  background-color: var(--color-cream, #FCFAF6);
+  color: var(--color-navy-ink, #121F38);
   min-height: 100vh;
 }
 
@@ -164,5 +201,257 @@ body {
   @page {
     size: A4 portrait;
     margin: 12mm 15mm;
+  }
+}
+
+/* ── Rénovation Visuelle « Chaleur Artisanale » pour les Consoles Admin & Marchand ── */
+.chaleur-console {
+  background-color: var(--color-cream) !important;
+  color: var(--color-navy-ink) !important;
+  font-family: 'Plus Jakarta Sans', 'Outfit', sans-serif !important;
+
+  /* Remplacement des fonds sombres */
+  &.bg-slate-950, .bg-slate-950 { background-color: var(--color-cream) !important; }
+  &.bg-slate-900, .bg-slate-900 { background-color: #ffffff !important; }
+  .bg-slate-800, .bg-slate-850, .bg-slate-800\/50, .bg-slate-800\/60, .bg-slate-950\/20, .bg-slate-950\/30 { background-color: var(--color-sand-soft) !important; }
+  .bg-slate-950\/90 { background-color: rgba(252, 250, 246, 0.95) !important; border-bottom-color: var(--color-sand-line) !important; }
+  .bg-slate-950\/70, .bg-slate-950\/80 { background-color: rgba(252, 250, 246, 0.8) !important; }
+
+  /* Bordures */
+  .border-slate-800, .border-slate-850, .border-slate-700, .border-slate-700\/60, .border-slate-800\/40, .border-slate-850\/40, .border-white\/5, .border-white\/10 {
+    border-color: var(--color-sand-line) !important;
+  }
+
+  /* Textes */
+  .text-slate-100, .text-slate-200, .text-slate-300, .text-white {
+    /* Garder le texte blanc sur les boutons ou badges colorés */
+    &:not(button):not([class*="bg-blue"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-brand"]):not([class*="bg-amber"]):not([class*="bg-slate-950"]):not(.badge) {
+      color: var(--color-navy-ink) !important;
+    }
+  }
+  .text-slate-400, .text-slate-500 {
+    &:not(button):not([class*="bg-blue"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-brand"]):not([class*="bg-amber"]):not(.badge) {
+      color: var(--color-navy-muted) !important;
+    }
+  }
+  .hover\:text-white:hover { color: var(--color-navy-ink) !important; }
+
+  /* Ajustements de contrastes pour les textes colorés sur fond clair */
+  .text-blue-400 {
+    &:not(button):not([class*="bg-"]):not(.badge) {
+      color: var(--color-brand, #2563eb) !important;
+    }
+  }
+  .text-emerald-400 {
+    &:not(button):not([class*="bg-"]):not(.badge) {
+      color: #047857 !important;
+    }
+  }
+  .text-amber-400 {
+    &:not(button):not([class*="bg-"]):not(.badge) {
+      color: #b45309 !important;
+    }
+  }
+  .text-purple-400 {
+    &:not(button):not([class*="bg-"]):not(.badge) {
+      color: #6d28d9 !important;
+    }
+  }
+  .text-red-400 {
+    &:not(button):not([class*="bg-"]):not(.badge) {
+      color: #b91c1c !important;
+    }
+  }
+  .text-rose-400 {
+    &:not(button):not([class*="bg-"]):not(.badge) {
+      color: #be123c !important;
+    }
+  }
+
+  /* Liens et boutons inactifs */
+  .hover\:bg-slate-800:hover { background-color: var(--color-sand-medium) !important; }
+  .hover\:bg-slate-800\/10:hover, .hover\:bg-slate-800\/20:hover { background-color: var(--color-sand-soft) !important; }
+  .hover\:bg-slate-950\/10:hover { background-color: var(--color-sand-soft) !important; }
+
+  /* Sidebar */
+  aside {
+    background-color: var(--color-sand-soft) !important;
+    border-right-color: var(--color-sand-line) !important;
+    
+    .text-slate-400 { color: var(--color-navy-muted) !important; }
+    .hover\:text-white:hover { color: var(--color-navy-ink) !important; }
+    .hover\:bg-slate-800:hover { background-color: var(--color-sand-medium) !important; }
+    
+    /* Titres sidebar */
+    p.text-white { color: var(--color-navy-ink) !important; }
+  }
+
+  /* Formulaires (inputs, selects, textareas) */
+  input, select, textarea {
+    &.bg-slate-950, &.bg-slate-900, &.bg-slate-800, &.bg-slate-900\/40, &.bg-slate-950\/50 {
+      background-color: #ffffff !important;
+      border-color: var(--color-sand-line) !important;
+      color: var(--color-navy-ink) !important;
+      &::placeholder {
+        color: var(--color-navy-muted) !important;
+        opacity: 0.5;
+      }
+    }
+  }
+
+  /* Bouton d'onglets (Tabs) */
+  .flex.rounded-xl.bg-slate-900, .flex.rounded-xl.bg-slate-950 {
+    background-color: var(--color-sand-soft) !important;
+    border-color: var(--color-sand-line) !important;
+    button {
+      &.text-slate-400 { color: var(--color-navy-muted) !important; }
+      &.bg-slate-800, &.text-white {
+        background-color: #ffffff !important;
+        color: var(--color-navy-ink) !important;
+        box-shadow: 0 2px 8px -2px rgba(18, 31, 56, 0.08) !important;
+      }
+    }
+  }
+
+  /* Tableaux */
+  table {
+    border-color: var(--color-sand-line) !important;
+    tr {
+      border-color: var(--color-sand-line) !important;
+      &.hover\:bg-slate-950\/10:hover, &:hover {
+        background-color: var(--color-sand-soft)/30 !important;
+      }
+    }
+    th {
+      background-color: var(--color-sand-soft) !important;
+      color: var(--color-navy-muted) !important;
+      border-bottom-color: var(--color-sand-line) !important;
+    }
+    td {
+      border-bottom-color: var(--color-sand-line) !important;
+    }
+  }
+
+  /* Modales et overlays */
+  [class*="bg-slate-900"][class*="border-slate-700"],
+  [class*="bg-slate-900"][class*="border-slate-800"] {
+    background-color: #ffffff !important;
+    border-color: var(--color-sand-line) !important;
+    color: var(--color-navy-ink) !important;
+    h3, p, label { color: var(--color-navy-ink) !important; }
+  }
+
+  /* Éléments spéciaux de tableau de bord */
+  .border-dashed.border-slate-700 {
+    border-color: var(--color-sand-line) !important;
+    border-style: dashed !important;
+  }
+  
+  /* Graphiques SVG */
+  svg text {
+    fill: var(--color-navy-muted) !important;
+  }
+  svg path[stroke="#1e293b"],
+  svg line[stroke="#1e293b"],
+  svg line[stroke="#334155"],
+  svg path[stroke="#334155"] {
+    stroke: var(--color-sand-line) !important;
+  }
+}
+
+/* ── Rénovation Visuelle « Chaleur Artisanale » pour la Vitrine Client ── */
+.public-storefront {
+  /* En mode clair (sans la classe .dark sur html/documentElement) */
+  html:not(.dark) & {
+    background-color: var(--color-cream) !important;
+    color: var(--color-navy-ink) !important;
+
+    /* Backgrounds */
+    &.bg-slate-50, .bg-slate-50, .bg-slate-100\/60, .bg-slate-100\/65 { background-color: var(--color-cream) !important; }
+    .bg-slate-100, .bg-slate-200, .bg-slate-50:not(.min-h-screen) { background-color: var(--color-sand-soft) !important; }
+    .bg-white\/90 { background-color: rgba(252, 250, 246, 0.9) !important; }
+
+    /* Bordures */
+    .border-slate-100, .border-slate-150, .border-slate-200, .border-slate-200\/40, .border-slate-200\/45, .border-slate-100\/60 {
+      border-color: var(--color-sand-line) !important;
+    }
+
+    /* Textes */
+    .text-slate-855, .text-slate-800, .text-slate-900, .text-slate-950, .text-slate-950\/90 {
+      &:not(button):not([class*="bg-"]):not(.badge) {
+        color: var(--color-navy-ink) !important;
+      }
+    }
+    .text-slate-500, .text-slate-600, .text-slate-400 {
+      &:not(button):not([class*="bg-"]):not(.badge) {
+        color: var(--color-navy-muted) !important;
+      }
+    }
+
+    /* Hovers */
+    .hover\:bg-slate-100:hover { background-color: var(--color-sand-medium) !important; }
+    .hover\:bg-slate-200:hover { background-color: var(--color-sand-medium) !important; }
+    .hover\:border-slate-350:hover, .hover\:border-slate-300:hover { border-color: var(--color-navy-ink) !important; }
+  }
+
+  /* En mode sombre (avec la classe .dark sur html) */
+  html.dark & {
+    background-color: #0c1524 !important; /* Arrière-plan sombre marine chaud */
+    
+    &.bg-slate-950, .bg-slate-950, .bg-slate-950\/40, .bg-slate-950\/50, .bg-slate-950\/90 {
+      background-color: #0c1524 !important;
+    }
+    .bg-slate-900, .bg-slate-900\/40, .bg-slate-900\/60 {
+      background-color: #121f38 !important; /* Conteneurs foncés encre marine */
+    }
+    .bg-slate-800, .bg-slate-850 {
+      background-color: #1a2a47 !important; /* Éléments secondaires plus clairs */
+    }
+
+    /* Bordures sombres */
+    .border-slate-900, .border-slate-850, .border-slate-800 {
+      border-color: #1d2e4d !important;
+    }
+
+    /* Textes sombres */
+    .text-slate-100, .text-slate-200, .text-white {
+      color: #f1f5f9 !important;
+    }
+    .text-slate-400, .text-slate-500, .text-slate-300 {
+      color: #8ca3c7 !important;
+    }
+
+    /* Hovers sombres */
+    .hover\:bg-slate-900:hover, .hover\:bg-slate-800:hover {
+      background-color: #1d2e4d !important;
+    }
+  }
+}
+
+/* Mode sombre adouci pour l'accueil et l'annuaire */
+html.dark {
+  background-color: #0c1524 !important;
+  color: #f1f5f9 !important;
+  
+  .bg-cream { background-color: #0c1524 !important; }
+  .bg-white { background-color: #121f38 !important; }
+  .bg-sand-soft { background-color: #1a2a47 !important; }
+  .border-sand-line { border-color: #1d2e4d !important; }
+  
+  .text-navy-ink { color: #f1f5f9 !important; }
+  .text-navy-muted { color: #8ca3c7 !important; }
+  
+  header {
+    background: rgba(12, 21, 36, 0.85) !important;
+    border-bottom-color: #1d2e4d !important;
+    span.text-navy-ink, a.text-navy-muted, svg { color: #f1f5f9 !important; }
+  }
+  
+  /* Input de recherche et champs */
+  input {
+    background-color: #121f38 !important;
+    border-color: #1d2e4d !important;
+    color: #f1f5f9 !important;
+    &::placeholder { color: #8ca3c7 !important; }
   }
 }

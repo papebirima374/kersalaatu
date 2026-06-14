@@ -4,7 +4,7 @@ import { formatPrice } from '../../utils/money';
 import { buildBusinessCardCanvas } from '../../utils/businessCard';
 import QRCode from 'qrcode';
 import { unlockAudio, playOrderSound, requestNotifPermission, showOrderNotification } from '../../notify';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import { Link } from 'react-router-dom';
 import { isConfigured } from '../../firebase/config';
@@ -13,7 +13,8 @@ import {
   Plus, Trash2, Edit3, Check, Clock, AlertTriangle, DollarSign,
   TrendingUp, Store, ExternalLink, Save, MessageSquare, Printer,
   ShoppingCart, Minus, User, Phone, MapPin, Receipt, Search,
-  X, ChevronDown, Zap, Calendar, Users, TrendingDown, Lock, CreditCard
+  X, ChevronDown, Zap, Calendar, Users, TrendingDown, Lock, CreditCard,
+  Sun, Moon
 } from 'lucide-react';
 
 // ── Texte sûr pour jsPDF ─────────────────────────────────────────────────────
@@ -24,14 +25,15 @@ import {
 const PDF_MAP = {
   '’': "'", '‘': "'", '“': '"', '”': '"',
   '–': '-', '—': '-', '…': '...',
-  ' ': ' ', ' ': ' ', ' ': ' ',
+  '\u00A0': ' ', '\u202F': ' ', '\u2009': ' ',
   'º': 'o', '°': '', 'ª': 'a', '•': '-',
 };
 const sanitizePdf = (s) => {
   if (s == null) return '';
   let out = String(s).normalize('NFC')
-    .replace(/[‘’“”–—…   º°ª•]/g, (c) => PDF_MAP[c] ?? '')
+    .replace(/[‘’“”–—…\u00A0\u202F\u2009º°ª•]/g, (c) => PDF_MAP[c] ?? '')
     // emoji, drapeaux, symboles, variation selectors, ZWJ, scripts non latins (arabe…)
+    // eslint-disable-next-line no-misleading-character-class
     .replace(/[\u{1F000}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}\u{2190}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}\u{0600}-\u{06FF}\u{0750}-\u{077F}\u{08A0}-\u{08FF}\u{FB50}-\u{FDFF}\u{FE70}-\u{FEFF}]/gu, '')
     // tout ce qui reste hors Latin-1 imprimable
     .replace(/[^ -ÿ]/g, '');
@@ -105,6 +107,27 @@ const STATUT_COLORS = {
 export default function MerchantConsole() {
   const { merchantUser, authReady, dataReady, loginMerchant, signupMerchant, resetMerchantPassword } = useTenant();
 
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('jappandal-dark');
+    if (saved !== null) return saved === 'true';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    const prev = document.body.style.backgroundColor;
+    if (darkMode) {
+      document.body.style.backgroundColor = '#0b0f19';
+      document.documentElement.classList.add('dark');
+    } else {
+      document.body.style.backgroundColor = '#FCFAF6';
+      document.documentElement.classList.remove('dark');
+    }
+    return () => {
+      document.body.style.backgroundColor = prev;
+      document.documentElement.classList.remove('dark');
+    };
+  }, [darkMode]);
+
   const [tab, setTab]       = useState(() => {
     if (typeof window !== 'undefined' && window.location.search.includes('creer')) return 'register';
     return 'login';
@@ -142,13 +165,13 @@ export default function MerchantConsole() {
   };
 
   if (!authReady || !dataReady) return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+    <div className={`min-h-screen bg-slate-950 flex items-center justify-center ${darkMode ? '' : 'chaleur-console'}`}>
       <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   if (!merchantUser) return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+    <div className={`min-h-screen bg-slate-950 flex items-center justify-center p-4 ${darkMode ? '' : 'chaleur-console'}`}>
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -238,11 +261,11 @@ export default function MerchantConsole() {
     </div>
   );
 
-  return <MerchantDashboard />;
+  return <MerchantDashboard darkMode={darkMode} setDarkMode={setDarkMode} />;
 }
 
 // ─── Dashboard Principal ─────────────────────────────────────────────────────
-function MerchantDashboard() {
+function MerchantDashboard({ darkMode, setDarkMode }) {
   const {
     boutiques, tickets,
     currentMerchantBoutiqueId, setCurrentMerchantBoutiqueId,
@@ -825,7 +848,7 @@ function MerchantDashboard() {
   const [variantUploading, setVariantUploading] = useState(null); // index variante en cours d'upload
 
   if (!activeBoutique) return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
+    <div className={`min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center ${darkMode ? '' : 'chaleur-console'}`}>
       <Store className="w-12 h-12 text-slate-700 mb-4" />
       <h2 className="text-xl font-bold text-white mb-2">Aucune boutique trouvée</h2>
       <p className="text-sm text-slate-500 mb-6">Votre compte n'est lié à aucune boutique.</p>
@@ -1668,7 +1691,7 @@ function MerchantDashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex font-sans">
+    <div className={`min-h-screen bg-slate-950 text-slate-100 flex font-sans ${darkMode ? '' : 'chaleur-console'}`}>
       {/* Sidebar desktop */}
       <div className="hidden md:flex">
         {renderSidebar()}
@@ -1698,6 +1721,17 @@ function MerchantDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const next = !darkMode;
+                setDarkMode(next);
+                localStorage.setItem('jappandal-dark', String(next));
+              }}
+              title={darkMode ? 'Mode Clair' : 'Mode Sombre'}
+              className="px-3 py-2 rounded-lg border border-slate-700 text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
             <button
               onClick={async () => {
                 if (alertsOn) {
