@@ -3,92 +3,129 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Kit vidéo — Jappandal Tech</title>
+<title>Kit vidéo & visuels — Jappandal Tech</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{--ivory:#FCFAF6;--sand:#F5F0E5;--line:#EBE2D4;--ink:#121F38;--ink2:#576780;--blue:#2563EB;--terra:#B06000}
   *{margin:0;box-sizing:border-box}
   body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--ivory);color:var(--ink);line-height:1.6}
   .serif{font-family:'Fraunces',serif;font-weight:500}
-  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
-  header{text-align:center;padding:64px 24px 40px}
-  header .logo{height:54px;margin-bottom:18px}
-  header h1{font-size:clamp(32px,5vw,52px);letter-spacing:-.02em;line-height:1.05}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+  header{text-align:center;padding:60px 22px 30px}
+  header .logo{height:50px;margin-bottom:16px}
+  header h1{font-size:clamp(30px,5vw,50px);letter-spacing:-.02em;line-height:1.05}
   header h1 i{color:var(--blue)}
-  header p{color:var(--ink2);max-width:620px;margin:14px auto 0;font-size:17px}
-  .meta{display:inline-flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:22px}
-  .pill{background:#fff;border:1px solid var(--line);border-radius:999px;padding:7px 16px;font-size:13px;font-weight:600;color:var(--ink2)}
-  .chapter{display:flex;align-items:center;gap:16px;margin:56px 0 8px}
-  .chapter span{font-family:'Fraunces',serif;font-size:13px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--terra);white-space:nowrap}
+  header p{color:var(--ink2);max-width:600px;margin:14px auto 0;font-size:16px}
+  .btn{display:inline-flex;align-items:center;gap:8px;border:none;cursor:pointer;font-family:inherit;text-decoration:none}
+  .btn-main{background:var(--blue);color:#fff;font-weight:700;font-size:15px;padding:13px 24px;border-radius:14px;margin-top:22px;box-shadow:0 12px 26px -12px rgba(37,99,235,.7)}
+  .btn-dl{background:#fff;border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:13px;padding:8px 14px;border-radius:10px;white-space:nowrap}
+  .btn-dl:hover{background:var(--sand)}
+  .chapter{display:flex;align-items:center;gap:16px;margin:54px 0 6px}
+  .chapter span{font-family:'Fraunces',serif;font-size:13px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--terra);white-space:nowrap}
   .chapter:before,.chapter:after{content:"";height:1px;background:var(--line);flex:1}
-  .scene{display:grid;grid-template-columns:1fr;gap:8px;background:#fff;border:1px solid var(--line);border-radius:24px;padding:24px;margin:18px 0;box-shadow:0 30px 60px -45px rgba(18,31,56,.4)}
-  .scene .num{font-family:'Fraunces',serif;font-size:15px;font-weight:600;color:var(--blue)}
-  .scene h3{font-size:22px;letter-spacing:-.01em}
-  .scene .narr{color:var(--ink2);font-size:15px;font-style:italic;border-left:3px solid var(--line);padding-left:14px;margin-top:4px}
-  .scene .shot{margin-top:14px;text-align:center;background:var(--sand);border-radius:16px;padding:18px}
-  .scene .shot img{max-width:100%;height:auto;display:inline-block}
+  .scene{background:#fff;border:1px solid var(--line);border-radius:22px;padding:22px;margin:16px 0;box-shadow:0 30px 60px -48px rgba(18,31,56,.4)}
+  .scene .top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+  .scene .num{font-family:'Fraunces',serif;font-size:14px;font-weight:600;color:var(--blue)}
+  .scene h3{font-size:21px;letter-spacing:-.01em;margin-top:2px}
+  .scene .narr{color:var(--ink2);font-size:14px;font-style:italic;border-left:3px solid var(--line);padding-left:13px;margin-top:8px}
+  .scene .shot{margin-top:14px;text-align:center;background:var(--sand);border-radius:14px;padding:16px}
   .scene.browser .shot{background:linear-gradient(180deg,#eef2f8,#e7edf5)}
-  footer{text-align:center;color:var(--ink2);font-size:13px;padding:50px 24px 70px}
-  @media(min-width:760px){
-    .scene{grid-template-columns:1fr;}
-    .scene .shot img{max-height:520px}
-  }
-  @media print{.scene{break-inside:avoid;box-shadow:none}}
+  .scene .shot img{max-width:100%;height:auto;display:inline-block;max-height:560px}
+  .social{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-top:18px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden}
+  .card .thumb{background:var(--sand);display:flex;align-items:center;justify-content:center;padding:14px;min-height:150px}
+  .card .thumb img{max-width:100%;max-height:230px;border-radius:8px;box-shadow:0 10px 24px -14px rgba(18,31,56,.5)}
+  .card .meta{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px}
+  .card .meta b{font-size:13px}.card .meta small{display:block;color:var(--ink2);font-size:11px}
+  footer{text-align:center;color:var(--ink2);font-size:13px;padding:46px 22px 70px}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:13px;font-weight:600;padding:11px 20px;border-radius:999px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:50}
+  .toast.show{opacity:1}
 </style>
 </head>
 <body>
 <header>
-  <img class="logo" src="https://www.jappandal.com/logo-jappandal.png" alt="Jappandal" onerror="this.style.display='none'">
-  <h1 class="serif">Kit vidéo — <i>Jappandal Tech</i></h1>
-  <p>Storyboard de présentation du site, dans l'ordre. Chaque scène : la capture (mockup net) et la phrase de narration suggérée pour la voix off.</p>
-  <div class="meta">
-    <span class="pill">13 scènes</span>
-    <span class="pill">Captures HD du site en ligne</span>
-    <span class="pill">Mockups téléphone & navigateur</span>
-    <span class="pill">jappandal.com</span>
-  </div>
+  <img class="logo" src="/logo-jappandal.png" alt="Jappandal" onerror="this.style.display='none'">
+  <h1 class="serif">Kit vidéo &amp; visuels — <i>Jappandal Tech</i></h1>
+  <p>Toutes les captures du site (mockups nets), dans l'ordre de présentation, avec la narration suggérée. Plus les visuels de lancement prêts pour les réseaux.</p>
+  <button class="btn btn-main" onclick="downloadAll()"><span>⬇</span> Tout télécharger</button>
 </header>
 
 <div class="wrap" id="app"></div>
 
-<footer>Jappandal Tech — kit de présentation · jappandal.com</footer>
+<div class="wrap">
+  <div class="chapter"><span>Visuels de lancement (réseaux)</span></div>
+  <div class="social" id="social"></div>
+</div>
+
+<footer>Jappandal Tech — kit de présentation · <a href="/" style="color:var(--blue);text-decoration:none">jappandal.com</a></footer>
+<div class="toast" id="toast"></div>
 
 <script>
+const MOCK = 'kit-assets/mockups/';
+const SOC = 'kit-assets/social/';
 const SCENES = [
   { ch:"L'accueil", items:[
     { n:"01", f:"01-accueil-hero.png", b:1, t:"Votre boutique, en 2 minutes", narr:"Jappandal : créez votre boutique en ligne en 2 minutes, sans aucune commission." },
-    { n:"02", f:"02-accueil-features.png", b:1, t:"Tous vos outils réunis", narr:"Vitrine, commandes WhatsApp, caisse, factures et carte de visite — tout au même endroit." },
+    { n:"02", f:"02-accueil-features.png", b:1, t:"Tous vos outils réunis", narr:"Vitrine, commandes WhatsApp, caisse, factures et carte de visite — au même endroit." },
     { n:"03", f:"03-accueil-tarifs.png", b:1, t:"Des tarifs clairs", narr:"Gratuit pour commencer. Des forfaits simples à 5 000 et 10 000 FCFA par mois." },
-    { n:"04", f:"04-accueil-sombre.png", b:1, t:"Un design moderne, clair ou sombre", narr:"Une interface soignée, agréable de jour comme de nuit." },
+    { n:"04", f:"04-accueil-sombre.png", b:1, t:"Clair ou sombre", narr:"Une interface soignée, agréable de jour comme de nuit." },
     { n:"05", f:"05-boutiques-annuaire.png", b:1, t:"Une communauté de boutiques", narr:"Des dizaines d'entrepreneurs vendent déjà avec Jappandal." },
     { n:"06", f:"06-accueil-mobile.png", b:0, t:"100 % depuis le téléphone", narr:"Tout se gère depuis votre poche, où que vous soyez." },
+    { n:"20", f:"20-accueil-mobile-sombre.png", b:0, t:"Accueil mobile — mode sombre", narr:"Et toujours aussi élégant en mode sombre." }
   ]},
-  { ch:"La vitrine, côté client", items:[
-    { n:"07", f:"07-vitrine-decouvrir.png", b:0, t:"Une vitrine à votre image", narr:"Vos clients découvrent une boutique élégante, à vos couleurs et votre logo." },
-    { n:"08", f:"08-vitrine-produits.png", b:0, t:"Le panier en un clic", narr:"Ils parcourent vos produits et commandent en un clic — la commande arrive sur votre WhatsApp." },
+  { ch:"Vos clients — de vraies boutiques", items:[
+    { n:"14", f:"14-vitrine-habiibul.png", b:0, t:"Habiibul Xadiim — librairie", narr:"Vos clients découvrent une vitrine élégante, à votre image." },
+    { n:"15", f:"15-vitrine-habiibul-cat.png", b:0, t:"Un vrai catalogue", narr:"Des dizaines de produits, photos et prix, prêts à commander." },
+    { n:"16", f:"16-vitrine-assalih.png", b:0, t:"As'Salih Shop — mode", narr:"Chaque boutique a ses couleurs et son identité." },
+    { n:"17", f:"17-vitrine-makanu.png", b:0, t:"Makanu Al-mountakha", narr:"Livres, accessoires, mode… tous les secteurs." },
+    { n:"18", f:"18-vitrine-sindidi.png", b:0, t:"Sindidi Voile", narr:"Une vraie boutique, en ligne en quelques minutes." },
+    { n:"07", f:"07-vitrine-decouvrir.png", b:0, t:"Salam Café", narr:"Du commerce de proximité à la vente en ligne." },
+    { n:"08", f:"08-vitrine-produits.png", b:0, t:"Le panier en un clic", narr:"Ils ajoutent au panier et commandent — la commande arrive sur votre WhatsApp." },
+    { n:"19", f:"19-vitrine-sombre.png", b:0, t:"Vitrine en mode sombre", narr:"Confortable de jour comme de nuit, pour vos clients aussi." }
   ]},
   { ch:"La console, côté marchand", items:[
     { n:"09", f:"09-console-dashboard.png", b:1, t:"Tableau de bord clair", narr:"Suivez votre chiffre d'affaires, votre panier moyen et vos meilleures ventes." },
     { n:"10", f:"10-console-produits.png", b:1, t:"Gestion des produits", narr:"Ajoutez vos produits, photos et stocks en quelques secondes." },
     { n:"11", f:"11-console-commandes.png", b:1, t:"Suivi des commandes", narr:"Suivez chaque commande, du reçu jusqu'au paiement." },
     { n:"12", f:"12-console-caisse.png", b:1, t:"Caisse intégrée", narr:"Encaissez aussi vos ventes en boutique, et imprimez le reçu." },
-    { n:"13", f:"13-console-clients.png", b:1, t:"Vos clients, fidélisés", narr:"Gardez la fiche et l'historique de chaque client." },
-  ]},
+    { n:"13", f:"13-console-clients.png", b:1, t:"Vos clients, fidélisés", narr:"Gardez la fiche et l'historique de chaque client." }
+  ]}
 ];
+const SOCIAL = [
+  { f:"lancement-banniere.png", t:"Bannière", d:"1500 x 500 — LinkedIn / X / site" },
+  { f:"lancement-carre.png", t:"Carré", d:"1080 x 1080 — Instagram / Facebook" },
+  { f:"lancement-carre-features.png", t:"Carré fonctionnalités", d:"1080 x 1080 — post sombre" },
+  { f:"lancement-story.png", t:"Story", d:"1080 x 1920 — Insta / statut WhatsApp" },
+  { f:"lancement-story-sombre.png", t:"Story sombre", d:"1080 x 1920 — variante nuit" },
+  { f:"lancement-youtube.png", t:"Miniature YouTube", d:"1280 x 720 — 16:9" }
+];
+
 const app = document.getElementById('app');
-SCENES.forEach(group => {
-  const c = document.createElement('div'); c.className='chapter';
-  c.innerHTML = `<span>${group.ch}</span>`; app.appendChild(c);
-  group.items.forEach(s => {
-    const d = document.createElement('div');
-    d.className = 'scene' + (s.b ? ' browser' : '');
-    d.innerHTML = `<div class="num">Scène ${s.n}</div>
-      <h3 class="serif">${s.t}</h3>
-      <div class="narr">« ${s.narr} »</div>
-      <div class="shot"><img src="kit-assets/mockups/${s.f}" alt="${s.t}" loading="lazy"></div>`;
+const dl = (href, name) => `<a class="btn btn-dl" href="${href}" download="${name}">⬇ Télécharger</a>`;
+SCENES.forEach(g => {
+  const c = document.createElement('div'); c.className = 'chapter'; c.innerHTML = `<span>${g.ch}</span>`; app.appendChild(c);
+  g.items.forEach(s => {
+    const d = document.createElement('div'); d.className = 'scene' + (s.b ? ' browser' : '');
+    d.innerHTML = `<div class="top"><div><div class="num">Scène ${s.n}</div><h3 class="serif">${s.t}</h3><div class="narr">&laquo; ${s.narr} &raquo;</div></div>${dl(MOCK + s.f, 'jappandal-' + s.f)}</div>
+      <div class="shot"><img src="${MOCK + s.f}" alt="${s.t}" loading="lazy"></div>`;
     app.appendChild(d);
   });
 });
+const soc = document.getElementById('social');
+SOCIAL.forEach(v => {
+  const el = document.createElement('div'); el.className = 'card';
+  el.innerHTML = `<div class="thumb"><img src="${SOC + v.f}" alt="${v.t}" loading="lazy"></div>
+    <div class="meta"><div><b>${v.t}</b><small>${v.d}</small></div>${dl(SOC + v.f, 'jappandal-' + v.f)}</div>`;
+  soc.appendChild(el);
+});
+
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2200);}
+async function downloadAll(){
+  const all = [...SCENES.flatMap(g=>g.items.map(s=>[MOCK+s.f,'jappandal-'+s.f])), ...SOCIAL.map(v=>[SOC+v.f,'jappandal-'+v.f])];
+  toast('Téléchargement de ' + all.length + ' fichiers…');
+  for(const [href,name] of all){const a=document.createElement('a');a.href=href;a.download=name;document.body.appendChild(a);a.click();a.remove();await new Promise(r=>setTimeout(r,350));}
+  toast('Terminé ✓');
+}
 </script>
 </body>
 </html>
