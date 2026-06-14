@@ -612,7 +612,7 @@ export default function LandingPage() {
                 <span className="text-xs text-slate-400">/ mois</span>
               </div>
               <ul className="space-y-3 text-xs text-slate-300 flex-grow">
-                {['Tout le forfait SaaS Pro', 'Multi-boutiques (lier plusieurs comptes)', 'Comptes caissiers illimités', 'Gestion des dépenses & bénéfices', 'Support client prioritaire 7j/7'].map((f) => (
+                {['Tout le forfait SaaS Pro', 'Multi-boutiques (lier plusieurs comptes)', 'Comptes caissiers illimités', 'Gestion des dépenses & bénéfices', 'Gestion des dettes & acomptes client', 'Support client prioritaire 7j/7'].map((f) => (
                   <li key={f} className="flex gap-2.5 items-center"><Check className="w-4 h-4 text-blue-400 shrink-0" /><span>{f}</span></li>
                 ))}
                 <li className="flex gap-2.5 items-center opacity-80">
@@ -669,7 +669,7 @@ export default function LandingPage() {
             <div className="absolute top-0 right-0 w-80 h-80 rounded-full blur-3xl opacity-20" style={{ background: C.blue }} />
             <div className="absolute -bottom-20 -left-10 w-96 h-96 rounded-full blur-3xl opacity-10" style={{ background: C.peachDeep }} />
             
-            <H className="relative text-3xl md:text-5xl text-white font-normal" style={{ fontFamily: EDITORIAL }}>
+            <H className="relative text-3xl md:text-5xl text-white font-normal" style={{ fontFamily: EDITORIAL, color: '#FFF' }}>
               Démarrez votre activité en ligne
             </H>
             <p className="relative mt-4 text-sm md:text-base max-w-lg mx-auto opacity-80 font-medium">
@@ -678,7 +678,7 @@ export default function LandingPage() {
             <div className="relative mt-8 flex flex-wrap items-center justify-center gap-4">
               <button
                 onClick={() => navigate('/marchand?creer=1')}
-                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-xs bg-white text-slate-900 shadow-sm transition-all hover:scale-102 active:scale-98 cursor-pointer"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-xs bg-btn-always-light shadow-sm transition-all hover:scale-102 active:scale-98 cursor-pointer"
               >
                 Créer ma boutique gratuitement <ArrowRight className="w-4 h-4 text-blue-600" />
               </button>

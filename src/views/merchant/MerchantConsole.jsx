@@ -14,7 +14,7 @@ import {
   TrendingUp, Store, ExternalLink, Save, MessageSquare, Printer,
   ShoppingCart, Minus, User, Phone, MapPin, Receipt, Search,
   X, ChevronDown, Zap, Calendar, Users, TrendingDown, Lock, CreditCard,
-  Sun, Moon
+  Sun, Moon, Shield
 } from 'lucide-react';
 
 // ── Texte sûr pour jsPDF ─────────────────────────────────────────────────────
@@ -271,12 +271,15 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
     currentMerchantBoutiqueId, setCurrentMerchantBoutiqueId,
     merchantUser, logoutMerchant,
     updateBoutique, addProduct, updateProduct, deleteProduct,
-    updateOrder, cancelOrder, updateOrderStatus, updateOrderPaymentStatus, updateClientOrdersInfo,
+    updateOrder, cancelOrder, updateOrderStatus, updateOrderPaymentStatus, updateOrderPaymentDetails, updateClientOrdersInfo,
     addTicket, getProductsByBoutique, getOrdersByBoutique,
     uploadBoutiqueLogo, uploadProductPhoto,
     upgradeRequests, createUpgradeRequest, createOrder,
     caissiers, depenses, addCaissier, deleteCaissier, addDepense, deleteDepense
   } = useTenant();
+
+  const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || 'papebirima374@gmail.com').trim().toLowerCase();
+  const isAdminUser = !!ADMIN_EMAIL && (merchantUser?.email || '').toLowerCase() === ADMIN_EMAIL;
 
   const [now] = useState(() => Date.now());
 
@@ -317,7 +320,14 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
   const [posPayStatut, setPosPayStatut]   = useState('Payé');
   const [posNote, setPosNote]             = useState('');
   const [posSearch, setPosSearch]         = useState('');
+  const [barcodeScanInput, setBarcodeScanInput] = useState('');
+  const [posDiscountType, setPosDiscountType]   = useState('percent'); // 'percent' or 'flat'
+  const [posDiscountValue, setPosDiscountValue] = useState(0);
+  const [posAcompte, setPosAcompte]             = useState(0);
   const [posSaleSuccess, setPosSaleSuccess] = useState(null);
+  const [showPaymentModal, setShowPaymentModal]   = useState(false);
+  const [paymentModalOrder, setPaymentModalOrder] = useState(null);
+  const [paymentModalValue, setPaymentModalValue] = useState(0);
 
   // Boutiques du marchand
   const myBoutiques = React.useMemo(() => {
@@ -326,8 +336,9 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
       return boutiques.filter(b => b.id === merchantUser.boutiqueId);
     }
     if (!isConfigured) return boutiques;
+    if (isAdminUser) return boutiques;
     return boutiques.filter(b => b.ownerUid === merchantUser.uid || b.ownerEmail === merchantUser.email);
-  }, [boutiques, merchantUser]);
+  }, [boutiques, merchantUser, isAdminUser]);
 
   const activeBoutique = myBoutiques.find(b => b.id === currentMerchantBoutiqueId) || myBoutiques[0] || null;
 
@@ -372,6 +383,16 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
       .filter(d => d.boutiqueId === activeBoutique.id)
       .reduce((s, d) => s + Number(d.montant || 0), 0);
   }, [depenses, activeBoutique]);
+
+  const totalOutstandingDebts = React.useMemo(() => {
+    return activeOrders.reduce((sum, o) => {
+      const isDebt = o.paiement?.statut === 'Dette' || o.paiement?.methode?.includes('Dette');
+      if (isDebt && (o.paiement?.detteRestante || 0) > 0) {
+        return sum + o.paiement.detteRestante;
+      }
+      return sum;
+    }, 0);
+  }, [activeOrders]);
 
   const pendingOrders = React.useMemo(() => {
     return activeOrders.filter(o => o.statut === 'Reçue' || o.statut === 'Préparée').length;
@@ -558,6 +579,10 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
         clientsMap[phone].totalSpent += o.total;
       }
       clientsMap[phone].orders.push(o);
+      const isDebt = o.paiement?.statut === 'Dette' || o.paiement?.methode?.includes('Dette');
+      if (isDebt && (o.paiement?.detteRestante || 0) > 0) {
+        clientsMap[phone].totalDebt = (clientsMap[phone].totalDebt || 0) + o.paiement.detteRestante;
+      }
     });
     // 3) Exclut les clients supprimés (masqués) par le marchand
     const hidden = new Set((activeBoutique?.hiddenClients || []).map(t => String(t).replace(/\D/g, '')));
@@ -739,7 +764,7 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
   const [productError, setProductError]           = useState('');
   const [photosUploading, setPhotosUploading]     = useState([]); // indices en cours d'upload
   const [productForm, setProductForm]             = useState({
-    name:'', price:'', stock:'', category:'Vêtements', photo:'', photos:[], description:''
+    name:'', price:'', stock:'', category:'Vêtements', photo:'', photos:[], description:'', codeBarre:''
   });
 
   // Settings
@@ -754,6 +779,7 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
     emailContact: activeBoutique?.emailContact || '',
     instagram: activeBoutique?.instagram || '',
     facebook: activeBoutique?.facebook || '',
+    tiktok: activeBoutique?.tiktok || '',
     texteRemerciement: activeBoutique?.texteRemerciement || '',
     zonesLivraison: activeBoutique?.zonesLivraison || [],
     waveMerchantLink: activeBoutique?.waveMerchantLink || ''
@@ -776,6 +802,7 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
         emailContact: activeBoutique.emailContact || '',
         instagram: activeBoutique.instagram || '',
         facebook: activeBoutique.facebook || '',
+        tiktok: activeBoutique.tiktok || '',
         texteRemerciement: activeBoutique.texteRemerciement || '',
         zonesLivraison: activeBoutique.zonesLivraison || [],
         waveMerchantLink: activeBoutique.waveMerchantLink || ''
@@ -841,7 +868,16 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
   const [upgradePayLoading, setUpgradePayLoading]     = useState(false);
   const [upgradePaySuccess, setUpgradePaySuccess]     = useState(false);
 
+  const posSubtotal = posCart.reduce((a, i) => a + i.price * i.quantity, 0);
 
+  const posDiscountAmount = React.useMemo(() => {
+    if (posDiscountType === 'percent') {
+      return Math.round((posSubtotal * (Number(posDiscountValue) || 0)) / 100);
+    }
+    return Math.min(posSubtotal, Number(posDiscountValue) || 0);
+  }, [posSubtotal, posDiscountType, posDiscountValue]);
+
+  const posTotalFinal = Math.max(0, posSubtotal - posDiscountAmount);
 
   // ⚠️ Doit rester AVANT le return ci-dessous (Rules of Hooks — sinon React error #300
   // quand un compte connecté n'a pas de boutique, ex. le compte admin)
@@ -864,7 +900,7 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
     const isFree = !activeBoutique.abonnement?.plan || activeBoutique.abonnement.plan === 'Découverte';
     if (isFree && activeProducts.length >= 5) { setShowUpgradeModal(true); return; }
     setEditingProduct(null);
-    setProductForm({ name:'', price:'', stock:'', category:'Vêtements', photo:'', photos:[], description:'', variantes:[] });
+    setProductForm({ name:'', price:'', stock:'', category:'Vêtements', photo:'', photos:[], description:'', codeBarre:'', variantes:[] });
     setPhotosUploading([]);
     setProductError('');
     setShowProductModal(true);
@@ -873,7 +909,7 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
   const openEditProduct = (p) => {
     setEditingProduct(p);
     const existingPhotos = p.photos && p.photos.length > 0 ? p.photos : (p.photo ? [p.photo] : []);
-    setProductForm({ name:p.name, price:p.price, stock:p.stock, category:p.category, photo:p.photo, photos: existingPhotos, description:p.description, variantes: p.variantes || [] });
+    setProductForm({ name:p.name, price:p.price, stock:p.stock, category:p.category, photo:p.photo, photos: existingPhotos, description:p.description, codeBarre: p.codeBarre || '', variantes: p.variantes || [] });
     setPhotosUploading([]);
     setProductError('');
     setShowProductModal(true);
@@ -968,6 +1004,7 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
         photo: mainPhoto,
         photos: finalPhotos,
         description: productForm.description,
+        codeBarre: (productForm.codeBarre || '').trim(),
         variantes
       };
 
@@ -1101,6 +1138,42 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
     }, 2000);
   };
 
+  const handleCollectPayment = (e) => {
+    e.preventDefault();
+    if (!paymentModalOrder) return;
+    const amount = Number(paymentModalValue);
+    if (isNaN(amount) || amount <= 0) {
+      toast('Veuillez saisir un montant valide supérieur à 0.');
+      return;
+    }
+    const reste = paymentModalOrder.paiement.detteRestante;
+    if (amount > reste) {
+      toast(`Le montant saisi (${fmt(amount)}) dépasse la dette restante (${fmt(reste)}).`);
+      return;
+    }
+
+    const newMontantPaye = (paymentModalOrder.paiement.montantPaye || 0) + amount;
+    const newDetteRestante = Math.max(0, reste - amount);
+    const newStatut = newDetteRestante <= 0 ? 'Payé' : 'Dette';
+
+    const versementObj = {
+      date: new Date().toISOString(),
+      montant: amount,
+      type: 'versement'
+    };
+
+    updateOrderPaymentDetails(paymentModalOrder.id, {
+      montantPaye: newMontantPaye,
+      detteRestante: newDetteRestante,
+      statut: newStatut,
+      versements: [...(paymentModalOrder.paiement.versements || []), versementObj]
+    });
+
+    toast(`Versement de ${fmt(amount)} enregistré avec succès !`, 'success');
+    setShowPaymentModal(false);
+    setPaymentModalOrder(null);
+  };
+
   // ── Handlers POS ─────────────────────────────────────────────────────────
   const addToPos = (prod) => {
     setPosCart(prev => {
@@ -1110,15 +1183,64 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
     });
   };
   const updatePosQty = (id, delta) => setPosCart(prev => prev.map(i => i.id === id ? { ...i, quantity: i.quantity+delta } : i).filter(i => i.quantity > 0));
-  const posSubtotal = posCart.reduce((a, i) => a + i.price * i.quantity, 0);
+
+  const handleBarcodeScanSubmit = (e) => {
+    e.preventDefault();
+    if (!barcodeScanInput.trim()) return;
+    const code = barcodeScanInput.trim();
+    const found = activeProducts.find(p => p.codeBarre && p.codeBarre.trim() === code);
+    if (found) {
+      if (found.stock <= 0) {
+        toast(`Le produit "${found.name}" est épuisé.`);
+      } else {
+        const inCart = posCart.find(it => it.id === found.id);
+        if (inCart && inCart.quantity >= found.stock) {
+          toast(`Stock maximum atteint pour "${found.name}".`);
+        } else {
+          addToPos(found);
+          toast(`Ajouté : ${found.name}`, 'success');
+        }
+      }
+    } else {
+      toast(`Aucun produit trouvé avec le code-barres "${code}"`);
+    }
+    setBarcodeScanInput('');
+  };
 
   const handlePosSell = () => {
     if (!posCart.length) { toast('Ajoutez au moins un article.'); return; }
     if (!posClient.nom.trim() || !posClient.telephone.trim()) { toast('Nom et téléphone obligatoires.'); return; }
+
+    const discountInfo = posDiscountAmount > 0 ? {
+      type: posDiscountType,
+      valeur: Number(posDiscountValue) || 0,
+      montant: posDiscountAmount
+    } : null;
+
+    let paiementInfo = { methode: posPayMethod, statut: posPayStatut, note: posNote };
+
+    if (posPayMethod === 'Crédit' && isVIP) {
+      paiementInfo = {
+        methode: 'Crédit / Dette',
+        statut: 'Dette',
+        montantPaye: Number(posAcompte) || 0,
+        detteRestante: Math.max(0, posTotalFinal - (Number(posAcompte) || 0)),
+        versements: [
+          { date: new Date().toISOString(), montant: Number(posAcompte) || 0, type: 'acompte' }
+        ],
+        note: posNote
+      };
+    }
+
     // createOrder renvoie la commande créée → on la garde pour pouvoir éditer/envoyer la facture.
-    const order = createOrder(activeBoutique.id, posClient, posCart, 0, 'Vente directe', { methode: posPayMethod, statut: posPayStatut, note: posNote });
-    setPosSaleSuccess({ order, orderId: order.id, items:[...posCart], total: posSubtotal, client:{...posClient}, payMethod: posPayMethod });
-    setPosCart([]); setPosClient({ nom:'', telephone:'', adresse:'' }); setPosNote('');
+    const order = createOrder(activeBoutique.id, posClient, posCart, 0, 'Vente directe', paiementInfo, discountInfo);
+    setPosSaleSuccess({ order, orderId: order.id, items:[...posCart], total: posTotalFinal, client:{...posClient}, payMethod: posPayMethod === 'Crédit' && isVIP ? 'Crédit / Dette' : posPayMethod });
+    setPosCart([]); 
+    setPosClient({ nom:'', telephone:'', adresse:'' }); 
+    setPosNote('');
+    setPosDiscountValue(0);
+    setPosAcompte(0);
+    setBarcodeScanInput('');
   };
 
 
@@ -1235,16 +1357,30 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
       });
       dash();
 
-      const sous = inv.total - (inv.livraison?.frais || 0);
+      const subtotal = inv.items.reduce((acc, it) => acc + it.price * it.quantity, 0);
+      const remiseMontant = inv.remise?.montant || 0;
+      const livraisonFrais = inv.livraison?.frais || 0;
       const trow = (lbl, val) => {
         pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); setC([90, 90, 90]); pdf.text(lbl, m, y);
         setC([20, 20, 20]); pdf.text(val, W - m, y, { align: 'right' }); y += 4.5;
       };
-      trow('Sous-total', money(sous));
-      trow('Livraison', money(inv.livraison?.frais || 0));
+      trow('Sous-total', money(subtotal));
+      if (remiseMontant > 0) {
+        const detailRemise = inv.remise.type === 'percent' ? ` (-${inv.remise.valeur}%)` : '';
+        trow(`Remise${detailRemise}`, `- ${money(remiseMontant)}`);
+      }
+      trow('Livraison', money(livraisonFrais));
       y += 0.5; solid();
       pdf.setFont('helvetica', 'bold'); pdf.setFontSize(13); setC([0, 0, 0]); pdf.text('TOTAL', m, y);
       setC([37, 99, 235]); pdf.text(money(inv.total), W - m, y, { align: 'right' }); y += 6;
+
+      if (inv.paiement?.methode?.includes('Dette') || inv.paiement?.statut === 'Dette') {
+        const paye = inv.paiement.montantPaye || 0;
+        const dette = inv.paiement.detteRestante || 0;
+        trow('Acompte versé', money(paye));
+        trow('Reste dû', money(dette));
+        y += 1.5;
+      }
 
       center(`Paiement : ${inv.paiement?.methode || 'À la livraison'} — ${inv.paiement?.statut || 'En attente'}`, 8.5, 'normal', [90, 90, 90]);
       y += 1; dash();
@@ -1346,16 +1482,30 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
     pdf.setDrawColor(210, 210, 210); pdf.setLineWidth(0.3); pdf.line(m, y, PW - m, y); y += 6;
 
     // Totaux
-    const sous = inv.total - (inv.livraison?.frais || 0);
+    const subtotal = inv.items.reduce((acc, it) => acc + it.price * it.quantity, 0);
+    const remiseMontant = inv.remise?.montant || 0;
+    const livraisonFrais = inv.livraison?.frais || 0;
     const trow = (lbl, val, bold) => {
       pdf.setFont('helvetica', bold ? 'bold' : 'normal'); pdf.setFontSize(bold ? 13 : 9.5);
       setC(bold ? [20, 20, 20] : [100, 100, 100]); pdf.text(lbl, PW - m - 45, y, { align: 'right' });
       setC(bold ? BR : [30, 30, 30]); pdf.text(val, PW - m, y, { align: 'right' }); y += bold ? 8 : 5;
     };
-    trow('Sous-total', money(sous));
-    trow('Livraison', money(inv.livraison?.frais || 0));
+    trow('Sous-total', money(subtotal));
+    if (remiseMontant > 0) {
+      const detailRemise = inv.remise.type === 'percent' ? ` (-${inv.remise.valeur}%)` : '';
+      trow(`Remise${detailRemise}`, `- ${money(remiseMontant)}`);
+    }
+    trow('Livraison', money(livraisonFrais));
     y += 1; pdf.setDrawColor(20, 20, 20); pdf.setLineWidth(0.5); pdf.line(PW - m - 55, y, PW - m, y); y += 6;
     trow('TOTAL', money(inv.total), true);
+
+    if (inv.paiement?.methode?.includes('Dette') || inv.paiement?.statut === 'Dette') {
+      const paye = inv.paiement.montantPaye || 0;
+      const dette = inv.paiement.detteRestante || 0;
+      trow('Acompte versé', money(paye));
+      trow('Reste dû', money(dette));
+      y += 2;
+    }
 
     // Pied
     y += 4;
@@ -1457,19 +1607,45 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
       pdf.line(m, y, pageW - m, y); y += 8;
 
       // ── Totaux ──
-      const sousTotal = activePrintInvoice.total - activePrintInvoice.livraison.frais;
+      const subtotal = activePrintInvoice.items.reduce((acc, it) => acc + it.price * it.quantity, 0);
+      const remiseMontant = activePrintInvoice.remise?.montant || 0;
+      const livraisonFrais = activePrintInvoice.livraison?.frais || 0;
+
       pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(100,100,100);
       pdf.text('Sous-total', pageW - m - 55, y);
-      pdf.text(fmtNum(sousTotal), pageW - m - 3, y, { align: 'right' }); y += 7;
+      pdf.text(fmtNum(subtotal), pageW - m - 3, y, { align: 'right' }); y += 7;
+
+      if (remiseMontant > 0) {
+        const detailRemise = activePrintInvoice.remise.type === 'percent' ? ` (-${activePrintInvoice.remise.valeur}%)` : '';
+        pdf.text(`Remise${detailRemise}`, pageW - m - 55, y);
+        pdf.setTextColor(220, 38, 38);
+        pdf.text(`- ${fmtNum(remiseMontant)}`, pageW - m - 3, y, { align: 'right' }); y += 7;
+        pdf.setTextColor(100, 100, 100);
+      }
+
       pdf.text('Livraison', pageW - m - 55, y);
-      pdf.text(fmtNum(activePrintInvoice.livraison.frais), pageW - m - 3, y, { align: 'right' }); y += 3;
+      pdf.text(fmtNum(livraisonFrais), pageW - m - 3, y, { align: 'right' }); y += 3;
       pdf.setDrawColor(0,0,0); pdf.setLineWidth(0.5);
       pdf.line(pageW - m - 60, y, pageW - m, y); y += 6;
       pdf.setFontSize(13); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0,0,0);
       pdf.text('TOTAL', pageW - m - 55, y);
       pdf.setTextColor(37,99,235);
       pdf.text(fmtNum(activePrintInvoice.total), pageW - m - 3, y, { align: 'right' });
-      y += 18;
+      y += 7;
+
+      if (activePrintInvoice.paiement?.methode?.includes('Dette') || activePrintInvoice.paiement?.statut === 'Dette') {
+        const paye = activePrintInvoice.paiement.montantPaye || 0;
+        const dette = activePrintInvoice.paiement.detteRestante || 0;
+        
+        pdf.setFontSize(9.5); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(100,100,100);
+        pdf.text('Acompte versé', pageW - m - 55, y);
+        pdf.text(fmtNum(paye), pageW - m - 3, y, { align: 'right' }); y += 6;
+        
+        pdf.setFont('helvetica', 'bold'); pdf.setTextColor(180, 83, 9);
+        pdf.text('Reste dû', pageW - m - 55, y);
+        pdf.text(fmtNum(dette), pageW - m - 3, y, { align: 'right' }); y += 6;
+      }
+      y += 11;
 
       // ── Footer ──
       pdf.setFontSize(8); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(160,160,160);
@@ -1631,6 +1807,7 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                 emailContact: b.emailContact || '',
                 instagram: b.instagram || '',
                 facebook: b.facebook || '',
+                tiktok: b.tiktok || '',
                 texteRemerciement: b.texteRemerciement || '',
                 zonesLivraison: b.zonesLivraison || [],
                 waveMerchantLink: b.waveMerchantLink || ''
@@ -1682,6 +1859,12 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
             <p className="text-[10px] text-slate-500 truncate">{merchantUser?.email}</p>
           </div>
         </div>
+        {isAdminUser && (
+          <Link to="/dev" onClick={() => setSidebarOpen(false)}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-blue-400 hover:bg-blue-500/10 hover:text-blue-300 transition-all font-bold">
+            <Shield className="w-4 h-4" /> Console Admin/Dev
+          </Link>
+        )}
         <button type="button" onClick={async () => { setSidebarOpen(false); await logoutMerchant(); }}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-red-400 hover:bg-red-500/5 transition-all">
           <LogOut className="w-4 h-4" /> Se déconnecter
@@ -1812,7 +1995,7 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
               {/* KPIs principaux et analytiques avancés */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className={`grid grid-cols-2 ${isVIP ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-4`}>
                 {[
                   {
                     label: isVIP ? 'Revenu Net' : 'Revenus',
@@ -1824,7 +2007,14 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                   { label: 'Panier Moyen (AOV)', value: fmt(averageOrderValue), sub: 'Chiffre d\'affaires / commande', icon: Zap, color: 'indigo' },
                   { label: 'Top Catégorie', value: topCategory, sub: 'Catégorie la plus vendue', icon: Store, color: 'orange' },
                   { label: 'Taux de Conversion', value: `${conversionRate}%`, sub: `Sur un total de ${simulatedVisits} visites`, icon: TrendingUp, color: 'emerald' },
-                ].map(({ label, value, sub, icon: Icon, color }) => (
+                  isVIP && {
+                    label: 'Dettes Clients',
+                    value: fmt(totalOutstandingDebts),
+                    sub: 'Reste à encaisser',
+                    icon: AlertTriangle,
+                    color: 'amber'
+                  }
+                ].filter(Boolean).map(({ label, value, sub, icon: Icon, color }) => (
                   <div key={label} className="bg-slate-900 border border-slate-800 rounded-xl p-4 transition-all hover:border-slate-700/50">
                     <div className="flex items-start justify-between mb-3">
                       <span className="text-xs font-medium text-slate-500">{label}</span>
@@ -2466,10 +2656,17 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                     <h3 className="font-semibold text-slate-200 text-sm flex items-center gap-2">
                       <ShoppingBag className="w-4 h-4 text-blue-400" /> Catalogue
                     </h3>
-                    <div className="relative">
-                      <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-                      <input value={posSearch} onChange={e => setPosSearch(e.target.value)} placeholder="Rechercher un produit..."
-                        className="w-full pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="relative">
+                        <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                        <input value={posSearch} onChange={e => setPosSearch(e.target.value)} placeholder="Rechercher un produit..."
+                          className="w-full pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500" />
+                      </div>
+                      <form onSubmit={handleBarcodeScanSubmit} className="relative">
+                        <Zap className="w-4 h-4 text-amber-400 absolute left-3 top-2.5" />
+                        <input value={barcodeScanInput} onChange={e => setBarcodeScanInput(e.target.value)} placeholder="Scanner code-barres..."
+                          className="w-full pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 font-mono" />
+                      </form>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-80 overflow-y-auto">
                       {posProducts.map(p => {
@@ -2508,12 +2705,55 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                               <span className="text-xs font-bold text-blue-400 w-20 text-right">{fmt(it.price * it.quantity)}</span>
                             </div>
                           ))}
-                        </div>
-                      )}
-                      {posCart.length > 0 && (
-                        <div className="flex justify-between border-t border-slate-800 pt-3 mt-3 font-bold">
-                          <span className="text-slate-400 text-sm">Total</span>
-                          <span className="text-blue-400">{fmt(posSubtotal)}</span>
+
+                          {/* Module de Remise */}
+                          <div className="flex items-center gap-3 pt-2.5 mt-2 border-t border-slate-800/80">
+                            <span className="text-xs font-bold text-slate-400">Remise :</span>
+                            <div className="flex rounded-lg bg-slate-950 p-0.5 border border-slate-850">
+                              <button
+                                type="button"
+                                onClick={() => setPosDiscountType('percent')}
+                                className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-colors cursor-pointer ${posDiscountType === 'percent' ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-350'}`}
+                              >
+                                %
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPosDiscountType('flat')}
+                                className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-colors cursor-pointer ${posDiscountType === 'flat' ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-350'}`}
+                              >
+                                Fixe
+                              </button>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              max={posDiscountType === 'percent' ? 100 : posSubtotal}
+                              value={posDiscountValue || ''}
+                              onChange={e => setPosDiscountValue(Math.max(0, Number(e.target.value) || 0))}
+                              placeholder={posDiscountType === 'percent' ? 'Ex: 10' : 'Ex: 1000'}
+                              className="w-24 px-2.5 py-1 bg-slate-800 border border-slate-700 rounded-lg text-xs font-semibold font-mono text-white focus:outline-none focus:border-blue-500"
+                            />
+                            {posDiscountType === 'flat' && <span className="text-[10px] font-bold text-slate-500">FCFA</span>}
+                          </div>
+
+                          {/* Résumé des totaux */}
+                          <div className="space-y-1.5 pt-2 border-t border-slate-800/60 text-xs">
+                            <div className="flex justify-between font-semibold text-slate-450">
+                              <span>Sous-total</span>
+                              <span>{fmt(posSubtotal)}</span>
+                            </div>
+                            {posDiscountAmount > 0 && (
+                              <div className="flex justify-between font-semibold text-red-400">
+                                <span>Remise {posDiscountType === 'percent' ? `(${posDiscountValue}%)` : ''}</span>
+                                <span>- {fmt(posDiscountAmount)}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between font-bold text-sm border-t border-slate-800 pt-1.5 mt-1.5 text-slate-200">
+                              <span>Total à payer</span>
+                              <span className="text-blue-400">{fmt(posTotalFinal)}</span>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -2541,27 +2781,62 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                     <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
                       <h3 className="font-semibold text-slate-200 text-sm">Mode de paiement</h3>
                       <div className="grid grid-cols-2 gap-2">
-                        {['Espèces','Wave','Orange Money','Crédit'].map(m => (
-                          <button key={m} onClick={() => setPosPayMethod(m)}
-                            className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all ${posPayMethod===m ? 'border-blue-500 bg-blue-500/10 text-blue-300' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'}`}>
-                            {m}
-                          </button>
-                        ))}
+                        {['Espèces','Wave','Orange Money','Crédit'].map(m => {
+                          const isCreditAndNotVip = m === 'Crédit' && !isVIP;
+                          return (
+                            <button key={m} type="button" onClick={() => {
+                              if (isCreditAndNotVip) {
+                                setShowUpgradeModal(true);
+                                toast("La gestion des dettes & acomptes est réservée aux abonnements Premium VIP.");
+                                return;
+                              }
+                              setPosPayMethod(m);
+                            }}
+                              className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all flex items-center justify-center gap-1 cursor-pointer ${posPayMethod===m ? 'border-blue-500 bg-blue-500/10 text-blue-300' : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600'}`}>
+                              {m} {isCreditAndNotVip && <span className="text-[9px] text-amber-500">⭐</span>}
+                            </button>
+                          );
+                        })}
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[{v:'Payé',color:'emerald'},{v:'En attente',color:'amber'}].map(({v,color}) => (
-                          <button key={v} onClick={() => setPosPayStatut(v)}
-                            className={`py-2 rounded-lg text-xs font-semibold border transition-all ${posPayStatut===v ? `border-${color}-500 bg-${color}-500/10 text-${color}-300` : 'border-slate-700 bg-slate-800 text-slate-400'}`}>
-                            {v === 'Payé' ? '✓ Payé' : '⏳ En attente'}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
 
+                      {posPayMethod === 'Crédit' && isVIP ? (
+                        <div className="p-3 bg-slate-950/40 border border-slate-800 rounded-xl space-y-2 mt-2">
+                          <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
+                            Acompte initial (FCFA)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            max={posTotalFinal}
+                            value={posAcompte || ''}
+                            onChange={e => {
+                              const val = Math.min(posTotalFinal, Number(e.target.value) || 0);
+                              setPosAcompte(val);
+                            }}
+                            className="w-full px-3 py-2 bg-slate-850 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-650 focus:outline-none focus:border-blue-500 font-mono text-right"
+                            placeholder="0"
+                          />
+                          <div className="flex justify-between text-[11px] text-slate-400 font-semibold pt-1">
+                            <span>Dette restante :</span>
+                            <span className="text-amber-400 font-bold">{fmt(Math.max(0, posTotalFinal - posAcompte))}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          {[{v:'Payé',color:'emerald'},{v:'En attente',color:'amber'}].map(({v,color}) => (
+                            <button key={v} type="button" onClick={() => setPosPayStatut(v)}
+                              className={`py-2 rounded-lg text-xs font-semibold border transition-all ${posPayStatut===v ? `border-${color}-500 bg-${color}-500/10 text-${color}-300` : 'border-slate-700 bg-slate-800 text-slate-400'}`}>
+                              {v === 'Payé' ? '✓ Payé' : '⏳ En attente'}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+ 
                     <button onClick={handlePosSell} disabled={!posCart.length || !posClient.nom || !posClient.telephone}
-                      className="w-full py-3.5 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:bg-slate-800 disabled:text-slate-600 text-slate-950 font-bold text-sm transition-all flex items-center justify-center gap-2">
+                      className="w-full py-3.5 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:bg-slate-800 disabled:text-slate-600 text-slate-950 font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
                       <Receipt className="w-4 h-4" />
-                      Enregistrer la vente{posCart.length > 0 ? ` — ${fmt(posSubtotal)}` : ''}
+                      Enregistrer la vente{posCart.length > 0 ? ` — ${fmt(posTotalFinal)}` : ''}
                     </button>
                   </div>
                 </div>
@@ -2638,6 +2913,11 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                             <div className="flex-1 min-w-0">
                               <h4 className="text-xs font-bold truncate text-slate-200">{c.nom}</h4>
                               <p className="text-[10px] text-slate-500 font-mono mt-0.5">{c.telephone}</p>
+                              {c.totalDebt > 0 && (
+                                <span className="inline-block text-[9px] font-bold uppercase bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full mt-1">
+                                  Dette : {fmt(c.totalDebt)}
+                                </span>
+                              )}
                             </div>
 
                             {/* Stats */}
@@ -2671,6 +2951,8 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                   {selectedClient ? (() => {
                     const currentNote = (clientNotes[activeBoutique.id] || {})[selectedClient.telephone] || '';
                     const clientInitials = selectedClient.nom.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                    const clientDebts = activeOrders.filter(o => o.client?.telephone === selectedClient.telephone && (o.paiement?.statut === 'Dette' || o.paiement?.methode === 'Crédit / Dette') && (o.paiement?.detteRestante || 0) > 0);
+                    const clientTotalDebt = clientDebts.reduce((sum, o) => sum + (o.paiement.detteRestante || 0), 0);
                     
                     return (
                       <div className="space-y-6 flex-1 flex flex-col justify-between">
@@ -2699,6 +2981,51 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                               <Edit3 className="w-3.5 h-3.5" /> Éditer coordonnées
                             </button>
                           </div>
+
+                          {/* Alerte dette en cours si VIP */}
+                          {isVIP && clientTotalDebt > 0 && (
+                            <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-amber-400 font-bold text-xs">
+                                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                                  <span>Dette en cours : {fmt(clientTotalDebt)}</span>
+                                </div>
+                                <span className="text-[9px] font-bold uppercase bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full">Dette active</span>
+                              </div>
+                              
+                              {/* Liste des factures impayées */}
+                              <div className="space-y-2 max-h-40 overflow-y-auto divide-y divide-slate-800/60 pr-1">
+                                {clientDebts.map(o => (
+                                  <div key={o.id} className="pt-2 first:pt-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="font-mono font-bold text-slate-300">{o.id}</span>
+                                        <span className="text-[10px] text-slate-500">{new Date(o.date).toLocaleDateString('fr-FR')}</span>
+                                      </div>
+                                      <div className="text-[10px] text-slate-400 mt-0.5">
+                                        <span>Total: {fmt(o.total)}</span>
+                                        <span className="mx-1.5">·</span>
+                                        <span>Déjà payé: {fmt(o.paiement.montantPaye || 0)}</span>
+                                        <span className="mx-1.5">·</span>
+                                        <span className="text-amber-400 font-bold">Reste: {fmt(o.paiement.detteRestante)}</span>
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setPaymentModalOrder(o);
+                                        setPaymentModalValue(o.paiement.detteRestante);
+                                        setShowPaymentModal(true);
+                                      }}
+                                      className="shrink-0 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors"
+                                    >
+                                      Encaisser versement
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
 
                           {/* Coordonnées & Stats */}
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2942,6 +3269,7 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                       {label:'Email de contact', key:'emailContact', type:'email'},
                       {label:'Instagram (@compte)', key:'instagram', type:'text'},
                       {label:'Facebook', key:'facebook', type:'text'},
+                      {label:'TikTok', key:'tiktok', type:'text'},
                     ].map(({label, key, type}) => (
                       <div key={key}>
                         <label className="block text-xs font-medium text-slate-500 mb-1.5">{label}</label>
@@ -3150,6 +3478,13 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                 <input required value={productForm.name} onChange={e => setProductForm(p=>({...p, name:e.target.value}))}
                   placeholder="Ex: Tunique Ndiakhass"
                   className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-600 focus:border-blue-500 focus:outline-none transition-colors" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Code-barres (Optionnel)</label>
+                <input value={productForm.codeBarre || ''} onChange={e => setProductForm(p=>({...p, codeBarre:e.target.value}))}
+                  placeholder="Scannez ou saisissez le code-barres"
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-650 focus:border-blue-500 focus:outline-none transition-colors" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -3467,6 +3802,71 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL ENCAISSER VERSEMENT DETTE ─────────────────────────────── */}
+      {showPaymentModal && paymentModalOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-6 space-y-5">
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto mb-3">
+                <CreditCard className="w-6 h-6" />
+              </div>
+              <h3 className="font-bold text-white">Encaisser un versement</h3>
+              <p className="text-xs text-slate-400 mt-1">
+                Client : <strong className="text-slate-200">{paymentModalOrder.client?.nom}</strong>
+              </p>
+              <p className="text-[10px] text-slate-500 font-mono mt-0.5">Commande ID : {paymentModalOrder.id}</p>
+            </div>
+
+            <div className="p-3 bg-slate-950 rounded-xl border border-slate-850 space-y-1.5 text-xs text-slate-300">
+              <div className="flex justify-between">
+                <span>Montant total commande :</span>
+                <span className="font-mono font-bold text-white">{fmt(paymentModalOrder.total)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Déjà réglé (acomptes) :</span>
+                <span className="font-mono font-bold text-slate-400">{fmt(paymentModalOrder.paiement?.montantPaye || 0)}</span>
+              </div>
+              <div className="flex justify-between border-t border-slate-800/80 pt-1.5 font-semibold text-amber-400">
+                <span>Reste à payer (Dette) :</span>
+                <span className="font-mono font-bold">{fmt(paymentModalOrder.paiement?.detteRestante)}</span>
+              </div>
+            </div>
+
+            <form onSubmit={handleCollectPayment} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Montant du versement (FCFA)</label>
+                <input
+                  required
+                  type="number"
+                  min="1"
+                  max={paymentModalOrder.paiement?.detteRestante}
+                  value={paymentModalValue}
+                  onChange={e => setPaymentModalValue(e.target.value)}
+                  placeholder="Ex: 5000"
+                  className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white focus:border-amber-500 focus:outline-none font-mono"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setShowPaymentModal(false); setPaymentModalOrder(null); }}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-400 text-sm font-semibold transition-colors hover:bg-slate-800/40"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm transition-colors"
+                >
+                  Encaisser
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

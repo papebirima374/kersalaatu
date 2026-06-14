@@ -565,9 +565,10 @@ export const TenantProvider = ({ children }) => {
     }
   };
 
-  const createOrder = (boutiqueId, clientInfo, cartItems, shippingCost, shippingLieu, paiementInfo = null) => {
+  const createOrder = (boutiqueId, clientInfo, cartItems, shippingCost, shippingLieu, paiementInfo = null, remiseInfo = null) => {
     const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    const total = subtotal + shippingCost;
+    const remiseMontant = remiseInfo?.montant || 0;
+    const total = Math.max(0, subtotal - remiseMontant) + shippingCost;
 
     const newOrder = {
       id: `cmd-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -583,6 +584,7 @@ export const TenantProvider = ({ children }) => {
         variantNom: item.variantNom || null
       })),
       total,
+      remise: remiseInfo || null,
       statut: 'Reçue',
       livraison: { frais: shippingCost, lieu: shippingLieu },
       paiement: paiementInfo || { methode: 'À la livraison', statut: 'En attente' }
@@ -712,6 +714,25 @@ export const TenantProvider = ({ children }) => {
           updateDoc(doc(db, 'orders', orderId), { 
             'paiement.statut': paymentStatus 
           }).catch(err => console.error("Error updating payment status in Firestore:", err));
+        }
+        return updated;
+      }
+      return o;
+    }));
+  };
+
+  const updateOrderPaymentDetails = (orderId, paymentFields) => {
+    setOrders(prev => prev.map(o => {
+      if (o.id === orderId) {
+        const updated = { 
+          ...o, 
+          paiement: { ...(o.paiement || {}), ...paymentFields }
+        };
+        
+        if (isConfigured) {
+          updateDoc(doc(db, 'orders', orderId), { 
+            paiement: updated.paiement 
+          }).catch(err => console.error("Error updating payment details in Firestore:", err));
         }
         return updated;
       }
@@ -1078,6 +1099,7 @@ export const TenantProvider = ({ children }) => {
       cancelOrder,
       updateOrderStatus,
       updateOrderPaymentStatus,
+      updateOrderPaymentDetails,
       updateClientOrdersInfo,
       addTicket,
       resolveTicket,

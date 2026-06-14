@@ -2,7 +2,7 @@ import { toast } from '../../components/toast';
 import React, { useState, useEffect } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import { auth } from '../../firebase/config';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Shield, Store, ClipboardList, Settings, LogOut, Check, AlertTriangle,
   DollarSign, TrendingUp, Users, Lock, Unlock, MessageSquare, Trash2,
@@ -67,12 +67,14 @@ const Sidebar = ({ activeTab, setActiveTab, setSidebarOpen, totalShops, pendingT
 };
 
 export default function DeveloperConsole() {
+  const navigate = useNavigate();
   const {
     boutiques, tickets, updateBoutique, deleteBoutique, purgeOrphanData, copyProductsToBoutique,
     resolveTicket, replyToTicket, addBoutiqueWithAuth,
     upgradeRequests, approveUpgradeRequest, rejectUpgradeRequest,
     dataReady, merchantUser, loginMerchant, logoutMerchant,
-    getProductsByBoutique, getOrdersByBoutique
+    getProductsByBoutique, getOrdersByBoutique,
+    setCurrentMerchantBoutiqueId
   } = useTenant();
 
   const [darkMode, setDarkMode] = useState(() => {
@@ -909,6 +911,16 @@ export default function DeveloperConsole() {
                               </td>
                               <td className="py-3 px-4 text-right">
                                 <div className="inline-flex items-center gap-1.5">
+                                  <button
+                                    onClick={() => {
+                                      setCurrentMerchantBoutiqueId(b.id);
+                                      navigate('/marchand');
+                                    }}
+                                    title="Gérer la boutique (ajouter produits, voir commandes, etc.)"
+                                    className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-450 hover:opacity-90 text-slate-950 transition-all inline-flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <Store className="w-3 h-3" /> Gérer
+                                  </button>
                                   {!s.isFree && (
                                     <button
                                       onClick={() => openSubModal(b)}
@@ -1009,6 +1021,15 @@ export default function DeveloperConsole() {
                           </div>
 
                           <div className="flex items-center justify-end gap-1.5 border-t border-slate-800/60 pt-2.5">
+                            <button
+                              onClick={() => {
+                                setCurrentMerchantBoutiqueId(b.id);
+                                navigate('/marchand');
+                              }}
+                              className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-emerald-500 text-slate-950 transition-all flex items-center gap-1 cursor-pointer"
+                            >
+                              <Store className="w-3 h-3" /> Gérer
+                            </button>
                             {!s.isFree && (
                               <button
                                 onClick={() => openSubModal(b)}

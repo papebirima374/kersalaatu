@@ -455,3 +455,11 @@ html.dark {
     &::placeholder { color: #8ca3c7 !important; }
   }
 }
+
+.bg-btn-always-light {
+  background-color: #ffffff !important;
+  color: #121f38 !important;
+}
+.bg-btn-always-light:hover {
+  background-color: #f8fafc !important;
+}

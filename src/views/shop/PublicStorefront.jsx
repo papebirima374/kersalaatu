@@ -1888,7 +1888,7 @@ export default function PublicStorefront() {
                 <MessageSquare className="w-3.5 h-3.5" /> {activeShop.whatsapp2}
               </a>
             )}
-            {(activeShop.instagram || activeShop.facebook) && (
+            {(activeShop.instagram || activeShop.facebook || activeShop.tiktok) && (
               <div className="flex gap-3 pt-1">
                 {activeShop.instagram && (
                   <a href={`https://instagram.com/${activeShop.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer"
@@ -1900,6 +1900,12 @@ export default function PublicStorefront() {
                   <a href={activeShop.facebook} target="_blank" rel="noopener noreferrer"
                     className="text-[10px] font-semibold text-slate-400 hover:text-white transition-colors">
                     Facebook
+                  </a>
+                )}
+                {activeShop.tiktok && (
+                  <a href={activeShop.tiktok.startsWith('http') ? activeShop.tiktok : `https://tiktok.com/@${activeShop.tiktok.replace('@', '')}`} target="_blank" rel="noopener noreferrer"
+                    className="text-[10px] font-semibold text-slate-400 hover:text-white transition-colors">
+                    TikTok
                   </a>
                 )}
               </div>
