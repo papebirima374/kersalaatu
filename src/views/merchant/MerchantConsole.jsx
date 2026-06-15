@@ -14,7 +14,7 @@ import {
   TrendingUp, Store, ExternalLink, Save, MessageSquare, Printer,
   ShoppingCart, Minus, User, Phone, MapPin, Receipt, Search,
   X, ChevronDown, Zap, Calendar, Users, TrendingDown, Lock, CreditCard,
-  Sun, Moon, Shield
+  Sun, Moon, Shield, Download, Upload
 } from 'lucide-react';
 
 // ── Texte sûr pour jsPDF ─────────────────────────────────────────────────────
@@ -3375,6 +3375,72 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                   </div>
                 )}
               </div>
+
+              {/* Outils de simulation locale (sauvegarde/restauration) */}
+              {!isConfigured && (
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                  <h3 className="font-semibold text-white text-sm">Sauvegarde & Restauration (Simulation Locale)</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Vous utilisez actuellement le mode simulation hors-ligne. Vos données sont stockées dans le stockage local de votre navigateur. Si vous changez de navigateur ou effacez vos cookies, vous perdrez vos produits et commandes. Utilisez ces boutons pour exporter et réimporter vos données.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const keys = ['ks_boutiques', 'ks_products', 'ks_orders', 'ks_tickets', 'ks_caissiers', 'ks_depenses'];
+                        const data = {};
+                        keys.forEach(k => {
+                          const val = localStorage.getItem(k);
+                          data[k] = val ? JSON.parse(val) : null;
+                        });
+                        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `jappandal_sauvegarde_${activeBoutique.slug || 'simulation'}.json`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        toast('Sauvegarde exportée avec succès !', 'success');
+                      }}
+                      className="px-4 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Exporter les données (JSON)
+                    </button>
+                    <label className="px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer">
+                      <Upload className="w-3.5 h-3.5" /> Importer une sauvegarde
+                      <input
+                        type="file"
+                        accept=".json"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            try {
+                              const parsed = JSON.parse(event.target.result);
+                              if (parsed && typeof parsed === 'object') {
+                                Object.entries(parsed).forEach(([key, val]) => {
+                                  if (val !== null) {
+                                    localStorage.setItem(key, JSON.stringify(val));
+                                  }
+                                });
+                                toast('Sauvegarde importée ! Rechargement en cours...', 'success');
+                                setTimeout(() => window.location.reload(), 1500);
+                              } else {
+                                toast('Fichier invalide.', 'error');
+                              }
+                            } catch {
+                              toast('Erreur lors de la lecture du fichier.', 'error');
+                            }
+                          };
+                          reader.readAsText(file);
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -3917,7 +3983,7 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
 
             {/* Aperçu — format ticket de caisse */}
             <div className="bg-slate-100 px-4 py-5 flex justify-center">
-              <div ref={invoiceRef} className="bg-white w-full max-w-[300px] px-5 py-6 text-slate-900" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+              <div ref={invoiceRef} className="bg-invoice-paper w-full max-w-[300px] px-5 py-6 text-slate-900" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
                 {/* En-tête centré */}
                 <div className="text-center">
                   {activeBoutique.logo && typeof activeBoutique.logo === 'string' && (activeBoutique.logo.startsWith('http') || activeBoutique.logo.startsWith('data:') || activeBoutique.logo.startsWith('/')) ? (

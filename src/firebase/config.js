@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, enableMultiTabIndexedDbPersistence } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 
@@ -52,6 +52,11 @@ if (isConfigured) {
     }
 
     db = getFirestore(app);
+    if (typeof window !== 'undefined') {
+      enableMultiTabIndexedDbPersistence(db).catch((err) => {
+        console.warn('Firestore persistence status:', err.code);
+      });
+    }
     auth = getAuth(app);
     storage = getStorage(app);
     console.log("🔥 Connected successfully to Firebase Cloud Services!");

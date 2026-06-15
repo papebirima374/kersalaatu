@@ -222,6 +222,27 @@ body {
     border-color: var(--color-sand-line) !important;
   }
 
+  /* Boutons et liens à fonds sombres modifiés par la console */
+  button.bg-slate-800, button.bg-slate-900, button.bg-slate-950,
+  a.bg-slate-800, a.bg-slate-900, a.bg-slate-950,
+  .bg-slate-800 button, .bg-slate-900 button, .bg-slate-950 button {
+    color: var(--color-navy-ink) !important;
+    border-color: var(--color-sand-line) !important;
+    
+    svg {
+      color: var(--color-navy-ink) !important;
+    }
+
+    &:hover {
+      background-color: var(--color-sand-medium) !important;
+      color: var(--color-navy-ink) !important;
+      border-color: var(--color-sand-line) !important;
+      svg {
+        color: var(--color-navy-ink) !important;
+      }
+    }
+  }
+
   /* Textes */
   .text-slate-100, .text-slate-200, .text-slate-300, .text-white {
     /* Garder le texte blanc sur les boutons ou badges colorés */
@@ -462,4 +483,35 @@ html.dark {
 }
 .bg-btn-always-light:hover {
   background-color: #f8fafc !important;
+}
+
+/* Facture / Reçu en mode papier blanc (toujours clair et contrasté) */
+.bg-invoice-paper {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.bg-invoice-paper .text-slate-900,
+.bg-invoice-paper .text-slate-800,
+.bg-invoice-paper .text-slate-750,
+.bg-invoice-paper .text-slate-700 {
+  color: #0f172a !important;
+}
+
+.bg-invoice-paper .text-slate-600,
+.bg-invoice-paper .text-slate-500 {
+  color: #334155 !important;
+}
+
+.bg-invoice-paper .text-slate-400 {
+  color: #475569 !important;
+}
+
+.bg-invoice-paper .border-slate-300,
+.bg-invoice-paper .border-dashed {
+  border-color: #cbd5e1 !important;
+}
+
+.bg-invoice-paper .border-slate-900 {
+  border-color: #0f172a !important;
 }
