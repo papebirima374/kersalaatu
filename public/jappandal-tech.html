@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Jappandal Tech — Technologie & Marketing digital au Sénégal</title>
+<meta name="description" content="Jappandal Tech digitalise les commerces et entreprises : boutiques en ligne, sites web, marketing & réseaux sociaux, design, photo/vidéo et formation. La technologie au service de votre business." />
+<meta property="og:title" content="Jappandal Tech — La technologie au service de votre business" />
+<meta property="og:description" content="Boutiques en ligne, sites web, marketing digital, design & formation. On digitalise votre business au Sénégal." />
+<meta property="og:image" content="https://www.jappandal.com/kit-assets/social/lancement-banniere.png" />
+<meta property="og:type" content="website" />
+<link rel="icon" href="/favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ivory:#FCFAF6;--sand:#F5F0E5;--sand2:#EFE7D8;--line:#EBE2D4;
+    --ink:#121F38;--ink2:#576780;--blue:#2563EB;--blue-d:#1B47B5;--terra:#B06000;--peach:#F4D9C0;
+  }
+  *{margin:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--ivory);color:var(--ink);line-height:1.65;-webkit-font-smoothing:antialiased}
+  .serif{font-family:'Fraunces',Georgia,serif;font-weight:500}
+  .wrap{max-width:1140px;margin:0 auto;padding:0 22px}
+  a{color:inherit}
+  .btn{display:inline-flex;align-items:center;gap:9px;border:none;cursor:pointer;font-family:inherit;text-decoration:none;font-weight:700;border-radius:14px;transition:.18s;white-space:nowrap}
+  .btn-w{background:#25D366;color:#06351b;padding:14px 22px;font-size:15px;box-shadow:0 14px 28px -14px rgba(37,211,102,.8)}
+  .btn-w:hover{transform:translateY(-2px)}
+  .btn-b{background:var(--blue);color:#fff;padding:14px 22px;font-size:15px;box-shadow:0 14px 28px -14px rgba(37,99,235,.75)}
+  .btn-b:hover{transform:translateY(-2px);background:var(--blue-d)}
+  .btn-o{background:#fff;border:1px solid var(--line);color:var(--ink);padding:13px 20px;font-size:14px}
+  .btn-o:hover{background:var(--sand)}
+
+  /* NAV */
+  nav{position:sticky;top:0;z-index:40;background:rgba(252,250,246,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  nav .row{display:flex;align-items:center;justify-content:space-between;height:64px}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:800;font-size:18px;letter-spacing:-.01em;text-decoration:none}
+  .brand img{height:34px;width:34px;border-radius:9px}
+  .brand b{font-weight:800}.brand span{color:var(--blue)}
+  .nav-links{display:flex;align-items:center;gap:26px}
+  .nav-links a{font-size:14px;font-weight:600;color:var(--ink2);text-decoration:none}
+  .nav-links a:hover{color:var(--ink)}
+  @media(max-width:860px){.nav-links a:not(.btn){display:none}}
+
+  /* HERO */
+  .hero{position:relative;overflow:hidden}
+  .hero:before{content:"";position:absolute;inset:0;background:
+    radial-gradient(700px 360px at 88% -8%, rgba(37,99,235,.12), transparent 60%),
+    radial-gradient(560px 320px at 6% 12%, rgba(176,96,0,.10), transparent 60%)}
+  .hero .wrap{position:relative;padding:74px 22px 56px;display:grid;grid-template-columns:1.05fr .95fr;gap:46px;align-items:center}
+  @media(max-width:900px){.hero .wrap{grid-template-columns:1fr;padding-top:50px;gap:30px}}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:7px 15px;font-size:12.5px;font-weight:700;color:var(--terra);letter-spacing:.02em}
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:#25D366;box-shadow:0 0 0 4px rgba(37,211,102,.22)}
+  h1.hero-t{font-size:clamp(34px,5.4vw,58px);line-height:1.04;letter-spacing:-.02em;margin:18px 0 0}
+  h1.hero-t i{color:var(--blue);font-style:italic}
+  .hero p.lead{color:var(--ink2);font-size:18px;max-width:520px;margin:18px 0 0}
+  .hero .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
+  .stats{display:flex;flex-wrap:wrap;gap:26px;margin-top:34px}
+  .stats div b{font-family:'Fraunces',serif;font-size:26px;display:block;line-height:1}
+  .stats div span{font-size:12.5px;color:var(--ink2);font-weight:600}
+  .hero-card{background:#fff;border:1px solid var(--line);border-radius:26px;padding:24px;box-shadow:0 40px 80px -50px rgba(18,31,56,.5)}
+  .hero-card .mini{display:flex;align-items:center;gap:11px;padding:13px;border-radius:14px;background:var(--sand);margin-bottom:11px}
+  .hero-card .mini:last-child{margin-bottom:0}
+  .hero-card .ic{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;background:#fff;border:1px solid var(--line);flex-shrink:0}
+  .hero-card .mini b{font-size:14.5px;display:block}.hero-card .mini small{color:var(--ink2);font-size:12.5px}
+
+  /* SECTIONS */
+  section{padding:64px 0}
+  .kicker{font-family:'Fraunces',serif;font-size:13px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--terra)}
+  h2.sec{font-size:clamp(27px,4vw,40px);line-height:1.1;letter-spacing:-.02em;margin:10px 0 0}
+  .sec-sub{color:var(--ink2);font-size:16.5px;max-width:620px;margin:14px 0 0}
+  .center{text-align:center;margin:0 auto}
+
+  .grid{display:grid;gap:18px;margin-top:38px}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:880px){.g3{grid-template-columns:1fr 1fr}}
+  @media(max-width:560px){.g3{grid-template-columns:1fr}}
+  .svc{background:#fff;border:1px solid var(--line);border-radius:20px;padding:24px;transition:.18s}
+  .svc:hover{transform:translateY(-4px);box-shadow:0 30px 60px -45px rgba(18,31,56,.5);border-color:var(--peach)}
+  .svc .ic{width:50px;height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--sand);margin-bottom:14px}
+  .svc h3{font-size:18.5px;letter-spacing:-.01em}
+  .svc p{color:var(--ink2);font-size:14px;margin-top:7px}
+  .svc .soon{display:inline-block;margin-top:11px;font-size:11px;font-weight:700;color:var(--terra);background:var(--peach);padding:3px 9px;border-radius:999px}
+
+  /* PRODUIT PHARE */
+  .feat{background:linear-gradient(180deg,#fff, #fbf7ef);border:1px solid var(--line);border-radius:28px;padding:40px;display:grid;grid-template-columns:1fr 1fr;gap:36px;align-items:center}
+  @media(max-width:840px){.feat{grid-template-columns:1fr;padding:28px}}
+  .feat .badge{display:inline-block;background:var(--blue);color:#fff;font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px}
+  .feat ul{list-style:none;margin:18px 0 0;padding:0}
+  .feat li{display:flex;gap:10px;align-items:flex-start;font-size:15px;margin-bottom:9px}
+  .feat li:before{content:"✓";color:var(--blue);font-weight:800}
+  .feat .shot{text-align:center}
+  .feat .shot img{max-width:100%;max-height:420px;filter:drop-shadow(0 40px 60px rgba(18,31,56,.28))}
+
+  /* PORTFOLIO */
+  .port{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:38px}
+  @media(max-width:880px){.port{grid-template-columns:1fr 1fr}}
+  @media(max-width:520px){.port{grid-template-columns:1fr}}
+  .pcard{background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden;text-decoration:none;transition:.18s;display:block}
+  .pcard:hover{transform:translateY(-5px);box-shadow:0 34px 64px -46px rgba(18,31,56,.55)}
+  .pcard .img{background:linear-gradient(180deg,#f3eee3,#ece4d5);display:flex;align-items:center;justify-content:center;padding:18px 18px 0;height:230px;overflow:hidden}
+  .pcard .img img{max-height:230px;max-width:100%;object-fit:contain}
+  .pcard .cap{padding:14px 16px}
+  .pcard .cap b{font-size:15px}.pcard .cap small{display:block;color:var(--ink2);font-size:12.5px;margin-top:2px}
+  .pcard .cap .go{color:var(--blue);font-size:12.5px;font-weight:700;margin-top:7px;display:inline-block}
+
+  /* CARTE DE VISITE */
+  .vc-wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:36px;margin-top:38px;align-items:center}
+  @media(max-width:860px){.vc-wrap{grid-template-columns:1fr}}
+  /* aperçu visuel de la carte */
+  #vcard{background:var(--ivory);border-radius:20px;overflow:hidden;box-shadow:0 40px 80px -46px rgba(18,31,56,.6);border:1px solid var(--line);max-width:520px;width:100%;margin:0 auto}
+  #vcard .vc-top{background:linear-gradient(120deg,var(--blue),var(--blue-d));padding:22px 24px;display:flex;align-items:center;gap:14px;color:#fff}
+  #vcard .vc-top img{height:52px;width:52px;border-radius:13px;background:#fff;padding:3px}
+  #vcard .vc-top .nm{font-family:'Fraunces',serif;font-weight:600;font-size:23px;letter-spacing:-.01em;line-height:1}
+  #vcard .vc-top .sl{font-size:12.5px;opacity:.92;margin-top:4px}
+  #vcard .vc-body{display:flex;gap:18px;padding:22px 24px}
+  #vcard .vc-info{flex:1;min-width:0}
+  #vcard .vc-person{font-family:'Fraunces',serif;font-size:19px;font-weight:600}
+  #vcard .vc-role{color:var(--terra);font-size:13px;font-weight:700;margin-bottom:12px}
+  #vcard .vc-line{display:flex;gap:9px;align-items:baseline;font-size:13.5px;margin-bottom:7px;min-width:0}
+  #vcard .vc-line .lb{font-size:10px;font-weight:800;letter-spacing:.06em;color:var(--blue);width:64px;flex-shrink:0;text-transform:uppercase}
+  #vcard .vc-line .vl{color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #vcard .vc-qr{text-align:center;flex-shrink:0}
+  #vcard .vc-qr img{width:120px;height:120px;border-radius:12px;border:1px solid var(--line)}
+  #vcard .vc-qr small{display:block;font-size:10.5px;color:var(--ink2);margin-top:5px;max-width:120px}
+  .vc-actions{display:flex;flex-wrap:wrap;gap:11px;margin-top:24px}
+  .vc-note{font-size:12.5px;color:var(--ink2);margin-top:14px;background:var(--sand);border-radius:12px;padding:11px 14px;border:1px solid var(--line)}
+
+  /* CONTACT */
+  .contact{background:var(--ink);color:#fff;border-radius:28px;padding:48px 40px;text-align:center;position:relative;overflow:hidden}
+  .contact:before{content:"";position:absolute;inset:0;background:radial-gradient(600px 300px at 50% -20%,rgba(37,99,235,.4),transparent 60%)}
+  .contact .wrapc{position:relative}
+  .contact h2{font-size:clamp(26px,4vw,38px);letter-spacing:-.02em}
+  .contact p{color:#aab6cc;margin-top:12px;font-size:16px}
+  .contact .cta{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px}
+  .socials{display:flex;gap:14px;justify-content:center;margin-top:26px;flex-wrap:wrap}
+  .socials a{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#fff;text-decoration:none;padding:9px 16px;border-radius:12px;font-size:13.5px;font-weight:600}
+  .socials a:hover{background:rgba(255,255,255,.16)}
+
+  footer{text-align:center;color:var(--ink2);font-size:13px;padding:40px 22px 60px}
+  footer a{color:var(--blue);text-decoration:none}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:13px;font-weight:600;padding:11px 20px;border-radius:999px;opacity:0;transition:.25s;pointer-events:none;z-index:60}
+  .toast.show{opacity:1}
+  .reveal{opacity:0;transform:translateY(16px);transition:.6s cubic-bezier(.2,.7,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap row">
+    <a class="brand" href="#top"><img src="/logo-jappandal.png" alt="J"><div><b>Jappandal</b> <span>Tech</span></div></a>
+    <div class="nav-links">
+      <a href="#services">Services</a>
+      <a href="#produit">Jappandal</a>
+      <a href="#realisations">Réalisations</a>
+      <a href="#carte">Carte de visite</a>
+      <a class="btn btn-w" id="navWa" href="#">WhatsApp</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow"><span class="dot"></span>Technologie &amp; Marketing digital · Sénégal</span>
+      <h1 class="hero-t serif">La technologie <i>au service</i> de votre business.</h1>
+      <p class="lead">Jappandal Tech digitalise les commerces et les entreprises : <b>boutique en ligne, site web, réseaux sociaux, design</b> et bien plus. Simple, accessible, et pensé pour ici.</p>
+      <div class="cta">
+        <a class="btn btn-w" id="heroWa" href="#">💬 Discutons sur WhatsApp</a>
+        <a class="btn btn-o" href="#realisations">Voir nos réalisations</a>
+      </div>
+      <div class="stats">
+        <div><b>15+</b><span>Boutiques en ligne</span></div>
+        <div><b>12 000+</b><span>Abonnés</span></div>
+        <div><b>2 min</b><span>Pour lancer</span></div>
+        <div><b>0%</b><span>Commission</span></div>
+      </div>
+    </div>
+    <div class="hero-card reveal">
+      <div class="mini"><div class="ic">🛍️</div><div><b>Boutiques en ligne</b><small>Vitrine, panier, commandes WhatsApp</small></div></div>
+      <div class="mini"><div class="ic">💻</div><div><b>Sites web &amp; applications</b><small>Vitrines, landing pages, web apps</small></div></div>
+      <div class="mini"><div class="ic">📲</div><div><b>Marketing &amp; réseaux</b><small>Contenu, publicité, community management</small></div></div>
+      <div class="mini"><div class="ic">🎨</div><div><b>Design &amp; identité visuelle</b><small>Logo, charte, visuels, cartes</small></div></div>
+    </div>
+  </div>
+</header>
+
+<section id="services">
+  <div class="wrap">
+    <div class="center" style="max-width:680px">
+      <div class="kicker">Nos services</div>
+      <h2 class="sec serif">Tout votre digital, au même endroit</h2>
+      <p class="sec-sub center">Du logo jusqu'à la vente en ligne. Vous avancez, on s'occupe de la technique.</p>
+    </div>
+    <div class="grid g3">
+      <div class="svc reveal"><div class="ic">🛍️</div><h3 class="serif">E-commerce &amp; vente en ligne</h3><p>Boutique en ligne personnalisée, commandes WhatsApp, caisse, factures et carte de visite — via notre plateforme Jappandal.</p></div>
+      <div class="svc reveal"><div class="ic">💻</div><h3 class="serif">Sites web &amp; applications</h3><p>Sites vitrines et professionnels, pages de vente, applications web/mobile, noms de domaine et e-mails pro.</p></div>
+      <div class="svc reveal"><div class="ic">📲</div><h3 class="serif">Marketing &amp; réseaux sociaux</h3><p>Gestion de pages, création de contenu, publicité Facebook / Instagram / TikTok, stratégie digitale et référencement local.</p></div>
+      <div class="svc reveal"><div class="ic">🎨</div><h3 class="serif">Identité visuelle &amp; design</h3><p>Logo et charte graphique, flyers, affiches, visuels réseaux, cartes de visite et habillage de boutique.</p></div>
+      <div class="svc reveal"><div class="ic">📸</div><h3 class="serif">Photo &amp; vidéo</h3><p>Shooting de produits, vidéos de présentation, reels et contenus courts pour les réseaux. <span class="soon">Bientôt</span></p></div>
+      <div class="svc reveal"><div class="ic">📚</div><h3 class="serif">Formation &amp; accompagnement</h3><p>Formations « vendre en ligne », coaching réseaux sociaux et ateliers digital pour commerçants et PME. <span class="soon">Bientôt</span></p></div>
+    </div>
+  </div>
+</section>
+
+<section id="produit" style="padding-top:14px">
+  <div class="wrap">
+    <div class="feat reveal">
+      <div>
+        <span class="badge">Notre produit phare</span>
+        <h2 class="sec serif" style="margin-top:14px">Jappandal — votre boutique en ligne en 2 minutes</h2>
+        <p class="sec-sub">La plateforme qui permet à n'importe quel commerçant de vendre en ligne, recevoir ses commandes sur WhatsApp et gérer sa caisse — sans commission.</p>
+        <ul>
+          <li>Vitrine personnalisée à vos couleurs et votre logo</li>
+          <li>Commandes directement sur votre WhatsApp</li>
+          <li>Caisse, factures, gestion de stock et de clients</li>
+          <li>Paiement Wave intégré · à partir de la gratuité</li>
+        </ul>
+        <div class="cta" style="margin-top:22px;display:flex;gap:12px;flex-wrap:wrap">
+          <a class="btn btn-b" href="https://www.jappandal.com" target="_blank" rel="noopener">Ouvrir Jappandal →</a>
+          <a class="btn btn-o" href="https://www.jappandal.com/boutiques" target="_blank" rel="noopener">Voir les boutiques</a>
+        </div>
+      </div>
+      <div class="shot"><img src="/kit-assets/mockups/06-accueil-mobile.png" alt="Application Jappandal" loading="lazy"></div>
+    </div>
+  </div>
+</section>
+
+<section id="realisations">
+  <div class="wrap">
+    <div class="center" style="max-width:680px">
+      <div class="kicker">Réalisations</div>
+      <h2 class="sec serif">Des boutiques déjà en ligne</h2>
+      <p class="sec-sub center">Quelques entrepreneurs qui vendent aujourd'hui grâce à Jappandal. Cliquez pour visiter.</p>
+    </div>
+    <div class="port">
+      <a class="pcard reveal" href="https://www.jappandal.com/shop/habiibulxadiim" target="_blank" rel="noopener">
+        <div class="img"><img src="/kit-assets/mockups/14-vitrine-habiibul.png" alt="Habiibul Xadiim" loading="lazy"></div>
+        <div class="cap"><b>Maktaba Habiibul Xadiim</b><small>Librairie · Khassidas &amp; spiritualité</small><span class="go">Visiter la boutique →</span></div>
+      </a>
+      <a class="pcard reveal" href="https://www.jappandal.com/shop/assalihshop" target="_blank" rel="noopener">
+        <div class="img"><img src="/kit-assets/mockups/16-vitrine-assalih.png" alt="As'Salih Shop" loading="lazy"></div>
+        <div class="cap"><b>As'Salih Shop</b><small>Mode &amp; voiles</small><span class="go">Visiter la boutique →</span></div>
+      </a>
+      <a class="pcard reveal" href="https://www.jappandal.com/shop/makanualmountakha" target="_blank" rel="noopener">
+        <div class="img"><img src="/kit-assets/mockups/17-vitrine-makanu.png" alt="Makanu Al-mountakha" loading="lazy"></div>
+        <div class="cap"><b>Makanu Al-mountakha</b><small>Livres, accessoires &amp; mode</small><span class="go">Visiter la boutique →</span></div>
+      </a>
+      <a class="pcard reveal" href="https://www.jappandal.com/shop/sindidivoile" target="_blank" rel="noopener">
+        <div class="img"><img src="/kit-assets/mockups/18-vitrine-sindidi.png" alt="Sindidi Voile" loading="lazy"></div>
+        <div class="cap"><b>Sindidi Voile</b><small>Voiles &amp; prêt-à-porter</small><span class="go">Visiter la boutique →</span></div>
+      </a>
+    </div>
+    <div class="center" style="margin-top:26px">
+      <a class="btn btn-o" href="https://www.jappandal.com/boutiques" target="_blank" rel="noopener">Voir toutes les boutiques →</a>
+    </div>
+  </div>
+</section>
+
+<section id="carte">
+  <div class="wrap">
+    <div class="center" style="max-width:680px">
+      <div class="kicker">Carte de visite</div>
+      <h2 class="sec serif">Votre carte numérique Jappandal Tech</h2>
+      <p class="sec-sub center">Téléchargez-la en image, partagez-la sur WhatsApp, ou imprimez-la. Avec QR code intégré.</p>
+    </div>
+    <div class="vc-wrap">
+      <div id="vcard">
+        <div class="vc-top">
+          <img src="/logo-jappandal.png" alt="J">
+          <div><div class="nm">Jappandal Tech</div><div class="sl" id="vcSlogan">La technologie au service de votre business</div></div>
+        </div>
+        <div class="vc-body">
+          <div class="vc-info">
+            <div class="vc-person" id="vcName">Birima Gueye</div>
+            <div class="vc-role" id="vcRole">Fondateur &amp; CEO</div>
+            <div class="vc-line"><span class="lb">Tél</span><span class="vl" id="vcTel">+221 — à confirmer</span></div>
+            <div class="vc-line"><span class="lb">Email</span><span class="vl" id="vcEmail">contact@jappandal.com</span></div>
+            <div class="vc-line"><span class="lb">Web</span><span class="vl">jappandal.com</span></div>
+            <div class="vc-line"><span class="lb">Insta</span><span class="vl">@jappandal_tech</span></div>
+          </div>
+          <div class="vc-qr">
+            <img src="/tech-assets/qr.png" alt="QR Jappandal Tech">
+            <small>Scannez pour nous découvrir</small>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="vc-actions">
+          <button class="btn btn-b" onclick="downloadCard()">⬇ Télécharger (PNG)</button>
+          <button class="btn btn-w" onclick="shareCard()">💬 Partager</button>
+          <button class="btn btn-o" onclick="window.print()">🖨️ Imprimer</button>
+        </div>
+        <div class="vc-note" id="vcNote">
+          ⚠️ <b>À finaliser :</b> les informations affichées (nom, fonction, téléphone, email) sont des exemples.
+          Donnez-moi vos vraies coordonnées et je les fige dans la carte et tout le site.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="contact">
+      <div class="wrapc">
+        <h2 class="serif">Prêt à digitaliser votre business&nbsp;?</h2>
+        <p>Boutique en ligne, site web, réseaux sociaux ou identité visuelle — parlons-en aujourd'hui.</p>
+        <div class="cta">
+          <a class="btn btn-w" id="contactWa" href="#">💬 Écrire sur WhatsApp</a>
+          <a class="btn btn-o" id="contactMail" href="#" style="background:#fff">✉️ Envoyer un email</a>
+        </div>
+        <div class="socials">
+          <a id="soFb" href="#" target="_blank" rel="noopener">📘 Facebook</a>
+          <a id="soIg" href="#" target="_blank" rel="noopener">📷 Instagram</a>
+          <a id="soTt" href="#" target="_blank" rel="noopener">🎵 TikTok</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  © <span id="yr"></span> Jappandal Tech — Technologie &amp; Marketing digital · Sénégal ·
+  <a href="https://www.jappandal.com" target="_blank" rel="noopener">jappandal.com</a>
+</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   👉 MODIFIE ICI tes vraies informations (une seule fois) :
+   ============================================================ */
+const CONFIG = {
+  name:    "Birima Gueye",                 // ton nom complet
+  role:    "Fondateur & CEO",              // ta fonction
+  tel:     "221000000000",                 // WhatsApp SANS + ni espaces (ex: 221771002227)
+  telDisplay: "+221 — à confirmer",        // affichage du téléphone
+  email:   "contact@jappandal.com",        // email à afficher
+  site:    "jappandal.com",
+  slogan:  "La technologie au service de votre business",
+  instagram: "https://www.instagram.com/jappandal_tech",
+  facebook:  "https://www.facebook.com/jappandal",      // mets l'URL exacte de ta page
+  tiktok:    "https://www.tiktok.com/@jappandal.tech",  // mets ton @ exact
+};
+const WA_MSG = "Bonjour Jappandal Tech 👋, je suis intéressé(e) par vos services.";
+
+/* --- application de la config à la page --- */
+const wa = `https://wa.me/${CONFIG.tel}?text=${encodeURIComponent(WA_MSG)}`;
+['navWa','heroWa','contactWa'].forEach(id => document.getElementById(id).href = wa);
+document.getElementById('contactMail').href = `mailto:${CONFIG.email}?subject=${encodeURIComponent('Demande de devis — Jappandal Tech')}`;
+document.getElementById('soFb').href = CONFIG.facebook;
+document.getElementById('soIg').href = CONFIG.instagram;
+document.getElementById('soTt').href = CONFIG.tiktok;
+document.getElementById('vcName').textContent = CONFIG.name;
+document.getElementById('vcRole').textContent = CONFIG.role;
+document.getElementById('vcTel').textContent = CONFIG.telDisplay;
+document.getElementById('vcEmail').textContent = CONFIG.email;
+document.getElementById('vcSlogan').textContent = CONFIG.slogan;
+document.getElementById('yr').textContent = new Date().getFullYear();
+
+/* --- toast --- */
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2400);}
+
+/* --- animations au scroll --- */
+const io = new IntersectionObserver(es => es.forEach(e => { if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} }), {threshold:.12});
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+/* --- génération de la carte de visite (canvas haute qualité) --- */
+const loadImg = src => new Promise((res,rej)=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>res(i);i.onerror=rej;i.src=src;});
+function rr(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+
+async function buildCardCanvas(){
+  try{ await document.fonts.ready; await document.fonts.load('600 40px Fraunces'); await document.fonts.load('700 24px "Plus Jakarta Sans"'); }catch(e){}
+  const W=1200,H=720,S=2;
+  const cv=document.createElement('canvas');cv.width=W*S;cv.height=H*S;
+  const ctx=cv.getContext('2d');ctx.scale(S,S);
+  // fond
+  ctx.fillStyle='#FCFAF6';ctx.fillRect(0,0,W,H);
+  // bandeau bleu
+  const g=ctx.createLinearGradient(0,0,W,230);g.addColorStop(0,'#2563EB');g.addColorStop(1,'#1B47B5');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,230);
+  // logo
+  try{const lg=await loadImg('/logo-jappandal.png');rr(ctx,60,58,114,114,26);ctx.save();ctx.clip();ctx.fillStyle='#fff';ctx.fillRect(60,58,114,114);ctx.drawImage(lg,60,58,114,114);ctx.restore();}catch(e){}
+  // nom entreprise + slogan
+  ctx.fillStyle='#fff';ctx.font='600 54px Fraunces, Georgia, serif';ctx.textBaseline='alphabetic';
+  ctx.fillText('Jappandal Tech',200,118);
+  ctx.font='500 22px "Plus Jakarta Sans", sans-serif';ctx.globalAlpha=.95;
+  ctx.fillText(CONFIG.slogan,200,158);ctx.globalAlpha=1;
+  // personne
+  ctx.fillStyle='#121F38';ctx.font='600 42px Fraunces, Georgia, serif';
+  ctx.fillText(CONFIG.name,60,322);
+  ctx.fillStyle='#B06000';ctx.font='700 24px "Plus Jakarta Sans", sans-serif';
+  ctx.fillText(CONFIG.role,60,360);
+  // coordonnées
+  const lines=[['TÉL',CONFIG.telDisplay],['EMAIL',CONFIG.email],['WEB',CONFIG.site],['INSTA','@'+CONFIG.instagram.split('/').filter(Boolean).pop().replace('@','')],['FACEBOOK','Jappandal Tech']];
+  let y=430;
+  lines.forEach(([lb,vl])=>{
+    ctx.fillStyle='#2563EB';ctx.font='800 17px "Plus Jakarta Sans", sans-serif';ctx.fillText(lb,60,y);
+    ctx.fillStyle='#1f2d4d';ctx.font='500 26px "Plus Jakarta Sans", sans-serif';ctx.fillText(vl,180,y);
+    y+=56;
+  });
+  // carte QR à droite
+  rr(ctx,820,300,320,360,26);ctx.fillStyle='#fff';ctx.fill();
+  ctx.strokeStyle='#EBE2D4';ctx.lineWidth=1;ctx.stroke();
+  try{const qr=await loadImg('/tech-assets/qr.png');ctx.drawImage(qr,850,330,260,260);}catch(e){}
+  ctx.fillStyle='#576780';ctx.font='600 18px "Plus Jakarta Sans", sans-serif';ctx.textAlign='center';
+  ctx.fillText('Scannez pour nous découvrir',980,625);ctx.textAlign='left';
+  // bas
+  ctx.fillStyle='#2563EB';ctx.fillRect(0,H-8,W,8);
+  return cv;
+}
+async function downloadCard(){
+  toast('Génération de la carte…');
+  try{
+    const cv=await buildCardCanvas();
+    const a=document.createElement('a');a.download='carte-visite-jappandal-tech.png';a.href=cv.toDataURL('image/png');a.click();
+    toast('Carte téléchargée ✓');
+  }catch(e){toast('Erreur : '+(e.message||e));}
+}
+async function shareCard(){
+  try{
+    const cv=await buildCardCanvas();
+    const blob=await new Promise(r=>cv.toBlob(r,'image/png'));
+    const file=new File([blob],'carte-jappandal-tech.png',{type:'image/png'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:'Jappandal Tech',text:CONFIG.slogan});
+    }else{
+      const a=document.createElement('a');a.download='carte-visite-jappandal-tech.png';a.href=cv.toDataURL('image/png');a.click();
+      window.open(wa,'_blank');
+      toast('Carte téléchargée — joignez-la à WhatsApp');
+    }
+  }catch(e){toast('Partage annulé');}
+}
+</script>
+</body>
+</html>
