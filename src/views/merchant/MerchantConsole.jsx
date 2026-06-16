@@ -20,22 +20,22 @@ import {
 // ── Remise par ligne (réutilisé en caisse + édition de commande) ──────────────
 // `remise` = { type:'percent'|'flat', valeur } ou null. onChange reçoit le nouvel objet.
 function LineDiscountControl({ remise, onChange }) {
-  const type = remise?.type || 'percent';
-  const set = (patch) => {
-    const next = { type, valeur: remise?.valeur || 0, ...patch };
-    onChange(Number(next.valeur) > 0 ? next : null);
-  };
+  // Type mémorisé localement : le toggle %/Fixe doit rester même sans montant saisi
+  // (sinon, valeur=0 → onChange(null) effacerait le choix de type).
+  const [type, setType] = useState(remise?.type || 'percent');
+  useEffect(() => { if (remise?.type && remise.type !== type) setType(remise.type); }, [remise?.type]); // eslint-disable-line react-hooks/exhaustive-deps
+  const emit = (t, v) => onChange(Number(v) > 0 ? { type: t, valeur: Number(v) } : null);
   return (
     <div className="flex items-center gap-1.5">
       <div className="flex rounded-md bg-slate-950 p-0.5 border border-slate-700 shrink-0">
-        <button type="button" onClick={() => set({ type: 'percent' })}
+        <button type="button" onClick={() => { setType('percent'); emit('percent', remise?.valeur || 0); }}
           className={`px-1.5 py-0.5 text-[9px] font-bold rounded transition-colors cursor-pointer ${type === 'percent' ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'}`}>%</button>
-        <button type="button" onClick={() => set({ type: 'flat' })}
+        <button type="button" onClick={() => { setType('flat'); emit('flat', remise?.valeur || 0); }}
           className={`px-1.5 py-0.5 text-[9px] font-bold rounded transition-colors cursor-pointer ${type === 'flat' ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'}`}>Fixe</button>
       </div>
       <input type="number" min="0" max={type === 'percent' ? 100 : undefined}
         value={remise?.valeur || ''}
-        onChange={(e) => set({ valeur: Math.max(0, Number(e.target.value) || 0) })}
+        onChange={(e) => emit(type, Math.max(0, Number(e.target.value) || 0))}
         placeholder="Remise"
         className="w-16 px-2 py-1 bg-slate-800 border border-slate-700 rounded-md text-[11px] font-mono text-white placeholder-slate-600 focus:outline-none focus:border-blue-500" />
     </div>
