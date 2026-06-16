@@ -28,19 +28,40 @@ function LineDiscountControl({ remise, onChange }) {
   return (
     <div className="flex items-center gap-1.5">
       <div className="flex rounded-md bg-slate-950 p-0.5 border border-slate-700 shrink-0">
-        <button type="button" onClick={() => { setType('percent'); emit('percent', remise?.valeur || 0); }}
+        <button type="button" title="Pourcentage sur le total de la ligne" onClick={() => { setType('percent'); emit('percent', remise?.valeur || 0); }}
           className={`px-1.5 py-0.5 text-[9px] font-bold rounded transition-colors cursor-pointer ${type === 'percent' ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'}`}>%</button>
-        <button type="button" onClick={() => { setType('flat'); emit('flat', remise?.valeur || 0); }}
+        <button type="button" title="Montant fixe retiré du total de la ligne" onClick={() => { setType('flat'); emit('flat', remise?.valeur || 0); }}
           className={`px-1.5 py-0.5 text-[9px] font-bold rounded transition-colors cursor-pointer ${type === 'flat' ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'}`}>Fixe</button>
+        <button type="button" title="Montant retiré du prix de chaque pièce (prix unitaire)" onClick={() => { setType('flat_unit'); emit('flat_unit', remise?.valeur || 0); }}
+          className={`px-1.5 py-0.5 text-[9px] font-bold rounded transition-colors cursor-pointer ${type === 'flat_unit' ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'}`}>/pièce</button>
       </div>
       <input type="number" min="0" max={type === 'percent' ? 100 : undefined}
         value={remise?.valeur || ''}
         onChange={(e) => emit(type, Math.max(0, Number(e.target.value) || 0))}
-        placeholder="Remise"
+        placeholder={type === 'flat_unit' ? '/ pièce' : 'Remise'}
         className="w-16 px-2 py-1 bg-slate-800 border border-slate-700 rounded-md text-[11px] font-mono text-white placeholder-slate-600 focus:outline-none focus:border-blue-500" />
     </div>
   );
 }
+
+// Libellé d'une remise de ligne (écran + PDF). f = formateur monétaire (fmt/money/fmtNum).
+const remiseHint = (it, f) => {
+  const d = itemDiscount(it);
+  if (d <= 0) return '';
+  const r = it.remise;
+  const q = r.type === 'percent' ? ` (${r.valeur}%)`
+    : r.type === 'flat_unit' ? ` (${f(r.valeur)}/pièce)` : '';
+  return `remise -${f(d)}${q}`;
+};
+// Forme compacte (accolée au nom sur la facture A4).
+const remiseTag = (it, f) => {
+  const d = itemDiscount(it);
+  if (d <= 0) return '';
+  const r = it.remise;
+  if (r.type === 'percent') return `-${r.valeur}%`;
+  if (r.type === 'flat_unit') return `-${f(r.valeur)}/pièce`;
+  return `-${f(d)}`;
+};
 
 // ── Texte sûr pour jsPDF ─────────────────────────────────────────────────────
 // Les polices standard de jsPDF ne gèrent que le Latin-1 : les emojis (drapeau
@@ -1399,7 +1420,7 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
         const dRem = itemDiscount(it);
         if (dRem > 0) {
           pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); setC([200, 60, 60]);
-          pdf.text(`remise ${it.remise.type === 'percent' ? '-' + it.remise.valeur + '%' : '- ' + money(dRem)}`, m, y);
+          pdf.text(sanitizePdf(remiseHint(it, money)), m, y);
           y += 4;
         }
       });
@@ -1518,7 +1539,7 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
     inv.items.forEach((it, idx) => {
       const dRem = itemDiscount(it);
       const lines = pdf.splitTextToSize(T(it.name), nameW);
-      if (dRem > 0) lines.push(`remise ${it.remise.type === 'percent' ? '-' + it.remise.valeur + '%' : '- ' + money(dRem)}`);
+      if (dRem > 0) lines.push(sanitizePdf(remiseHint(it, money)));
       const rh = Math.max(7, lines.length * 4 + 3);
       if (idx % 2) { pdf.setFillColor(247, 249, 252); pdf.rect(m, y, cw, rh, 'F'); }
       pdf.setFont('helvetica', 'normal');
@@ -1646,7 +1667,7 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
         if (i % 2 === 1) { pdf.setFillColor(248,250,252); pdf.rect(m, y, cW, 9, 'F'); }
         pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0,0,0);
         let name = item.name.length > 34 ? item.name.substring(0,34)+'…' : item.name;
-        if (dRem > 0) name += item.remise.type === 'percent' ? ` (-${item.remise.valeur}%)` : ` (-${fmtNum(dRem)})`;
+        if (dRem > 0) name += ` (${remiseTag(item, fmtNum)})`;
         pdf.text(name, m + 3, y + 6);
         pdf.text(String(item.quantity), m + cW * 0.58, y + 6);
         pdf.text(fmtNum(item.price), m + cW * 0.72, y + 6);
@@ -2558,7 +2579,7 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                       <div className="bg-slate-800/50 rounded-lg p-3 mb-3">
                         {o.items.map((it, i) => (
                           <div key={i} className="flex justify-between gap-2 text-sm py-1">
-                            <span className="text-slate-300 min-w-0 truncate"><span className="text-blue-400 font-bold">{it.quantity}×</span> {it.name}{itemDiscount(it) > 0 && <span className="text-red-400 text-[10px]"> (rem -{it.remise.type === 'percent' ? `${it.remise.valeur}%` : fmt(itemDiscount(it))})</span>}</span>
+                            <span className="text-slate-300 min-w-0 truncate"><span className="text-blue-400 font-bold">{it.quantity}×</span> {it.name}{itemDiscount(it) > 0 && <span className="text-red-400 text-[10px]"> (rem {remiseTag(it, fmt)})</span>}</span>
                             <span className="text-slate-400 font-mono shrink-0">{fmt(itemNet(it))}</span>
                           </div>
                         ))}
@@ -2767,9 +2788,7 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                               <div className="flex items-center justify-between gap-2 mt-1.5">
                                 <LineDiscountControl remise={it.remise} onChange={(r) => setPosLineRemise(it.id, r)} />
                                 {itemDiscount(it) > 0 && (
-                                  <span className="text-[10px] font-semibold text-red-400 whitespace-nowrap">
-                                    remise -{fmt(itemDiscount(it))}{it.remise?.type === 'percent' ? ` (${it.remise.valeur}%)` : ''}
-                                  </span>
+                                  <span className="text-[10px] font-semibold text-red-400 whitespace-nowrap">{remiseHint(it, fmt)}</span>
                                 )}
                               </div>
                             </div>
@@ -4102,7 +4121,7 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                     <div key={i} className="text-[12px]">
                       <p className="font-bold leading-tight">{it.name}</p>
                       <div className="flex justify-between text-slate-600">
-                        <span>{it.quantity} × {fmt(it.price)}{itemDiscount(it) > 0 && <span className="text-red-500"> · remise {it.remise.type === 'percent' ? `-${it.remise.valeur}%` : `-${fmt(itemDiscount(it))}`}</span>}</span>
+                        <span>{it.quantity} × {fmt(it.price)}{itemDiscount(it) > 0 && <span className="text-red-500"> · {remiseHint(it, fmt)}</span>}</span>
                         <span className="font-bold text-slate-900">{fmt(itemNet(it))}</span>
                       </div>
                     </div>
@@ -4172,9 +4191,7 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                     <div className="flex items-center justify-between gap-2 mt-2">
                       <LineDiscountControl remise={it.remise} onChange={(r) => editSetLineRemise(idx, r)} />
                       {itemDiscount(it) > 0 && (
-                        <span className="text-[11px] font-semibold text-red-400 whitespace-nowrap">
-                          remise -{fmt(itemDiscount(it))}{it.remise?.type === 'percent' ? ` (${it.remise.valeur}%)` : ''}
-                        </span>
+                        <span className="text-[11px] font-semibold text-red-400 whitespace-nowrap">{remiseHint(it, fmt)}</span>
                       )}
                     </div>
                   </div>

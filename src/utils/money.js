@@ -20,8 +20,11 @@ export const CURRENCIES = [
 ];
 
 // ─── Remises (ligne + globale) ───────────────────────────────────────────────
-// Remise par ligne : it.remise = { type:'percent'|'flat', valeur:number }.
-// Remise globale : même forme, appliquée au sous-total NET (après remises lignes).
+// Remise par ligne : it.remise = { type, valeur }, où type vaut :
+//   'percent'    → pourcentage sur le total de la ligne ;
+//   'flat'       → montant fixe retiré du total de la ligne ;
+//   'flat_unit'  → montant fixe retiré du prix de CHAQUE pièce (× quantité).
+// Remise globale : { type:'percent'|'flat', valeur }, appliquée au sous-total NET.
 const clampPct = (v) => Math.min(100, Math.max(0, Number(v) || 0));
 
 export const itemGross = (it) => (Number(it?.price) || 0) * (Number(it?.quantity) || 0);
@@ -30,9 +33,10 @@ export const itemDiscount = (it) => {
   const r = it && it.remise;
   if (!r || !(Number(r.valeur) > 0)) return 0;
   const g = itemGross(it);
-  return r.type === 'percent'
-    ? Math.round((g * clampPct(r.valeur)) / 100)
-    : Math.min(g, Math.max(0, Number(r.valeur) || 0));
+  const v = Math.max(0, Number(r.valeur) || 0);
+  if (r.type === 'percent') return Math.round((g * clampPct(r.valeur)) / 100);
+  if (r.type === 'flat_unit') return Math.min(g, Math.round(v * (Number(it.quantity) || 0)));
+  return Math.min(g, v); // 'flat' (sur le total)
 };
 
 export const itemNet = (it) => Math.max(0, itemGross(it) - itemDiscount(it));
