@@ -79,6 +79,8 @@ function App() {
               <Route path="/merchant/*"  element={<MerchantConsole />} />
               <Route path="/shop/:shopSlug" element={<PublicStorefront />} />
               <Route path="/admin"       element={<DeveloperConsole />} />
+              {/* Alias rétro-compatible (ancien lien /dev) */}
+              <Route path="/dev"         element={<DeveloperConsole />} />
             </Routes>
           </Suspense>
         </Router>

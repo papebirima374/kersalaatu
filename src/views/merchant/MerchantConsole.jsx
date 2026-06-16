@@ -1860,7 +1860,7 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
           </div>
         </div>
         {isAdminUser && (
-          <Link to="/dev" onClick={() => setSidebarOpen(false)}
+          <Link to="/admin" onClick={() => setSidebarOpen(false)}
             className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-blue-400 hover:bg-blue-500/10 hover:text-blue-300 transition-all font-bold">
             <Shield className="w-4 h-4" /> Console Admin/Dev
           </Link>
