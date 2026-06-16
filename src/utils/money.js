@@ -18,3 +18,33 @@ export const CURRENCIES = [
   { code: 'FCFA', label: 'FCFA (Franc CFA)' },
   { code: 'EUR', label: '€ (Euro)' },
 ];
+
+// ─── Remises (ligne + globale) ───────────────────────────────────────────────
+// Remise par ligne : it.remise = { type:'percent'|'flat', valeur:number }.
+// Remise globale : même forme, appliquée au sous-total NET (après remises lignes).
+const clampPct = (v) => Math.min(100, Math.max(0, Number(v) || 0));
+
+export const itemGross = (it) => (Number(it?.price) || 0) * (Number(it?.quantity) || 0);
+
+export const itemDiscount = (it) => {
+  const r = it && it.remise;
+  if (!r || !(Number(r.valeur) > 0)) return 0;
+  const g = itemGross(it);
+  return r.type === 'percent'
+    ? Math.round((g * clampPct(r.valeur)) / 100)
+    : Math.min(g, Math.max(0, Number(r.valeur) || 0));
+};
+
+export const itemNet = (it) => Math.max(0, itemGross(it) - itemDiscount(it));
+
+export const cartGross = (items = []) => items.reduce((s, it) => s + itemGross(it), 0);
+export const cartLineDiscounts = (items = []) => items.reduce((s, it) => s + itemDiscount(it), 0);
+export const cartNet = (items = []) => items.reduce((s, it) => s + itemNet(it), 0);
+
+// Montant d'une remise globale sur un sous-total net déjà calculé.
+export const globalDiscount = (net, remise) => {
+  if (!remise || !(Number(remise.valeur) > 0)) return 0;
+  return remise.type === 'percent'
+    ? Math.round((net * clampPct(remise.valeur)) / 100)
+    : Math.min(net, Math.max(0, Number(remise.valeur) || 0));
+};

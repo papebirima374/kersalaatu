@@ -1,6 +1,6 @@
 import { toast } from '../../components/toast';
 import { thumb, fallbackSrc } from '../../utils/img';
-import { formatPrice } from '../../utils/money';
+import { formatPrice, itemNet, itemDiscount, cartGross, cartLineDiscounts, cartNet, globalDiscount } from '../../utils/money';
 import { buildBusinessCardCanvas } from '../../utils/businessCard';
 import QRCode from 'qrcode';
 import { unlockAudio, playOrderSound, requestNotifPermission, showOrderNotification } from '../../notify';
@@ -16,6 +16,31 @@ import {
   X, ChevronDown, Zap, Calendar, Users, TrendingDown, Lock, CreditCard,
   Sun, Moon, Shield, Download, Upload
 } from 'lucide-react';
+
+// ── Remise par ligne (réutilisé en caisse + édition de commande) ──────────────
+// `remise` = { type:'percent'|'flat', valeur } ou null. onChange reçoit le nouvel objet.
+function LineDiscountControl({ remise, onChange }) {
+  const type = remise?.type || 'percent';
+  const set = (patch) => {
+    const next = { type, valeur: remise?.valeur || 0, ...patch };
+    onChange(Number(next.valeur) > 0 ? next : null);
+  };
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="flex rounded-md bg-slate-950 p-0.5 border border-slate-700 shrink-0">
+        <button type="button" onClick={() => set({ type: 'percent' })}
+          className={`px-1.5 py-0.5 text-[9px] font-bold rounded transition-colors cursor-pointer ${type === 'percent' ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'}`}>%</button>
+        <button type="button" onClick={() => set({ type: 'flat' })}
+          className={`px-1.5 py-0.5 text-[9px] font-bold rounded transition-colors cursor-pointer ${type === 'flat' ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'}`}>Fixe</button>
+      </div>
+      <input type="number" min="0" max={type === 'percent' ? 100 : undefined}
+        value={remise?.valeur || ''}
+        onChange={(e) => set({ valeur: Math.max(0, Number(e.target.value) || 0) })}
+        placeholder="Remise"
+        className="w-16 px-2 py-1 bg-slate-800 border border-slate-700 rounded-md text-[11px] font-mono text-white placeholder-slate-600 focus:outline-none focus:border-blue-500" />
+    </div>
+  );
+}
 
 // ── Texte sûr pour jsPDF ─────────────────────────────────────────────────────
 // Les polices standard de jsPDF ne gèrent que le Latin-1 : les emojis (drapeau
@@ -826,10 +851,14 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
   const [editingOrder, setEditingOrder] = useState(null);   // commande en cours d'édition
   const [editItems, setEditItems] = useState([]);           // items modifiables
   const [editAddSearch, setEditAddSearch] = useState('');   // recherche pour ajouter un produit
+  const [editDiscountType, setEditDiscountType] = useState('percent'); // remise globale
+  const [editDiscountValue, setEditDiscountValue] = useState(0);
 
   const openEditOrder = (order) => {
     setEditingOrder(order);
     setEditItems(order.items.map(it => ({ ...it })));
+    setEditDiscountType(order.remise?.type || 'percent');
+    setEditDiscountValue(order.remise?.valeur || 0);
     setEditAddSearch('');
   };
   const editChangeQty = (idx, delta) => {
@@ -838,18 +867,28 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
   const editRemoveItem = (idx) => {
     setEditItems(prev => prev.filter((_, i) => i !== idx));
   };
+  const editSetLineRemise = (idx, remise) => {
+    setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, remise } : it));
+  };
   const editAddProduct = (p) => {
     setEditItems(prev => {
       const ex = prev.find(it => it.id === p.id && !it.variantId);
       if (ex) return prev.map(it => (it.id === p.id && !it.variantId) ? { ...it, quantity: it.quantity + 1 } : it);
-      return [...prev, { id: p.id, name: p.name, price: p.price, quantity: 1, variantId: null, variantNom: null }];
+      return [...prev, { id: p.id, name: p.name, price: p.price, quantity: 1, variantId: null, variantNom: null, remise: null }];
     });
     setEditAddSearch('');
   };
-  const editSubtotal = editItems.reduce((s, it) => s + it.price * it.quantity, 0);
+  const editGross = cartGross(editItems);                              // brut
+  const editLineDiscounts = cartLineDiscounts(editItems);              // remises par ligne
+  const editNetSubtotal = Math.max(0, editGross - editLineDiscounts);  // net
+  const editGlobalDiscount = globalDiscount(editNetSubtotal, { type: editDiscountType, valeur: editDiscountValue });
+  const editTotal = Math.max(0, editNetSubtotal - editGlobalDiscount) + (editingOrder?.livraison?.frais || 0);
   const saveEditOrder = () => {
     if (editItems.length === 0) { toast('La commande doit contenir au moins un article.'); return; }
-    updateOrder(editingOrder.id, editItems);
+    const remiseInfo = editGlobalDiscount > 0
+      ? { type: editDiscountType, valeur: Number(editDiscountValue) || 0, montant: editGlobalDiscount }
+      : null;
+    updateOrder(editingOrder.id, editItems, remiseInfo);
     setEditingOrder(null);
   };
 
@@ -868,16 +907,19 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
   const [upgradePayLoading, setUpgradePayLoading]     = useState(false);
   const [upgradePaySuccess, setUpgradePaySuccess]     = useState(false);
 
-  const posSubtotal = posCart.reduce((a, i) => a + i.price * i.quantity, 0);
+  const posSubtotal = posCart.reduce((a, i) => a + i.price * i.quantity, 0); // brut
+  const posLineDiscounts = cartLineDiscounts(posCart);                        // somme des remises par ligne
+  const posNetSubtotal = Math.max(0, posSubtotal - posLineDiscounts);         // net (avant remise globale)
 
-  const posDiscountAmount = React.useMemo(() => {
-    if (posDiscountType === 'percent') {
-      return Math.round((posSubtotal * (Number(posDiscountValue) || 0)) / 100);
-    }
-    return Math.min(posSubtotal, Number(posDiscountValue) || 0);
-  }, [posSubtotal, posDiscountType, posDiscountValue]);
+  const posDiscountAmount = React.useMemo(
+    () => globalDiscount(posNetSubtotal, { type: posDiscountType, valeur: posDiscountValue }),
+    [posNetSubtotal, posDiscountType, posDiscountValue]
+  );
 
-  const posTotalFinal = Math.max(0, posSubtotal - posDiscountAmount);
+  const posTotalFinal = Math.max(0, posNetSubtotal - posDiscountAmount);
+
+  const setPosLineRemise = (id, remise) =>
+    setPosCart(prev => prev.map(it => it.id === id ? { ...it, remise } : it));
 
   // ⚠️ Doit rester AVANT le return ci-dessous (Rules of Hooks — sinon React error #300
   // quand un compte connecté n'a pas de boutique, ex. le compte admin)
@@ -1352,12 +1394,18 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
         pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); setC([110, 110, 110]);
         pdf.text(`${it.quantity} x ${money(it.price)}`, m, y);
         pdf.setFont('helvetica', 'bold'); setC([0, 0, 0]);
-        pdf.text(money(it.price * it.quantity), W - m, y, { align: 'right' });
+        pdf.text(money(itemNet(it)), W - m, y, { align: 'right' });
         y += 5;
+        const dRem = itemDiscount(it);
+        if (dRem > 0) {
+          pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); setC([200, 60, 60]);
+          pdf.text(`remise ${it.remise.type === 'percent' ? '-' + it.remise.valeur + '%' : '- ' + money(dRem)}`, m, y);
+          y += 4;
+        }
       });
       dash();
 
-      const subtotal = inv.items.reduce((acc, it) => acc + it.price * it.quantity, 0);
+      const subtotal = cartNet(inv.items);
       const remiseMontant = inv.remise?.montant || 0;
       const livraisonFrais = inv.livraison?.frais || 0;
       const trow = (lbl, val) => {
@@ -1468,21 +1516,24 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
 
     pdf.setFontSize(9);
     inv.items.forEach((it, idx) => {
+      const dRem = itemDiscount(it);
       const lines = pdf.splitTextToSize(T(it.name), nameW);
+      if (dRem > 0) lines.push(`remise ${it.remise.type === 'percent' ? '-' + it.remise.valeur + '%' : '- ' + money(dRem)}`);
       const rh = Math.max(7, lines.length * 4 + 3);
       if (idx % 2) { pdf.setFillColor(247, 249, 252); pdf.rect(m, y, cw, rh, 'F'); }
-      pdf.setFont('helvetica', 'normal'); setC([30, 30, 30]);
-      lines.forEach((l, k) => pdf.text(l, m + 2, y + 4.7 + k * 4));
+      pdf.setFont('helvetica', 'normal');
+      lines.forEach((l, k) => { setC(dRem > 0 && k === lines.length - 1 ? [200, 60, 60] : [30, 30, 30]); pdf.text(l, m + 2, y + 4.7 + k * 4); });
+      setC([30, 30, 30]);
       pdf.text(String(it.quantity), colQte, y + 4.7, { align: 'right' });
       pdf.text(money(it.price), colPU, y + 4.7, { align: 'right' });
       pdf.setFont('helvetica', 'bold');
-      pdf.text(money(it.price * it.quantity), colMt - 2, y + 4.7, { align: 'right' });
+      pdf.text(money(itemNet(it)), colMt - 2, y + 4.7, { align: 'right' });
       y += rh;
     });
     pdf.setDrawColor(210, 210, 210); pdf.setLineWidth(0.3); pdf.line(m, y, PW - m, y); y += 6;
 
     // Totaux
-    const subtotal = inv.items.reduce((acc, it) => acc + it.price * it.quantity, 0);
+    const subtotal = cartNet(inv.items);
     const remiseMontant = inv.remise?.montant || 0;
     const livraisonFrais = inv.livraison?.frais || 0;
     const trow = (lbl, val, bold) => {
@@ -1591,14 +1642,16 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
 
       // ── Lignes articles ──
       activePrintInvoice.items.forEach((item, i) => {
+        const dRem = itemDiscount(item);
         if (i % 2 === 1) { pdf.setFillColor(248,250,252); pdf.rect(m, y, cW, 9, 'F'); }
         pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0,0,0);
-        const name = item.name.length > 38 ? item.name.substring(0,38)+'…' : item.name;
+        let name = item.name.length > 34 ? item.name.substring(0,34)+'…' : item.name;
+        if (dRem > 0) name += item.remise.type === 'percent' ? ` (-${item.remise.valeur}%)` : ` (-${fmtNum(dRem)})`;
         pdf.text(name, m + 3, y + 6);
         pdf.text(String(item.quantity), m + cW * 0.58, y + 6);
         pdf.text(fmtNum(item.price), m + cW * 0.72, y + 6);
         pdf.setFont('helvetica', 'bold');
-        pdf.text(fmtNum(item.price * item.quantity), pageW - m - 3, y + 6, { align: 'right' });
+        pdf.text(fmtNum(itemNet(item)), pageW - m - 3, y + 6, { align: 'right' });
         y += 9;
       });
 
@@ -1607,7 +1660,7 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
       pdf.line(m, y, pageW - m, y); y += 8;
 
       // ── Totaux ──
-      const subtotal = activePrintInvoice.items.reduce((acc, it) => acc + it.price * it.quantity, 0);
+      const subtotal = cartNet(activePrintInvoice.items);
       const remiseMontant = activePrintInvoice.remise?.montant || 0;
       const livraisonFrais = activePrintInvoice.livraison?.frais || 0;
 
@@ -2505,10 +2558,16 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                       <div className="bg-slate-800/50 rounded-lg p-3 mb-3">
                         {o.items.map((it, i) => (
                           <div key={i} className="flex justify-between gap-2 text-sm py-1">
-                            <span className="text-slate-300 min-w-0 truncate"><span className="text-blue-400 font-bold">{it.quantity}×</span> {it.name}</span>
-                            <span className="text-slate-400 font-mono shrink-0">{fmt(it.price * it.quantity)}</span>
+                            <span className="text-slate-300 min-w-0 truncate"><span className="text-blue-400 font-bold">{it.quantity}×</span> {it.name}{itemDiscount(it) > 0 && <span className="text-red-400 text-[10px]"> (rem -{it.remise.type === 'percent' ? `${it.remise.valeur}%` : fmt(itemDiscount(it))})</span>}</span>
+                            <span className="text-slate-400 font-mono shrink-0">{fmt(itemNet(it))}</span>
                           </div>
                         ))}
+                        {o.remise?.montant > 0 && (
+                          <div className="flex justify-between text-xs text-red-400 pt-1 border-t border-slate-700 mt-1">
+                            <span>Remise globale{o.remise.type === 'percent' ? ` (${o.remise.valeur}%)` : ''}</span>
+                            <span>- {fmt(o.remise.montant)}</span>
+                          </div>
+                        )}
                         {o.livraison.frais > 0 && (
                           <div className="flex justify-between text-xs text-slate-500 pt-1 border-t border-slate-700 mt-1">
                             <span>Livraison ({o.livraison.lieu})</span>
@@ -2695,14 +2754,24 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                       {posCart.length === 0 ? <p className="text-xs text-slate-600 text-center py-4">Aucun article sélectionné</p> : (
                         <div className="space-y-2 max-h-40 overflow-y-auto">
                           {posCart.map(it => (
-                            <div key={it.id} className="flex items-center gap-2 bg-slate-800 rounded-lg px-3 py-2">
-                              <span className="flex-1 text-xs text-slate-300 truncate">{it.name}</span>
-                              <div className="flex items-center gap-1">
-                                <button onClick={() => updatePosQty(it.id,-1)} className="w-5 h-5 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center"><Minus className="w-3 h-3" /></button>
-                                <span className="text-xs font-bold text-white w-4 text-center">{it.quantity}</span>
-                                <button onClick={() => updatePosQty(it.id,1)} disabled={it.quantity >= it.stock} className="w-5 h-5 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center disabled:opacity-40"><Plus className="w-3 h-3" /></button>
+                            <div key={it.id} className="bg-slate-800 rounded-lg px-3 py-2">
+                              <div className="flex items-center gap-2">
+                                <span className="flex-1 text-xs text-slate-300 truncate">{it.name}</span>
+                                <div className="flex items-center gap-1">
+                                  <button onClick={() => updatePosQty(it.id,-1)} className="w-5 h-5 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center"><Minus className="w-3 h-3" /></button>
+                                  <span className="text-xs font-bold text-white w-4 text-center">{it.quantity}</span>
+                                  <button onClick={() => updatePosQty(it.id,1)} disabled={it.quantity >= it.stock} className="w-5 h-5 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center disabled:opacity-40"><Plus className="w-3 h-3" /></button>
+                                </div>
+                                <span className="text-xs font-bold text-blue-400 w-20 text-right">{fmt(itemNet(it))}</span>
                               </div>
-                              <span className="text-xs font-bold text-blue-400 w-20 text-right">{fmt(it.price * it.quantity)}</span>
+                              <div className="flex items-center justify-between gap-2 mt-1.5">
+                                <LineDiscountControl remise={it.remise} onChange={(r) => setPosLineRemise(it.id, r)} />
+                                {itemDiscount(it) > 0 && (
+                                  <span className="text-[10px] font-semibold text-red-400 whitespace-nowrap">
+                                    remise -{fmt(itemDiscount(it))}{it.remise?.type === 'percent' ? ` (${it.remise.valeur}%)` : ''}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           ))}
 
@@ -2743,9 +2812,15 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                               <span>Sous-total</span>
                               <span>{fmt(posSubtotal)}</span>
                             </div>
+                            {posLineDiscounts > 0 && (
+                              <div className="flex justify-between font-semibold text-red-400">
+                                <span>Remises articles</span>
+                                <span>- {fmt(posLineDiscounts)}</span>
+                              </div>
+                            )}
                             {posDiscountAmount > 0 && (
                               <div className="flex justify-between font-semibold text-red-400">
-                                <span>Remise {posDiscountType === 'percent' ? `(${posDiscountValue}%)` : ''}</span>
+                                <span>Remise globale {posDiscountType === 'percent' ? `(${posDiscountValue}%)` : ''}</span>
                                 <span>- {fmt(posDiscountAmount)}</span>
                               </div>
                             )}
@@ -4027,8 +4102,8 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                     <div key={i} className="text-[12px]">
                       <p className="font-bold leading-tight">{it.name}</p>
                       <div className="flex justify-between text-slate-600">
-                        <span>{it.quantity} × {fmt(it.price)}</span>
-                        <span className="font-bold text-slate-900">{fmt(it.price * it.quantity)}</span>
+                        <span>{it.quantity} × {fmt(it.price)}{itemDiscount(it) > 0 && <span className="text-red-500"> · remise {it.remise.type === 'percent' ? `-${it.remise.valeur}%` : `-${fmt(itemDiscount(it))}`}</span>}</span>
+                        <span className="font-bold text-slate-900">{fmt(itemNet(it))}</span>
                       </div>
                     </div>
                   ))}
@@ -4038,7 +4113,10 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
 
                 {/* Totaux */}
                 <div className="text-[12px] space-y-1">
-                  <div className="flex justify-between text-slate-500"><span>Sous-total</span><span>{fmt(activePrintInvoice.total - activePrintInvoice.livraison.frais)}</span></div>
+                  <div className="flex justify-between text-slate-500"><span>Sous-total</span><span>{fmt(cartNet(activePrintInvoice.items))}</span></div>
+                  {activePrintInvoice.remise?.montant > 0 && (
+                    <div className="flex justify-between text-red-500"><span>Remise globale{activePrintInvoice.remise.type === 'percent' ? ` (${activePrintInvoice.remise.valeur}%)` : ''}</span><span>- {fmt(activePrintInvoice.remise.montant)}</span></div>
+                  )}
                   <div className="flex justify-between text-slate-500"><span>Livraison</span><span>{fmt(activePrintInvoice.livraison.frais)}</span></div>
                 </div>
                 <div className="border-t-2 border-slate-900 mt-2 pt-2 flex justify-between items-center">
@@ -4077,18 +4155,28 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
               <div className="space-y-2">
                 {editItems.length === 0 && <p className="text-sm text-slate-500 text-center py-4">Aucun article. Ajoutez-en ci-dessous.</p>}
                 {editItems.map((it, idx) => (
-                  <div key={idx} className="flex items-center gap-3 bg-slate-800 rounded-lg p-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-200 truncate">{it.name}</p>
-                      <p className="text-xs text-slate-500">{fmt(it.price)} / unité</p>
+                  <div key={idx} className="bg-slate-800 rounded-lg p-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-200 truncate">{it.name}</p>
+                        <p className="text-xs text-slate-500">{fmt(it.price)} / unité</p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => editChangeQty(idx, -1)} className="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center"><Minus className="w-3.5 h-3.5" /></button>
+                        <span className="text-sm font-bold text-white w-6 text-center">{it.quantity}</span>
+                        <button onClick={() => editChangeQty(idx, 1)} className="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center"><Plus className="w-3.5 h-3.5" /></button>
+                      </div>
+                      <span className="text-sm font-bold text-blue-400 w-20 text-right shrink-0">{fmt(itemNet(it))}</span>
+                      <button onClick={() => editRemoveItem(idx)} className="w-7 h-7 rounded-lg bg-red-500/5 text-red-400 hover:bg-red-500/10 flex items-center justify-center shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <button onClick={() => editChangeQty(idx, -1)} className="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center"><Minus className="w-3.5 h-3.5" /></button>
-                      <span className="text-sm font-bold text-white w-6 text-center">{it.quantity}</span>
-                      <button onClick={() => editChangeQty(idx, 1)} className="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center"><Plus className="w-3.5 h-3.5" /></button>
+                    <div className="flex items-center justify-between gap-2 mt-2">
+                      <LineDiscountControl remise={it.remise} onChange={(r) => editSetLineRemise(idx, r)} />
+                      {itemDiscount(it) > 0 && (
+                        <span className="text-[11px] font-semibold text-red-400 whitespace-nowrap">
+                          remise -{fmt(itemDiscount(it))}{it.remise?.type === 'percent' ? ` (${it.remise.valeur}%)` : ''}
+                        </span>
+                      )}
                     </div>
-                    <span className="text-sm font-bold text-blue-400 w-20 text-right shrink-0">{fmt(it.price * it.quantity)}</span>
-                    <button onClick={() => editRemoveItem(idx)} className="w-7 h-7 rounded-lg bg-red-500/5 text-red-400 hover:bg-red-500/10 flex items-center justify-center shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 ))}
               </div>
@@ -4125,9 +4213,33 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-slate-800 shrink-0">
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-sm text-slate-400">Nouveau sous-total</span>
-                <span className="text-lg font-bold text-white">{fmt(editSubtotal)}</span>
+              {/* Remise globale */}
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-xs font-bold text-slate-400 shrink-0">Remise globale :</span>
+                <div className="flex rounded-lg bg-slate-950 p-0.5 border border-slate-700 shrink-0">
+                  <button type="button" onClick={() => setEditDiscountType('percent')}
+                    className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-colors cursor-pointer ${editDiscountType === 'percent' ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'}`}>%</button>
+                  <button type="button" onClick={() => setEditDiscountType('flat')}
+                    className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-colors cursor-pointer ${editDiscountType === 'flat' ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'}`}>Fixe</button>
+                </div>
+                <input type="number" min="0" max={editDiscountType === 'percent' ? 100 : editNetSubtotal}
+                  value={editDiscountValue || ''} onChange={e => setEditDiscountValue(Math.max(0, Number(e.target.value) || 0))}
+                  placeholder={editDiscountType === 'percent' ? 'Ex: 10' : 'Ex: 1000'}
+                  className="w-24 px-2.5 py-1 bg-slate-800 border border-slate-700 rounded-lg text-xs font-semibold font-mono text-white focus:outline-none focus:border-blue-500" />
+              </div>
+
+              {/* Récapitulatif */}
+              <div className="space-y-1 text-xs mb-3">
+                <div className="flex justify-between text-slate-400"><span>Sous-total</span><span>{fmt(editGross)}</span></div>
+                {editLineDiscounts > 0 && (
+                  <div className="flex justify-between text-red-400"><span>Remises articles</span><span>- {fmt(editLineDiscounts)}</span></div>
+                )}
+                {editGlobalDiscount > 0 && (
+                  <div className="flex justify-between text-red-400"><span>Remise globale {editDiscountType === 'percent' ? `(${editDiscountValue}%)` : ''}</span><span>- {fmt(editGlobalDiscount)}</span></div>
+                )}
+                <div className="flex justify-between items-center font-bold text-sm text-white border-t border-slate-800 pt-1.5 mt-1.5">
+                  <span>Nouveau total</span><span className="text-blue-400">{fmt(editTotal)}</span>
+                </div>
               </div>
               <div className="flex gap-3">
                 <button onClick={() => setEditingOrder(null)}

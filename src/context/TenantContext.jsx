@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import { db, auth, storage, isConfigured, app } from '../firebase/config';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { toast } from '../components/toast';
+import { cartNet } from '../utils/money';
 import {
   collection,
   doc,
@@ -566,7 +567,8 @@ export const TenantProvider = ({ children }) => {
   };
 
   const createOrder = (boutiqueId, clientInfo, cartItems, shippingCost, shippingLieu, paiementInfo = null, remiseInfo = null) => {
-    const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    // sous-total NET = après remises par ligne ; puis on retire la remise globale.
+    const subtotal = cartNet(cartItems);
     const remiseMontant = remiseInfo?.montant || 0;
     const total = Math.max(0, subtotal - remiseMontant) + shippingCost;
 
@@ -581,7 +583,8 @@ export const TenantProvider = ({ children }) => {
         price: item.price,
         quantity: item.quantity,
         variantId: item.variantId || null,
-        variantNom: item.variantNom || null
+        variantNom: item.variantNom || null,
+        remise: item.remise || null
       })),
       total,
       remise: remiseInfo || null,
@@ -611,8 +614,9 @@ export const TenantProvider = ({ children }) => {
     return newOrder;
   };
 
-  // Modifier une commande existante : ajuste le stock selon les écarts de quantité
-  const updateOrder = (orderId, newItems) => {
+  // Modifier une commande existante : ajuste le stock selon les écarts de quantité.
+  // remiseInfo : remise globale ({type,valeur,montant}) ou null ; undefined = inchangée.
+  const updateOrder = (orderId, newItems, remiseInfo) => {
     setOrders(prevOrders => {
       const oldOrder = prevOrders.find(o => o.id === orderId);
       if (!oldOrder) return prevOrders;
@@ -641,12 +645,14 @@ export const TenantProvider = ({ children }) => {
         return applyStockDelta(p, qtyByVariant, globalDelta);
       }));
 
-      const subtotal = newItems.reduce((s, it) => s + it.price * it.quantity, 0);
-      const total = subtotal + (oldOrder.livraison?.frais || 0);
-      const updatedOrder = { ...oldOrder, items: newItems, total };
+      const subtotal = cartNet(newItems); // net des remises par ligne
+      const newRemise = remiseInfo !== undefined ? (remiseInfo || null) : (oldOrder.remise || null);
+      const remiseMontant = newRemise?.montant || 0;
+      const total = Math.max(0, subtotal - remiseMontant) + (oldOrder.livraison?.frais || 0);
+      const updatedOrder = { ...oldOrder, items: newItems, total, remise: newRemise };
 
       if (isConfigured) {
-        updateDoc(doc(db, 'orders', orderId), { items: newItems, total })
+        updateDoc(doc(db, 'orders', orderId), { items: newItems, total, remise: newRemise })
           .catch(err => console.error("update order:", err));
       }
       return prevOrders.map(o => o.id === orderId ? updatedOrder : o);
