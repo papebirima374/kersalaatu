@@ -119,6 +119,29 @@ export default function PublicStorefront() {
   const [payStatusText, setPayStatusText] = useState('');
   const [waveOpened, setWaveOpened] = useState(false);
 
+  // ── Vitrine animée : page d'entrée (diaporama) + carrousel produits ─────────
+  const heroPhotos = products
+    .filter(p => p.actif !== false && ((p.photos && p.photos[0]) || p.photo))
+    .slice(0, 8)
+    .map(p => ({ id: p.id, name: p.name, price: p.price, category: p.category, photo: (p.photos && p.photos[0]) || p.photo }));
+  const [showIntro, setShowIntro] = useState(true);
+  const [introIdx, setIntroIdx] = useState(0);
+  const [featIdx, setFeatIdx] = useState(0);
+
+  useEffect(() => {
+    if (!showIntro || heroPhotos.length < 2) return;
+    const t = setInterval(() => setIntroIdx(i => (i + 1) % heroPhotos.length), 4000);
+    return () => clearInterval(t);
+  }, [showIntro, heroPhotos.length]);
+
+  useEffect(() => {
+    if (heroPhotos.length < 2) return;
+    const t = setInterval(() => setFeatIdx(i => (i + 1) % heroPhotos.length), 4000);
+    return () => clearInterval(t);
+  }, [heroPhotos.length]);
+
+  const enterShop = (cat) => { if (cat) setSelectedCategory(cat); setShowIntro(false); window.scrollTo({ top: 0 }); };
+
   // Reset Wave payment status flag when closing/opening cart or changing payments
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -488,7 +511,61 @@ export default function PublicStorefront() {
 
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 public-storefront ${darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'}`} style={themeStyles}>
-      
+
+      {/* ── PAGE D'ENTRÉE ANIMÉE (diaporama des produits, 4s) ──────────────── */}
+      {showIntro && heroPhotos.length > 0 && (
+        <div className="fixed inset-0 z-[60] overflow-hidden bg-black animate-fadeIn">
+          <style>{`
+            @keyframes sfKenburns { from { transform: scale(1.03); } to { transform: scale(1.15); } }
+            @keyframes sfFadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes sfUp { from { opacity:0; transform: translateY(18px);} to {opacity:1; transform:none;} }
+            @keyframes sfMarquee { from { transform: translateX(0);} to { transform: translateX(-50%);} }
+            .animate-fadeIn{animation:sfFadeIn .5s ease both}
+            .sf-up{animation:sfUp .7s cubic-bezier(.2,.7,.2,1) both}
+          `}</style>
+          {heroPhotos.map((h, i) => (
+            <div key={h.id} className={`absolute inset-0 transition-opacity ease-in-out ${i === introIdx ? 'opacity-100' : 'opacity-0'}`} style={{ transitionDuration: '1200ms' }}>
+              <img src={thumb(h.photo, 1280)} onError={fallbackSrc(h.photo)} alt="" aria-hidden="true"
+                className="w-full h-full object-cover" style={i === introIdx ? { animation: 'sfKenburns 5s ease-out both' } : undefined} />
+            </div>
+          ))}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/60" />
+
+          <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-6">
+            {activeShop.logo && typeof activeShop.logo === 'string' && /^(https?:|data:|\/)/.test(activeShop.logo) ? (
+              <img src={activeShop.logo} alt={activeShop.name} className="w-20 h-20 rounded-2xl object-cover mb-5 shadow-2xl sf-up" />
+            ) : (
+              <div className="w-20 h-20 rounded-2xl mb-5 flex items-center justify-center text-3xl text-white shadow-2xl sf-up" style={{ backgroundColor: 'var(--tenant-color)' }}>
+                {typeof activeShop.logo === 'string' && activeShop.logo.length <= 4 ? activeShop.logo : (activeShop.name || 'B').slice(0, 1)}
+              </div>
+            )}
+            <p className="sf-up text-white/70 text-[11px] font-bold uppercase tracking-[0.28em] mb-3" style={{ animationDelay: '.05s' }}>Boutique en ligne</p>
+            <h1 className="sf-up font-display font-black text-white text-4xl sm:text-6xl tracking-tight leading-[1.04] max-w-3xl" style={{ animationDelay: '.1s' }}>
+              {activeShop.name}
+            </h1>
+            {activeShop.description && (
+              <p className="sf-up text-white/80 text-sm sm:text-base mt-4 max-w-md font-medium line-clamp-3" style={{ animationDelay: '.18s' }}>{activeShop.description}</p>
+            )}
+            <div className="sf-up flex flex-wrap items-center justify-center gap-3 mt-9" style={{ animationDelay: '.26s' }}>
+              <button onClick={() => enterShop()} className="px-7 py-3.5 rounded-full text-white font-bold text-sm shadow-xl hover:scale-[1.03] active:scale-95 transition-transform" style={{ backgroundColor: 'var(--tenant-color)' }}>
+                Découvrir la boutique →
+              </button>
+              <button onClick={() => enterShop('Tous')} className="px-7 py-3.5 rounded-full bg-white/10 backdrop-blur-md border border-white/30 text-white font-bold text-sm hover:bg-white/20 hover:scale-[1.03] active:scale-95 transition-all">
+                Voir les nouveautés ✨
+              </button>
+            </div>
+            {heroPhotos.length > 1 && (
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2">
+                {heroPhotos.map((_, i) => (
+                  <button key={i} onClick={() => setIntroIdx(i)} aria-label={`Image ${i + 1}`}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${i === introIdx ? 'w-7 bg-white' : 'w-1.5 bg-white/40 hover:bg-white/70'}`} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Top Banner (Header) - Minimalist & Premium layout (matches reference image) */}
       <header className={`sticky top-0 z-30 border-b backdrop-blur-md px-6 py-3.5 pt-safe flex items-center justify-between transition-colors ${
         darkMode ? 'bg-slate-950/90 border-slate-900 text-white' : 'bg-white/90 border-slate-100 text-slate-900'
@@ -645,7 +722,41 @@ export default function PublicStorefront() {
 
       {/* Main product catalogue view */}
       <main className="max-w-5xl w-full mx-auto px-6 py-6 flex-grow">
-        
+
+        {/* ── CARROUSEL PRODUITS ANIMÉ (spotlight, 4s) ──────────────────────── */}
+        {heroPhotos.length > 1 && (
+          <section className="mb-9">
+            <div className={`relative w-full aspect-[16/11] sm:aspect-[21/9] rounded-[2rem] overflow-hidden border ${darkMode ? 'border-slate-850' : 'border-slate-200/60'}`}>
+              {heroPhotos.map((h, i) => {
+                const prod = products.find(p => p.id === h.id);
+                return (
+                  <button key={h.id} type="button"
+                    onClick={() => { if (prod) { setSelectedProduct(prod); setSelectedVariant(null); setModalQty(1); setActivePhotoIdx(0); } }}
+                    className={`absolute inset-0 text-left transition-opacity duration-1000 ${i === featIdx ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                    <img src={thumb(h.photo, 1280)} onError={fallbackSrc(h.photo)} alt={h.name}
+                      className="w-full h-full object-cover" style={i === featIdx ? { animation: 'sfKenburns 5s ease-out both' } : undefined} />
+                    <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/25 to-transparent" />
+                    <div className="absolute left-6 sm:left-9 bottom-6 sm:bottom-8 right-6 max-w-md">
+                      <span className="inline-block text-white text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-md mb-2.5" style={{ backgroundColor: 'var(--tenant-color)' }}>Sélection du moment</span>
+                      <h3 className="font-display font-black text-white text-2xl sm:text-4xl tracking-tight leading-none line-clamp-2">{h.name}</h3>
+                      <div className="flex items-center gap-3 mt-3">
+                        <span className="text-white font-black font-mono text-lg sm:text-xl">{formatMoney(h.price)}</span>
+                        <span className="text-white/90 text-xs font-bold border border-white/40 rounded-full px-3 py-1 backdrop-blur-sm">Voir le produit →</span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+              <div className="absolute bottom-4 right-5 flex gap-1.5 z-10">
+                {heroPhotos.map((_, i) => (
+                  <button key={i} onClick={(e) => { e.stopPropagation(); setFeatIdx(i); }} aria-label={`Produit ${i + 1}`}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${i === featIdx ? 'w-6 bg-white' : 'w-1.5 bg-white/50 hover:bg-white/80'}`} />
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Explore Title & Tagline (Matches reference image) */}
         <div className="mb-6 text-left">
           <h2 className={`font-display font-black text-3xl tracking-tight leading-none uppercase ${darkMode ? 'text-white' : 'text-slate-950'}`}>
@@ -803,6 +914,20 @@ export default function PublicStorefront() {
                       ★ {getProductRating(prod.id)}
                     </span>
                   </div>
+
+                  {/* Nuancier des variantes (couleurs / déclinaisons) */}
+                  {hasVar && (
+                    <div className="flex items-center gap-1.5 mt-2">
+                      {prod.variantes.slice(0, 5).map((v, i) => (
+                        <span key={i} title={v.nom}
+                          className="w-4 h-4 rounded-full bg-cover bg-center ring-1 ring-black/10 border border-white shadow-sm"
+                          style={{ backgroundImage: v.photo ? `url(${thumb(v.photo, 60)})` : undefined, backgroundColor: v.couleur || (v.photo ? undefined : '#cbd5e1') }} />
+                      ))}
+                      {prod.variantes.length > 5 && (
+                        <span className={`text-[9px] font-bold ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>+{prod.variantes.length - 5}</span>
+                      )}
+                    </div>
+                  )}
 
                   {/* Add to Bag CTA Button (Matches reference image) */}
                   <button
