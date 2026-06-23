@@ -4206,7 +4206,7 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                 // ── Aperçu PAGE A5 ──
                 if (invoiceFormat === 'a5') {
                   return (
-                    <div ref={invoiceRef} className="bg-white w-full max-w-[520px] p-6 text-slate-900 shadow-sm rounded-sm" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+                    <div ref={invoiceRef} className="bg-invoice-paper w-full max-w-[520px] p-6 text-slate-900 shadow-sm rounded-sm" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
                       <div className="flex justify-between items-start gap-4">
                         <div className="flex items-start gap-3 min-w-0">
                           {hasLogo
