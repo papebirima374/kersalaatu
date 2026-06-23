@@ -1,6 +1,6 @@
 import { toast } from '../../components/toast';
 import { thumb, fallbackSrc } from '../../utils/img';
-import { formatPrice, itemNet, itemDiscount, cartGross, cartLineDiscounts, cartNet, globalDiscount } from '../../utils/money';
+import { formatPrice, itemGross, itemNet, itemDiscount, cartGross, cartLineDiscounts, cartNet, globalDiscount } from '../../utils/money';
 import { buildBusinessCardCanvas } from '../../utils/businessCard';
 import QRCode from 'qrcode';
 import { unlockAudio, playOrderSound, requestNotifPermission, showOrderNotification } from '../../notify';
@@ -25,21 +25,27 @@ function LineDiscountControl({ remise, onChange }) {
   const [type, setType] = useState(remise?.type || 'percent');
   useEffect(() => { if (remise?.type && remise.type !== type) setType(remise.type); }, [remise?.type]); // eslint-disable-line react-hooks/exhaustive-deps
   const emit = (t, v) => onChange(Number(v) > 0 ? { type: t, valeur: Number(v) } : null);
+  const OPTS = [
+    ['percent', '%', 'Pourcentage sur le total de la ligne'],
+    ['flat', 'Montant', 'Montant fixe retiré du total de la ligne'],
+    ['flat_unit', '/ pièce', 'Montant retiré du prix de chaque pièce'],
+  ];
   return (
-    <div className="flex items-center gap-1.5">
-      <div className="flex rounded-md bg-slate-950 p-0.5 border border-slate-700 shrink-0">
-        <button type="button" title="Pourcentage sur le total de la ligne" onClick={() => { setType('percent'); emit('percent', remise?.valeur || 0); }}
-          className={`px-1.5 py-0.5 text-[9px] font-bold rounded transition-colors cursor-pointer ${type === 'percent' ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'}`}>%</button>
-        <button type="button" title="Montant fixe retiré du total de la ligne" onClick={() => { setType('flat'); emit('flat', remise?.valeur || 0); }}
-          className={`px-1.5 py-0.5 text-[9px] font-bold rounded transition-colors cursor-pointer ${type === 'flat' ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'}`}>Fixe</button>
-        <button type="button" title="Montant retiré du prix de chaque pièce (prix unitaire)" onClick={() => { setType('flat_unit'); emit('flat_unit', remise?.valeur || 0); }}
-          className={`px-1.5 py-0.5 text-[9px] font-bold rounded transition-colors cursor-pointer ${type === 'flat_unit' ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'}`}>/pièce</button>
+    <div className="inline-flex items-center gap-1 rounded-lg bg-slate-950/70 border border-slate-700/80 p-1">
+      <div className="flex rounded-md bg-slate-900 overflow-hidden">
+        {OPTS.map(([t, lbl, tip]) => (
+          <button key={t} type="button" title={tip} onClick={() => { setType(t); emit(t, remise?.valeur || 0); }}
+            className={`px-2 py-1 text-[10px] font-bold transition-colors cursor-pointer ${type === t ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-100'}`}>{lbl}</button>
+        ))}
       </div>
-      <input type="number" min="0" max={type === 'percent' ? 100 : undefined}
-        value={remise?.valeur || ''}
-        onChange={(e) => emit(type, Math.max(0, Number(e.target.value) || 0))}
-        placeholder={type === 'flat_unit' ? '/ pièce' : 'Remise'}
-        className="w-16 px-2 py-1 bg-slate-800 border border-slate-700 rounded-md text-[11px] font-mono text-white placeholder-slate-600 focus:outline-none focus:border-blue-500" />
+      <div className="relative">
+        <input type="number" min="0" max={type === 'percent' ? 100 : undefined}
+          value={remise?.valeur || ''}
+          onChange={(e) => emit(type, Math.max(0, Number(e.target.value) || 0))}
+          placeholder="0"
+          className="w-20 pl-2 pr-7 py-1 bg-slate-800 border border-slate-700 rounded-md text-xs font-mono font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 text-right" />
+        <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-500 pointer-events-none">{type === 'percent' ? '%' : type === 'flat_unit' ? '/u' : 'F'}</span>
+      </div>
     </div>
   );
 }
@@ -860,8 +866,11 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
   const [orderSearch, setOrderSearch]       = useState('');
   const [orderStatut, setOrderStatut]       = useState('Tous');
   const [orderPaiement, setOrderPaiement]   = useState('Tous');
-  const [orderFrom, setOrderFrom]           = useState('');
-  const [orderTo, setOrderTo]               = useState('');
+  // Vue du fil des commandes : 'encours' (par défaut) = à traiter · 'archive' = terminées/annulées · 'toutes'
+  const [orderView, setOrderView]           = useState('encours');
+  const _todayISO = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
+  const [orderFrom, setOrderFrom]           = useState(_todayISO); // par défaut : aujourd'hui
+  const [orderTo, setOrderTo]               = useState(_todayISO);
   const [collapsedDays, setCollapsedDays]   = useState(() => new Set());
   const [activePrintInvoice, setActivePrintInvoice] = useState(null);
   const [invoiceFormat, setInvoiceFormat] = useState('ticket'); // 'ticket' (80mm) | 'a5'
@@ -884,6 +893,9 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
   };
   const editChangeQty = (idx, delta) => {
     setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: Math.max(1, it.quantity + delta) } : it));
+  };
+  const editSetQtyExact = (idx, qty) => {
+    setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: Math.max(1, Math.floor(Number(qty) || 1)) } : it));
   };
   const editRemoveItem = (idx) => {
     setEditItems(prev => prev.filter((_, i) => i !== idx));
@@ -1246,6 +1258,13 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
     });
   };
   const updatePosQty = (id, delta) => setPosCart(prev => prev.map(i => i.id === id ? { ...i, quantity: i.quantity+delta } : i).filter(i => i.quantity > 0));
+  // Saisie manuelle de la quantité (clampée au stock disponible).
+  const setPosQtyExact = (id, qty) => setPosCart(prev => prev.map(i => {
+    if (i.id !== id) return i;
+    const max = i.stock || 999999;
+    const q = Math.max(1, Math.min(max, Math.floor(Number(qty) || 1)));
+    return { ...i, quantity: q };
+  }));
 
   const handleBarcodeScanSubmit = (e) => {
     e.preventDefault();
@@ -1412,17 +1431,28 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
       inv.items.forEach(it => {
         pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9); setC([0, 0, 0]);
         pdf.splitTextToSize(sanitizePdf(it.name), cw).forEach(l => { pdf.text(l, m, y); y += 4; });
+        const dRem = itemDiscount(it);
         pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); setC([110, 110, 110]);
-        pdf.text(`${it.quantity} x ${money(it.price)}`, m, y);
-        pdf.setFont('helvetica', 'bold'); setC([0, 0, 0]);
+        if (dRem > 0) {
+          // Prix unitaire NET + ancien prix barré en gris (rendu propre, sans rouge verbeux)
+          const unitNet = Math.round(itemNet(it) / (Number(it.quantity) || 1));
+          const left = `${it.quantity} x ${money(unitNet)}`;
+          pdf.text(left, m, y);
+          const lw = pdf.getTextWidth(left);
+          const gross = money(it.price);
+          pdf.setFontSize(7); setC([165, 165, 165]);
+          const gx = m + lw + 2, gw = pdf.getTextWidth(gross);
+          // on n'affiche le barré que s'il ne chevauche pas le montant à droite
+          if (gx + gw < W - m - pdf.getTextWidth(money(itemNet(it))) - 3) {
+            pdf.text(gross, gx, y);
+            pdf.setDrawColor(165, 165, 165); pdf.setLineWidth(0.2); pdf.line(gx, y - 0.9, gx + gw, y - 0.9);
+          }
+        } else {
+          pdf.text(`${it.quantity} x ${money(it.price)}`, m, y);
+        }
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5); setC([0, 0, 0]);
         pdf.text(money(itemNet(it)), W - m, y, { align: 'right' });
         y += 5;
-        const dRem = itemDiscount(it);
-        if (dRem > 0) {
-          pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); setC([200, 60, 60]);
-          pdf.text(sanitizePdf(remiseHint(it, money)), m, y);
-          y += 4;
-        }
       });
       dash();
 
@@ -1526,32 +1556,53 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
     y += rowsN * 4.5 + 4;
 
     // Tableau des articles (colonnes espacées pour ne pas coller Qté/P.U./Montant)
+    const PH = 210, bottomLimit = PH - 14; // hauteur A5 + marge basse réservée
     const nameW = cw * 0.44, colQte = m + cw * 0.52, colPU = m + cw * 0.74, colMt = PW - m;
-    pdf.setFillColor(BR[0], BR[1], BR[2]); pdf.rect(m, y, cw, 7, 'F');
-    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5); setC([255, 255, 255]);
-    pdf.text('DESIGNATION', m + 2, y + 4.7);
-    pdf.text('QTE', colQte, y + 4.7, { align: 'right' });
-    pdf.text('P.U.', colPU, y + 4.7, { align: 'right' });
-    pdf.text('MONTANT', colMt - 2, y + 4.7, { align: 'right' });
-    y += 7;
+    const drawTableHeader = () => {
+      pdf.setFillColor(BR[0], BR[1], BR[2]); pdf.rect(m, y, cw, 7, 'F');
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5); setC([255, 255, 255]);
+      pdf.text('DESIGNATION', m + 2, y + 4.7);
+      pdf.text('QTE', colQte, y + 4.7, { align: 'right' });
+      pdf.text('P.U.', colPU, y + 4.7, { align: 'right' });
+      pdf.text('MONTANT', colMt - 2, y + 4.7, { align: 'right' });
+      y += 7;
+    };
+    drawTableHeader();
 
     pdf.setFontSize(9);
     inv.items.forEach((it, idx) => {
       const dRem = itemDiscount(it);
-      const lines = pdf.splitTextToSize(T(it.name), nameW);
-      if (dRem > 0) lines.push(sanitizePdf(remiseHint(it, money)));
-      const rh = Math.max(7, lines.length * 4 + 3);
+      const nameLines = pdf.splitTextToSize(T(it.name), nameW);
+      const rh = Math.max(dRem > 0 ? 9 : 7, nameLines.length * 4 + 3);
+      // Saut de page : on reporte l'en-tête du tableau sur la nouvelle page.
+      if (y + rh > bottomLimit) { pdf.addPage(); y = m; drawTableHeader(); pdf.setFontSize(9); }
       if (idx % 2) { pdf.setFillColor(247, 249, 252); pdf.rect(m, y, cw, rh, 'F'); }
-      pdf.setFont('helvetica', 'normal');
-      lines.forEach((l, k) => { setC(dRem > 0 && k === lines.length - 1 ? [200, 60, 60] : [30, 30, 30]); pdf.text(l, m + 2, y + 4.7 + k * 4); });
-      setC([30, 30, 30]);
+      // Désignation (nom du produit, sans texte de remise verbeux)
+      pdf.setFont('helvetica', 'normal'); setC([30, 30, 30]);
+      nameLines.forEach((l, k) => pdf.text(l, m + 2, y + 4.7 + k * 4));
       pdf.text(String(it.quantity), colQte, y + 4.7, { align: 'right' });
-      pdf.text(money(it.price), colPU, y + 4.7, { align: 'right' });
-      pdf.setFont('helvetica', 'bold');
+      // P.U. — remise : prix unitaire NET, avec l'original barré en gris juste au-dessus
+      if (dRem > 0) {
+        const unitNet = Math.round(itemNet(it) / (Number(it.quantity) || 1));
+        const gross = money(it.price);
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6.6); setC([150, 150, 150]);
+        pdf.text(gross, colPU, y + 2.6, { align: 'right' });
+        const gw = pdf.getTextWidth(gross);
+        pdf.setDrawColor(150, 150, 150); pdf.setLineWidth(0.25); pdf.line(colPU - gw, y + 1.9, colPU, y + 1.9);
+        pdf.setFontSize(9); setC([30, 30, 30]);
+        pdf.text(money(unitNet), colPU, y + 6.4, { align: 'right' });
+      } else {
+        pdf.text(money(it.price), colPU, y + 4.7, { align: 'right' });
+      }
+      // Montant net (gras)
+      pdf.setFont('helvetica', 'bold'); setC([30, 30, 30]);
       pdf.text(money(itemNet(it)), colMt - 2, y + 4.7, { align: 'right' });
       y += rh;
     });
     pdf.setDrawColor(210, 210, 210); pdf.setLineWidth(0.3); pdf.line(m, y, PW - m, y); y += 6;
+
+    // Si la place restante ne suffit pas pour le bloc des totaux + pied, nouvelle page.
+    if (y + 52 > bottomLimit) { pdf.addPage(); y = m; }
 
     // Totaux
     const subtotal = cartNet(inv.items);
@@ -1662,19 +1713,42 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
       y += 9;
 
       // ── Lignes articles ──
+      const a4Bottom = 297 - 15; // hauteur A4 - marge basse
+      const drawA4Head = () => {
+        pdf.setFillColor(15,23,42); pdf.rect(m, y, cW, 9, 'F');
+        pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(255,255,255);
+        pdf.text('Article', m + 3, y + 6);
+        pdf.text('Qté', m + cW * 0.58, y + 6);
+        pdf.text('P.U.', m + cW * 0.72, y + 6);
+        pdf.text('Total', pageW - m - 3, y + 6, { align: 'right' });
+        y += 9;
+      };
       activePrintInvoice.items.forEach((item, i) => {
         const dRem = itemDiscount(item);
+        if (y + 9 > a4Bottom) { pdf.addPage(); y = m; drawA4Head(); } // saut de page + en-tête
         if (i % 2 === 1) { pdf.setFillColor(248,250,252); pdf.rect(m, y, cW, 9, 'F'); }
         pdf.setFontSize(9); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(0,0,0);
-        let name = item.name.length > 34 ? item.name.substring(0,34)+'…' : item.name;
-        if (dRem > 0) name += ` (${remiseTag(item, fmtNum)})`;
+        let name = item.name.length > 38 ? item.name.substring(0,38)+'…' : item.name;
         pdf.text(name, m + 3, y + 6);
         pdf.text(String(item.quantity), m + cW * 0.58, y + 6);
-        pdf.text(fmtNum(item.price), m + cW * 0.72, y + 6);
-        pdf.setFont('helvetica', 'bold');
+        // P.U. : prix unitaire net si remise (original barré au-dessus), sinon prix normal
+        if (dRem > 0) {
+          const unitNet = Math.round(itemNet(item) / (Number(item.quantity) || 1));
+          const gross = fmtNum(item.price);
+          pdf.setFontSize(7); pdf.setTextColor(150,150,150);
+          pdf.text(gross, m + cW * 0.72, y + 3.4);
+          const gw = pdf.getTextWidth(gross);
+          pdf.setDrawColor(150,150,150); pdf.setLineWidth(0.25); pdf.line(m + cW * 0.72, y + 2.7, m + cW * 0.72 + gw, y + 2.7);
+          pdf.setFontSize(9); pdf.setTextColor(0,0,0);
+          pdf.text(fmtNum(unitNet), m + cW * 0.72, y + 7.2);
+        } else {
+          pdf.text(fmtNum(item.price), m + cW * 0.72, y + 6);
+        }
+        pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0,0,0);
         pdf.text(fmtNum(itemNet(item)), pageW - m - 3, y + 6, { align: 'right' });
         y += 9;
       });
+      if (y + 60 > a4Bottom) { pdf.addPage(); y = m; } // place pour les totaux
 
       // ── Séparateur ──
       pdf.setDrawColor(200,200,200); pdf.setLineWidth(0.3);
@@ -1804,14 +1878,26 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
   // ── Filtered orders ───────────────────────────────────────────────────────
   const dFrom = orderFrom ? new Date(orderFrom + 'T00:00:00') : null;
   const dTo   = orderTo   ? new Date(orderTo   + 'T23:59:59') : null;
+  // Une commande « terminée » (livrée, payée) ou annulée quitte le fil actif → archive.
+  const CLOSED_STATUTS = ['Livrée', 'Payée', 'Annulée'];
+  const isClosedOrder = (o) => CLOSED_STATUTS.includes(o.statut);
+  // Compteurs pour les onglets (sur toutes les commandes de la boutique, hors filtres)
+  const encoursCount = activeOrders.filter(o => !isClosedOrder(o)).length;
   const filteredOrders = activeOrders.filter(o => {
     const matchSearch = !orderSearch || o.id.toLowerCase().includes(orderSearch.toLowerCase()) || o.client.nom.toLowerCase().includes(orderSearch.toLowerCase()) || o.client.telephone.includes(orderSearch);
     const matchStatut = orderStatut === 'Tous' || o.statut === orderStatut;
     const matchPay    = orderPaiement === 'Tous' || (o.paiement?.statut||'En attente') === orderPaiement;
+    // Vue : « en cours » = à traiter (toujours visibles, sans contrainte de date) ;
+    //        « archive » = terminées/annulées ; « toutes » = tout.
+    const closed = isClosedOrder(o);
+    const matchView = orderView === 'toutes' ? true : orderView === 'archive' ? closed : !closed;
+    // Le filtre de date ne s'applique PAS à « en cours » (une commande à traiter
+    // ne doit jamais être masquée parce qu'elle date d'hier).
+    const applyDate = orderView !== 'encours';
     const od = new Date(o.date);
-    const matchFrom = !dFrom || od >= dFrom;
-    const matchTo   = !dTo   || od <= dTo;
-    return matchSearch && matchStatut && matchPay && matchFrom && matchTo;
+    const matchFrom = !applyDate || !dFrom || od >= dFrom;
+    const matchTo   = !applyDate || !dTo   || od <= dTo;
+    return matchSearch && matchStatut && matchPay && matchView && matchFrom && matchTo;
   });
 
   // Préréglages de période (Aujourd'hui / 7j / 30j / Tout)
@@ -2498,6 +2584,22 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
             <div className="space-y-4">
               {/* Filters */}
               <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+                {/* Onglets : En cours (à traiter) · Archivées (terminées/annulées) · Toutes */}
+                <div className="flex rounded-xl bg-slate-950 p-1 border border-slate-800 w-full sm:w-auto sm:inline-flex">
+                  {[
+                    ['encours', 'En cours', encoursCount],
+                    ['archive', 'Archivées', null],
+                    ['toutes', 'Toutes', null],
+                  ].map(([k, lbl, badge]) => (
+                    <button key={k} onClick={() => { setOrderView(k); setOrderStatut('Tous'); }}
+                      className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${orderView === k ? 'bg-blue-500 text-slate-950 shadow' : 'text-slate-400 hover:text-slate-200'}`}>
+                      {lbl}
+                      {badge != null && badge > 0 && (
+                        <span className={`px-1.5 py-px rounded-full text-[10px] font-black ${orderView === k ? 'bg-slate-950/25 text-slate-950' : 'bg-blue-500/15 text-blue-400'}`}>{badge}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
                 <div className="flex flex-wrap gap-3">
                   <div className="flex items-center gap-2 flex-1 min-w-48 bg-slate-800/60 rounded-lg px-3">
                     <Search className="w-4 h-4 text-slate-500 shrink-0" />
@@ -2505,41 +2607,47 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                       placeholder="Rechercher commande, client..."
                       className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-600 focus:outline-none py-2" />
                   </div>
-                  <select value={orderStatut} onChange={e => setOrderStatut(e.target.value)}
-                    className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-300 focus:outline-none">
-                    {['Tous','Reçue','Préparée','Livrée','Payée','Attente Annulation','Annulée'].map(s => <option key={s}>{s}</option>)}
-                  </select>
                   <select value={orderPaiement} onChange={e => setOrderPaiement(e.target.value)}
                     className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-300 focus:outline-none">
-                    {['Tous','En attente','Payé'].map(s => <option key={s}>{s}</option>)}
+                    {['Tous','En attente','Payé'].map(s => <option key={s}>Paiement : {s}</option>)}
                   </select>
                 </div>
-                {/* Période : préréglages + calendrier du / au */}
-                <div className="flex flex-wrap items-center gap-2">
-                  {[['today',"Aujourd'hui"],['7','7 jours'],['30','30 jours'],['all','Tout']].map(([k, lbl]) => (
-                    <button key={k} onClick={() => setDatePreset(k)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors">
-                      {lbl}
-                    </button>
-                  ))}
-                  <div className="flex items-center gap-1.5 sm:ml-auto text-xs text-slate-400">
-                    <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    <span>Du</span>
-                    <input type="date" value={orderFrom} max={orderTo || undefined} onChange={e => setOrderFrom(e.target.value)}
-                      className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-blue-500 [color-scheme:dark]" />
-                    <span>au</span>
-                    <input type="date" value={orderTo} min={orderFrom || undefined} onChange={e => setOrderTo(e.target.value)}
-                      className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-blue-500 [color-scheme:dark]" />
-                    {(orderFrom || orderTo) && (
-                      <button onClick={() => setDatePreset('all')} title="Effacer les dates" className="text-slate-500 hover:text-red-400 ml-1"><X className="w-3.5 h-3.5" /></button>
-                    )}
+                {/* Période : préréglages + calendrier du / au — masqué en « En cours »
+                    (les commandes à traiter sont toujours affichées, sans contrainte de date). */}
+                {orderView === 'encours' ? (
+                  <p className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-slate-600" />
+                    Toutes les commandes à traiter sont affichées. Une fois <span className="text-slate-400 font-semibold">livrée, payée ou annulée</span>, la commande passe dans <span className="text-slate-400 font-semibold">Archivées</span>.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {[['today',"Aujourd'hui"],['7','7 jours'],['30','30 jours'],['all','Tout']].map(([k, lbl]) => (
+                      <button key={k} onClick={() => setDatePreset(k)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors">
+                        {lbl}
+                      </button>
+                    ))}
+                    <div className="flex items-center gap-1.5 sm:ml-auto text-xs text-slate-400">
+                      <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                      <span>Du</span>
+                      <input type="date" value={orderFrom} max={orderTo || undefined} onChange={e => setOrderFrom(e.target.value)}
+                        className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-blue-500 [color-scheme:dark]" />
+                      <span>au</span>
+                      <input type="date" value={orderTo} min={orderFrom || undefined} onChange={e => setOrderTo(e.target.value)}
+                        className="px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-blue-500 [color-scheme:dark]" />
+                      {(orderFrom || orderTo) && (
+                        <button onClick={() => setDatePreset('all')} title="Effacer les dates" className="text-slate-500 hover:text-red-400 ml-1"><X className="w-3.5 h-3.5" /></button>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {filteredOrders.length === 0 ? (
                 <div className="bg-slate-900 border border-slate-800 rounded-xl py-12 text-center text-slate-500">
-                  {activeOrders.length === 0 ? 'Aucune commande reçue pour le moment.' : 'Aucune commande correspond aux filtres.'}
+                  {activeOrders.length === 0 ? 'Aucune commande reçue pour le moment.'
+                    : orderView === 'encours' ? '🎉 Aucune commande en attente — tout est traité !'
+                    : 'Aucune commande sur cette période. Élargissez les dates ou choisissez « Tout ».'}
                 </div>
               ) : (
                 <div className="space-y-5">
@@ -2730,13 +2838,13 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
                   {/* Catalogue */}
-                  <div className="lg:col-span-3 bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+                  <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
                     <h3 className="font-semibold text-slate-200 text-sm flex items-center gap-2">
                       <ShoppingBag className="w-4 h-4 text-blue-400" /> Catalogue
                     </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="space-y-2">
                       <div className="relative">
                         <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
                         <input value={posSearch} onChange={e => setPosSearch(e.target.value)} placeholder="Rechercher un produit..."
@@ -2748,104 +2856,113 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                           className="w-full pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 font-mono" />
                       </form>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-80 overflow-y-auto">
+                    <div className="grid grid-cols-2 gap-2.5 max-h-[30rem] overflow-y-auto pr-1">
                       {posProducts.map(p => {
                         const inCart = posCart.find(i => i.id === p.id);
                         return (
                           <button key={p.id} onClick={() => addToPos(p)} disabled={inCart?.quantity >= p.stock}
-                            className={`text-left rounded-xl border p-3 transition-all cursor-pointer ${inCart ? 'border-blue-500/50 bg-blue-500/5' : 'border-slate-700 bg-slate-800 hover:border-slate-600'} ${inCart?.quantity >= p.stock ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                            className={`relative text-left rounded-xl border p-2.5 transition-all cursor-pointer ${inCart ? 'border-blue-500/60 bg-blue-500/5' : 'border-slate-700 bg-slate-800 hover:border-slate-600'} ${inCart?.quantity >= p.stock ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                            {inCart && <span className="absolute top-1.5 right-1.5 z-10 min-w-5 h-5 px-1 rounded-full bg-blue-500 text-slate-950 text-[11px] font-black flex items-center justify-center">{inCart.quantity}</span>}
                             <img src={thumb(p.photo, 300)} onError={fallbackSrc(p.photo)} alt={p.name} loading="lazy" className="w-full h-20 object-cover rounded-lg mb-2 bg-slate-700" />
-                            <p className="text-xs font-semibold text-slate-200 line-clamp-1">{p.name}</p>
-                            <p className="text-xs font-bold text-blue-400 mt-1">{fmt(p.price)}</p>
-                            {inCart && <span className="text-[10px] text-blue-300">{inCart.quantity} au panier</span>}
+                            <p className="text-xs font-semibold text-slate-200 line-clamp-2 leading-tight min-h-[2.1em]">{p.name}</p>
+                            <p className="text-sm font-bold text-blue-400 mt-1">{fmt(p.price)}</p>
                           </button>
                         );
                       })}
-                      {posProducts.length === 0 && <p className="col-span-3 py-8 text-center text-slate-500 text-sm">Aucun produit disponible.</p>}
+                      {posProducts.length === 0 && <p className="col-span-2 py-8 text-center text-slate-500 text-sm">Aucun produit disponible.</p>}
                     </div>
                   </div>
 
                   {/* Panier + paiement */}
-                  <div className="lg:col-span-2 space-y-3">
+                  <div className="lg:col-span-3 space-y-3">
                     <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
                       <h3 className="font-semibold text-slate-200 text-sm flex items-center gap-2 mb-3">
                         <ShoppingCart className="w-4 h-4 text-blue-400" /> Panier
-                        {posCart.length > 0 && <button onClick={() => setPosCart([])} className="ml-auto text-xs text-slate-500 hover:text-red-400">Vider</button>}
+                        {posCart.length > 0 && <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-400">{posCart.reduce((s, i) => s + i.quantity, 0)} art.</span>}
+                        {posCart.length > 0 && <button onClick={() => setPosCart([])} className="ml-auto text-xs font-semibold text-slate-500 hover:text-red-400 flex items-center gap-1"><Trash2 className="w-3.5 h-3.5" /> Vider</button>}
                       </h3>
-                      {posCart.length === 0 ? <p className="text-xs text-slate-600 text-center py-4">Aucun article sélectionné</p> : (
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {posCart.length === 0 ? (
+                        <div className="text-center py-10 text-slate-600">
+                          <ShoppingCart className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                          <p className="text-xs">Touchez un produit du catalogue pour l'ajouter</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="space-y-2.5 max-h-[24rem] overflow-y-auto pr-1">
                           {posCart.map(it => (
-                            <div key={it.id} className="bg-slate-800 rounded-lg px-3 py-2">
-                              <div className="flex items-center gap-2">
-                                <span className="flex-1 text-xs text-slate-300 truncate">{it.name}</span>
-                                <div className="flex items-center gap-1">
-                                  <button onClick={() => updatePosQty(it.id,-1)} className="w-5 h-5 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center"><Minus className="w-3 h-3" /></button>
-                                  <span className="text-xs font-bold text-white w-4 text-center">{it.quantity}</span>
-                                  <button onClick={() => updatePosQty(it.id,1)} disabled={it.quantity >= it.stock} className="w-5 h-5 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center disabled:opacity-40"><Plus className="w-3 h-3" /></button>
+                            <div key={it.id} className="rounded-xl border border-slate-700/60 bg-slate-800/50 p-3">
+                              <div className="flex items-start gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-semibold text-slate-100 leading-tight">{it.name}</p>
+                                  <p className="text-[11px] text-slate-500 mt-0.5">{fmt(it.price)} / unité · stock {it.stock}</p>
                                 </div>
-                                <span className="text-xs font-bold text-blue-400 w-20 text-right">{fmt(itemNet(it))}</span>
+                                <div className="text-right shrink-0">
+                                  <p className="text-sm font-extrabold text-blue-300 tabular-nums">{fmt(itemNet(it))}</p>
+                                  {itemDiscount(it) > 0 && <p className="text-[10px] text-slate-500 line-through tabular-nums">{fmt(itemGross(it))}</p>}
+                                </div>
+                                <button onClick={() => setPosCart(prev => prev.filter(x => x.id !== it.id))} title="Retirer du panier"
+                                  className="text-slate-600 hover:text-red-400 shrink-0"><Trash2 className="w-4 h-4" /></button>
                               </div>
-                              <div className="flex items-center justify-between gap-2 mt-1.5">
+                              <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                                {/* Quantité — saisie manuelle possible */}
+                                <div className="flex items-center rounded-lg border border-slate-700 bg-slate-900 overflow-hidden">
+                                  <button onClick={() => updatePosQty(it.id,-1)} className="px-2.5 py-1.5 text-slate-300 hover:bg-slate-800 cursor-pointer"><Minus className="w-3.5 h-3.5" /></button>
+                                  <input type="number" min="1" max={it.stock} value={it.quantity}
+                                    onChange={e => setPosQtyExact(it.id, e.target.value)}
+                                    onFocus={e => e.target.select()}
+                                    className="w-12 bg-transparent text-center text-sm font-bold text-white focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                  <button onClick={() => updatePosQty(it.id,1)} disabled={it.quantity >= it.stock} className="px-2.5 py-1.5 text-slate-300 hover:bg-slate-800 disabled:opacity-40 cursor-pointer"><Plus className="w-3.5 h-3.5" /></button>
+                                </div>
+                                {/* Remise sur la ligne */}
                                 <LineDiscountControl remise={it.remise} onChange={(r) => setPosLineRemise(it.id, r)} />
                                 {itemDiscount(it) > 0 && (
-                                  <span className="text-[10px] font-semibold text-red-400 whitespace-nowrap">{remiseHint(it, fmt)}</span>
+                                  <span className="ml-auto text-[11px] font-bold text-emerald-400 whitespace-nowrap">remise −{fmt(itemDiscount(it))}</span>
                                 )}
                               </div>
                             </div>
                           ))}
-
-                          {/* Module de Remise */}
-                          <div className="flex items-center gap-3 pt-2.5 mt-2 border-t border-slate-800/80">
-                            <span className="text-xs font-bold text-slate-400">Remise :</span>
-                            <div className="flex rounded-lg bg-slate-950 p-0.5 border border-slate-850">
-                              <button
-                                type="button"
-                                onClick={() => setPosDiscountType('percent')}
-                                className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-colors cursor-pointer ${posDiscountType === 'percent' ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-350'}`}
-                              >
-                                %
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setPosDiscountType('flat')}
-                                className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-colors cursor-pointer ${posDiscountType === 'flat' ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-350'}`}
-                              >
-                                Fixe
-                              </button>
-                            </div>
-                            <input
-                              type="number"
-                              min="0"
-                              max={posDiscountType === 'percent' ? 100 : posSubtotal}
-                              value={posDiscountValue || ''}
-                              onChange={e => setPosDiscountValue(Math.max(0, Number(e.target.value) || 0))}
-                              placeholder={posDiscountType === 'percent' ? 'Ex: 10' : 'Ex: 1000'}
-                              className="w-24 px-2.5 py-1 bg-slate-800 border border-slate-700 rounded-lg text-xs font-semibold font-mono text-white focus:outline-none focus:border-blue-500"
-                            />
-                            {posDiscountType === 'flat' && <span className="text-[10px] font-bold text-slate-500">FCFA</span>}
                           </div>
 
-                          {/* Résumé des totaux */}
-                          <div className="space-y-1.5 pt-2 border-t border-slate-800/60 text-xs">
-                            <div className="flex justify-between font-semibold text-slate-450">
+                          {/* Remise globale sur le ticket */}
+                          <div className="flex items-center flex-wrap gap-2 pt-3 border-t border-slate-800">
+                            <span className="text-xs font-bold text-slate-300">Remise globale</span>
+                            <div className="flex rounded-lg bg-slate-950 p-0.5 border border-slate-700">
+                              <button type="button" onClick={() => setPosDiscountType('percent')}
+                                className={`px-3 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${posDiscountType === 'percent' ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'}`}>%</button>
+                              <button type="button" onClick={() => setPosDiscountType('flat')}
+                                className={`px-3 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${posDiscountType === 'flat' ? 'bg-blue-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'}`}>Montant</button>
+                            </div>
+                            <div className="relative">
+                              <input type="number" min="0" max={posDiscountType === 'percent' ? 100 : posSubtotal}
+                                value={posDiscountValue || ''}
+                                onChange={e => setPosDiscountValue(Math.max(0, Number(e.target.value) || 0))}
+                                placeholder="0"
+                                className="w-28 pl-3 pr-8 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs font-semibold font-mono text-white text-right focus:outline-none focus:border-blue-500" />
+                              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-500 pointer-events-none">{posDiscountType === 'percent' ? '%' : 'F'}</span>
+                            </div>
+                          </div>
+
+                          {/* Résumé des totaux (style reçu) */}
+                          <div className="space-y-1.5 pt-3 border-t border-slate-800 text-sm">
+                            <div className="flex justify-between text-slate-400">
                               <span>Sous-total</span>
-                              <span>{fmt(posSubtotal)}</span>
+                              <span className="tabular-nums">{fmt(posSubtotal)}</span>
                             </div>
                             {posLineDiscounts > 0 && (
-                              <div className="flex justify-between font-semibold text-red-400">
+                              <div className="flex justify-between text-emerald-400 font-semibold">
                                 <span>Remises articles</span>
-                                <span>- {fmt(posLineDiscounts)}</span>
+                                <span className="tabular-nums">− {fmt(posLineDiscounts)}</span>
                               </div>
                             )}
                             {posDiscountAmount > 0 && (
-                              <div className="flex justify-between font-semibold text-red-400">
+                              <div className="flex justify-between text-emerald-400 font-semibold">
                                 <span>Remise globale {posDiscountType === 'percent' ? `(${posDiscountValue}%)` : ''}</span>
-                                <span>- {fmt(posDiscountAmount)}</span>
+                                <span className="tabular-nums">− {fmt(posDiscountAmount)}</span>
                               </div>
                             )}
-                            <div className="flex justify-between font-bold text-sm border-t border-slate-800 pt-1.5 mt-1.5 text-slate-200">
-                              <span>Total à payer</span>
-                              <span className="text-blue-400">{fmt(posTotalFinal)}</span>
+                            <div className="flex justify-between items-baseline font-bold border-t border-slate-800 pt-2 mt-1">
+                              <span className="text-slate-200">Total à payer</span>
+                              <span className="text-xl text-blue-400 tabular-nums">{fmt(posTotalFinal)}</span>
                             </div>
                           </div>
                         </div>
@@ -4075,83 +4192,160 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
               </div>
             </div>
 
-            {/* Aperçu — format ticket de caisse */}
+            {/* Aperçu — reflète le format sélectionné (ticket 80 mm ou page A5) */}
             <div className="bg-slate-100 px-4 py-5 flex justify-center">
-              <div ref={invoiceRef} className="bg-invoice-paper w-full max-w-[300px] px-5 py-6 text-slate-900" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
-                {/* En-tête centré */}
-                <div className="text-center">
-                  {activeBoutique.logo && typeof activeBoutique.logo === 'string' && (activeBoutique.logo.startsWith('http') || activeBoutique.logo.startsWith('data:') || activeBoutique.logo.startsWith('/')) ? (
-                    <img src={proxiedImg(activeBoutique.logo)} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-2" crossOrigin="anonymous" />
-                  ) : (
-                    <div className="w-14 h-14 rounded-full mx-auto mb-2 flex items-center justify-center text-white font-bold text-lg"
-                      style={{ backgroundColor: activeBoutique.couleurMarque || '#2563eb' }}>
-                      {String(activeBoutique.name || 'B').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()}
-                    </div>
-                  )}
-                  <h1 className="text-base font-black uppercase leading-tight">{activeBoutique.name}</h1>
-                  {activeBoutique.adresse && <p className="text-[11px] text-slate-500">{activeBoutique.adresse}</p>}
-                  {activeBoutique.whatsapp && <p className="text-[11px] text-slate-500">{activeBoutique.whatsapp}</p>}
-                </div>
+              {(() => {
+                const inv = activePrintInvoice, b = activeBoutique;
+                const brand = b.couleurMarque || '#2563eb';
+                const dt = new Date(inv.date);
+                const dateStr = `${dt.toLocaleDateString('fr-FR')} · ${dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+                const hasLogo = b.logo && typeof b.logo === 'string' && (b.logo.startsWith('http') || b.logo.startsWith('data:') || b.logo.startsWith('/'));
+                const initials = String(b.name || 'B').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                const unitNet = (it) => Math.round(itemNet(it) / (Number(it.quantity) || 1));
 
-                <div className="border-t border-dashed border-slate-300 my-3" />
-
-                <div className="text-center">
-                  <p className="font-bold tracking-wide text-sm">FACTURE</p>
-                  <p className="text-[11px] text-slate-500">N° {activePrintInvoice.id}</p>
-                  <p className="text-[11px] text-slate-500">
-                    {new Date(activePrintInvoice.date).toLocaleDateString('fr-FR')} · {new Date(activePrintInvoice.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
-
-                <div className="border-t border-dashed border-slate-300 my-3" />
-
-                {/* Client */}
-                <div className="text-[12px] leading-snug">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Client</p>
-                  <p className="font-bold">{activePrintInvoice.client.nom}</p>
-                  {activePrintInvoice.client.telephone && <p className="text-slate-600">{activePrintInvoice.client.telephone}</p>}
-                  {activePrintInvoice.client.adresse && <p className="text-slate-600">{activePrintInvoice.client.adresse}</p>}
-                </div>
-
-                <div className="border-t border-dashed border-slate-300 my-3" />
-
-                {/* Articles */}
-                <div className="space-y-2">
-                  {activePrintInvoice.items.map((it, i) => (
-                    <div key={i} className="text-[12px]">
-                      <p className="font-bold leading-tight">{it.name}</p>
-                      <div className="flex justify-between text-slate-600">
-                        <span>{it.quantity} × {fmt(it.price)}{itemDiscount(it) > 0 && <span className="text-red-500"> · {remiseHint(it, fmt)}</span>}</span>
-                        <span className="font-bold text-slate-900">{fmt(itemNet(it))}</span>
+                // ── Aperçu PAGE A5 ──
+                if (invoiceFormat === 'a5') {
+                  return (
+                    <div ref={invoiceRef} className="bg-white w-full max-w-[520px] p-6 text-slate-900 shadow-sm rounded-sm" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="flex items-start gap-3 min-w-0">
+                          {hasLogo
+                            ? <img src={proxiedImg(b.logo)} alt="Logo" className="w-12 h-12 object-contain shrink-0" crossOrigin="anonymous" />
+                            : <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold shrink-0" style={{ backgroundColor: brand }}>{initials}</div>}
+                          <div className="min-w-0">
+                            <h1 className="text-base font-extrabold uppercase leading-tight">{b.name}</h1>
+                            {b.adresse && <p className="text-[11px] text-slate-500">{b.adresse}</p>}
+                            {b.whatsapp && <p className="text-[11px] text-slate-500">{b.whatsapp}</p>}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-lg font-extrabold tracking-tight" style={{ color: brand }}>FACTURE</p>
+                          <p className="text-[11px] text-slate-500">N° {inv.id}</p>
+                          <p className="text-[11px] text-slate-500">{dateStr}</p>
+                        </div>
                       </div>
+                      <div className="h-0.5 my-3 rounded" style={{ backgroundColor: brand }} />
+                      <div className="flex justify-between gap-4 text-[12px]">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Facturé à</p>
+                          <p className="font-bold">{inv.client.nom}</p>
+                          {inv.client.telephone && <p className="text-slate-600">{inv.client.telephone}</p>}
+                          {inv.client.adresse && <p className="text-slate-600">{inv.client.adresse}</p>}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Paiement</p>
+                          <p className="font-semibold">{inv.paiement?.methode || 'À la livraison'}</p>
+                          <p className="text-slate-600">{inv.paiement?.statut || 'En attente'}</p>
+                        </div>
+                      </div>
+                      <div className="mt-4 rounded-lg overflow-hidden border border-slate-200">
+                        <div className="grid grid-cols-[1fr_2.2rem_4rem_5rem] gap-2 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white" style={{ backgroundColor: brand }}>
+                          <span>Désignation</span><span className="text-right">Qté</span><span className="text-right">P.U.</span><span className="text-right">Montant</span>
+                        </div>
+                        {inv.items.map((it, i) => {
+                          const disc = itemDiscount(it) > 0;
+                          return (
+                            <div key={i} className={`grid grid-cols-[1fr_2.2rem_4rem_5rem] gap-2 px-3 py-2 text-[12px] ${i % 2 ? 'bg-slate-50' : ''}`}>
+                              <span className="font-semibold text-slate-800 leading-tight">{it.name}</span>
+                              <span className="text-right tabular-nums self-center">{it.quantity}</span>
+                              <span className="text-right tabular-nums self-center leading-tight">
+                                {disc ? <><span className="block text-[9px] text-slate-400 line-through">{fmt(it.price)}</span>{fmt(unitNet(it))}</> : fmt(it.price)}
+                              </span>
+                              <span className="text-right font-bold tabular-nums self-center">{fmt(itemNet(it))}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="mt-3 ml-auto w-1/2 min-w-[200px] text-[12px] space-y-1">
+                        <div className="flex justify-between text-slate-500"><span>Sous-total</span><span className="tabular-nums">{fmt(cartNet(inv.items))}</span></div>
+                        {inv.remise?.montant > 0 && (
+                          <div className="flex justify-between text-slate-500"><span>Remise{inv.remise.type === 'percent' ? ` (${inv.remise.valeur}%)` : ''}</span><span className="tabular-nums">− {fmt(inv.remise.montant)}</span></div>
+                        )}
+                        <div className="flex justify-between text-slate-500"><span>Livraison</span><span className="tabular-nums">{fmt(inv.livraison.frais)}</span></div>
+                        <div className="flex justify-between items-baseline border-t-2 border-slate-900 mt-1 pt-1.5">
+                          <span className="font-black">TOTAL</span>
+                          <span className="font-black text-base tabular-nums" style={{ color: brand }}>{fmt(inv.total)}</span>
+                        </div>
+                      </div>
+                      <p className="text-center text-[10px] text-slate-400 mt-5">Merci pour votre achat ! · {b.name} · Propulsé par Jappandal Tech</p>
                     </div>
-                  ))}
-                </div>
+                  );
+                }
 
-                <div className="border-t border-dashed border-slate-300 my-3" />
+                // ── Aperçu TICKET DE CAISSE (80 mm) ──
+                return (
+                  <div ref={invoiceRef} className="bg-invoice-paper w-full max-w-[300px] px-5 py-6 text-slate-900" style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+                    <div className="text-center">
+                      {hasLogo
+                        ? <img src={proxiedImg(b.logo)} alt="Logo" className="w-14 h-14 object-contain mx-auto mb-2" crossOrigin="anonymous" />
+                        : <div className="w-14 h-14 rounded-full mx-auto mb-2 flex items-center justify-center text-white font-bold text-lg" style={{ backgroundColor: brand }}>{initials}</div>}
+                      <h1 className="text-base font-black uppercase leading-tight">{b.name}</h1>
+                      {b.adresse && <p className="text-[11px] text-slate-500">{b.adresse}</p>}
+                      {b.whatsapp && <p className="text-[11px] text-slate-500">{b.whatsapp}</p>}
+                    </div>
 
-                {/* Totaux */}
-                <div className="text-[12px] space-y-1">
-                  <div className="flex justify-between text-slate-500"><span>Sous-total</span><span>{fmt(cartNet(activePrintInvoice.items))}</span></div>
-                  {activePrintInvoice.remise?.montant > 0 && (
-                    <div className="flex justify-between text-red-500"><span>Remise globale{activePrintInvoice.remise.type === 'percent' ? ` (${activePrintInvoice.remise.valeur}%)` : ''}</span><span>- {fmt(activePrintInvoice.remise.montant)}</span></div>
-                  )}
-                  <div className="flex justify-between text-slate-500"><span>Livraison</span><span>{fmt(activePrintInvoice.livraison.frais)}</span></div>
-                </div>
-                <div className="border-t-2 border-slate-900 mt-2 pt-2 flex justify-between items-center">
-                  <span className="font-black text-sm">TOTAL</span>
-                  <span className="font-black text-base" style={{ color: '#2563eb' }}>{fmt(activePrintInvoice.total)}</span>
-                </div>
+                    <div className="border-t border-dashed border-slate-300 my-3" />
 
-                <p className="text-center text-[11px] text-slate-500 mt-3">
-                  Paiement : {activePrintInvoice.paiement?.methode || 'À la livraison'} — {activePrintInvoice.paiement?.statut || 'En attente'}
-                </p>
+                    <div className="text-center">
+                      <p className="font-bold tracking-wide text-sm">FACTURE</p>
+                      <p className="text-[11px] text-slate-500">N° {inv.id}</p>
+                      <p className="text-[11px] text-slate-500">{dateStr}</p>
+                    </div>
 
-                <div className="border-t border-dashed border-slate-300 my-3" />
+                    <div className="border-t border-dashed border-slate-300 my-3" />
 
-                <p className="text-center text-[11px] font-semibold text-slate-600">Merci pour votre achat !</p>
-                <p className="text-center text-[10px] text-slate-400">{activeBoutique.name} · Propulsé par Jappandal Tech</p>
-              </div>
+                    <div className="text-[12px] leading-snug">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Client</p>
+                      <p className="font-bold">{inv.client.nom}</p>
+                      {inv.client.telephone && <p className="text-slate-600">{inv.client.telephone}</p>}
+                      {inv.client.adresse && <p className="text-slate-600">{inv.client.adresse}</p>}
+                    </div>
+
+                    <div className="border-t border-dashed border-slate-300 my-3" />
+
+                    <div className="space-y-2">
+                      {inv.items.map((it, i) => {
+                        const disc = itemDiscount(it) > 0;
+                        return (
+                          <div key={i} className="text-[12px]">
+                            <p className="font-bold leading-tight">{it.name}</p>
+                            <div className="flex justify-between text-slate-600">
+                              <span>
+                                {it.quantity} × {fmt(disc ? unitNet(it) : it.price)}
+                                {disc && <span className="text-slate-400 line-through ml-1.5">{fmt(it.price)}</span>}
+                              </span>
+                              <span className="font-bold text-slate-900">{fmt(itemNet(it))}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="border-t border-dashed border-slate-300 my-3" />
+
+                    <div className="text-[12px] space-y-1">
+                      <div className="flex justify-between text-slate-500"><span>Sous-total</span><span>{fmt(cartNet(inv.items))}</span></div>
+                      {inv.remise?.montant > 0 && (
+                        <div className="flex justify-between text-slate-500"><span>Remise globale{inv.remise.type === 'percent' ? ` (${inv.remise.valeur}%)` : ''}</span><span>− {fmt(inv.remise.montant)}</span></div>
+                      )}
+                      <div className="flex justify-between text-slate-500"><span>Livraison</span><span>{fmt(inv.livraison.frais)}</span></div>
+                    </div>
+                    <div className="border-t-2 border-slate-900 mt-2 pt-2 flex justify-between items-center">
+                      <span className="font-black text-sm">TOTAL</span>
+                      <span className="font-black text-base" style={{ color: brand }}>{fmt(inv.total)}</span>
+                    </div>
+
+                    <p className="text-center text-[11px] text-slate-500 mt-3">
+                      Paiement : {inv.paiement?.methode || 'À la livraison'} — {inv.paiement?.statut || 'En attente'}
+                    </p>
+
+                    <div className="border-t border-dashed border-slate-300 my-3" />
+
+                    <p className="text-center text-[11px] font-semibold text-slate-600">Merci pour votre achat !</p>
+                    <p className="text-center text-[10px] text-slate-400">{b.name} · Propulsé par Jappandal Tech</p>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -4180,10 +4374,13 @@ function MerchantDashboard({ darkMode, setDarkMode }) {
                         <p className="text-sm font-semibold text-slate-200 truncate">{it.name}</p>
                         <p className="text-xs text-slate-500">{fmt(it.price)} / unité</p>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <button onClick={() => editChangeQty(idx, -1)} className="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center"><Minus className="w-3.5 h-3.5" /></button>
-                        <span className="text-sm font-bold text-white w-6 text-center">{it.quantity}</span>
-                        <button onClick={() => editChangeQty(idx, 1)} className="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center"><Plus className="w-3.5 h-3.5" /></button>
+                      <div className="flex items-center rounded-lg border border-slate-700 bg-slate-900 overflow-hidden shrink-0">
+                        <button onClick={() => editChangeQty(idx, -1)} className="px-2 py-1.5 text-slate-300 hover:bg-slate-700 cursor-pointer"><Minus className="w-3.5 h-3.5" /></button>
+                        <input type="number" min="1" value={it.quantity}
+                          onChange={e => editSetQtyExact(idx, e.target.value)}
+                          onFocus={e => e.target.select()}
+                          className="w-11 bg-transparent text-center text-sm font-bold text-white focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                        <button onClick={() => editChangeQty(idx, 1)} className="px-2 py-1.5 text-slate-300 hover:bg-slate-700 cursor-pointer"><Plus className="w-3.5 h-3.5" /></button>
                       </div>
                       <span className="text-sm font-bold text-blue-400 w-20 text-right shrink-0">{fmt(itemNet(it))}</span>
                       <button onClick={() => editRemoveItem(idx)} className="w-7 h-7 rounded-lg bg-red-500/5 text-red-400 hover:bg-red-500/10 flex items-center justify-center shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
