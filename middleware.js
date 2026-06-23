@@ -96,6 +96,8 @@ export default async function middleware(request) {
     <meta name="twitter:title" content="${esc(title)}" />
     <meta name="twitter:description" content="${esc(desc)}" />
     <meta name="twitter:image" content="${esc(image)}" />
+    <link rel="canonical" href="${esc(pageUrl)}" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
   </head>`;
 
     // Retire le titre + la description par défaut, puis injecte avant </head>

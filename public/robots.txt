@@ -1,6 +1,8 @@
 User-agent: *
 Allow: /
 Disallow: /marchand
+Disallow: /merchant
 Disallow: /admin
+Disallow: /dev
 
-Sitemap: https://jappandal.com/sitemap.xml
+Sitemap: https://www.jappandal.com/sitemap.xml
