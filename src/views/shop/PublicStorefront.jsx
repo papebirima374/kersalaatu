@@ -75,6 +75,7 @@ export default function PublicStorefront() {
   const [modalQty, setModalQty] = useState(1);
   const [lightboxOpen, setLightboxOpen] = useState(false); // photo plein écran
   const lightboxTouchX = useRef(null);
+  const galleryTouchX = useRef(null); // glissement tactile sur la galerie de la fiche produit
 
   // Dark Mode State
   const [darkMode, setDarkMode] = useState(() => {
@@ -439,10 +440,11 @@ export default function PublicStorefront() {
       return;
     }
 
-    if (!paiementData) {
-      const isStockValid = await validateCartStock();
-      if (!isStockValid) return;
-    }
+    // Toujours revérifier le stock juste avant d'enregistrer la commande : il a
+    // pu changer depuis l'ouverture du panier (et le flux payé le validait ~5 s
+    // plus tôt, le bouton « à la livraison » le sautait carrément).
+    const isStockValid = await validateCartStock();
+    if (!isStockValid) return;
 
     const payInfo = paiementData || { methode: 'À la livraison', statut: 'En attente' };
 
@@ -1671,7 +1673,19 @@ export default function PublicStorefront() {
               {/* Left Column: Image Gallery */}
               <div className="space-y-4">
                 {/* Main Photo Container */}
-                <div className={`w-full h-72 sm:h-96 md:h-[400px] border rounded-2xl relative flex items-center justify-center overflow-hidden group shadow-sm transition-colors ${darkMode ? 'bg-slate-950 border-slate-850' : 'bg-slate-50 border-slate-100'}`}>
+                <div
+                  className={`w-full h-72 sm:h-96 md:h-[400px] border rounded-2xl relative flex items-center justify-center overflow-hidden group shadow-sm transition-colors ${darkMode ? 'bg-slate-950 border-slate-850' : 'bg-slate-50 border-slate-100'}`}
+                  onTouchStart={(e) => { galleryTouchX.current = e.touches[0].clientX; }}
+                  onTouchEnd={(e) => {
+                    if (galleryTouchX.current == null) return;
+                    const dx = e.changedTouches[0].clientX - galleryTouchX.current;
+                    galleryTouchX.current = null;
+                    // glissement horizontal du doigt → photo précédente / suivante
+                    if (Math.abs(dx) > 40 && productPhotos.length > 1 && !selectedVariant?.photo) {
+                      setActivePhotoIdx(i => dx < 0 ? (i + 1) % productPhotos.length : (i - 1 + productPhotos.length) % productPhotos.length);
+                    }
+                  }}
+                >
                   {displayPhoto ? (
                     <img
                       src={thumb(displayPhoto, 1000)}
