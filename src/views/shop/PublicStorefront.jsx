@@ -26,7 +26,6 @@ import {
   Menu
 } from 'lucide-react';
 
-const generateRandomOrderId = () => `CMD-${Math.floor(1000 + Math.random() * 9000)}`;
 const generateRandomTxRef = () => `TXN-${Math.floor(100000 + Math.random() * 900000)}`;
 
 // Generates a stable rating (between 4.5 and 5.0) per product based on its ID
@@ -448,7 +447,7 @@ export default function PublicStorefront() {
     const payInfo = paiementData || { methode: 'À la livraison', statut: 'En attente' };
 
     // 1. Save order in LocalDB context so the merchant console gets it
-    createOrder(
+    const savedOrder = createOrder(
       activeShop.id,
       clientForm,
       cart,
@@ -457,8 +456,10 @@ export default function PublicStorefront() {
       payInfo
     );
 
-    // 2. Build WhatsApp formatted text message
-    const orderId = generateRandomOrderId();
+    // 2. Build WhatsApp formatted text message — MÊME référence que la commande
+    //    enregistrée côté marchand (avant : un id aléatoire différent → impossible
+    //    de relier le message WhatsApp à la commande dans la console).
+    const orderId = savedOrder?.id || `cmd-${Date.now().toString(36)}`;
     let message = `*✨ NOUVELLE COMMANDE - ${activeShop.name.toUpperCase()} ✨*\n`;
     message += `_Référence: ${orderId}_\n\n`;
     

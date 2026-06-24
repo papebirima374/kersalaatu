@@ -573,7 +573,10 @@ export const TenantProvider = ({ children }) => {
     const total = Math.max(0, subtotal - remiseMontant) + shippingCost;
 
     const newOrder = {
-      id: `cmd-${Math.floor(1000 + Math.random() * 9000)}`,
+      // Id unique : horodatage (base36) + suffixe aléatoire → pas de collision
+      // entre boutiques ni en cas de commandes simultanées (l'ancien cmd-XXXX
+      // n'avait que 9000 valeurs et pouvait écraser une commande existante).
+      id: `cmd-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`,
       boutiqueId,
       date: new Date().toISOString(),
       client: clientInfo,
