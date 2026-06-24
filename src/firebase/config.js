@@ -1,5 +1,4 @@
 import { initializeApp } from 'firebase/app';
-import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import { getFirestore, enableMultiTabIndexedDbPersistence } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
@@ -36,19 +35,21 @@ if (isConfigured) {
     // qui taperaient l'API directement.
     const recaptchaKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
     if (typeof window !== 'undefined' && recaptchaKey) {
-      try {
-        // En développement local, jeton de debug (sinon reCAPTCHA bloque localhost).
-        if (import.meta.env.DEV) {
-          self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-        }
-        initializeAppCheck(app, {
-          provider: new ReCaptchaV3Provider(recaptchaKey),
-          isTokenAutoRefreshEnabled: true,
-        });
-        console.log('🛡️ App Check activé.');
-      } catch (e) {
-        console.warn('App Check non initialisé :', e);
+      // En développement local, jeton de debug (sinon reCAPTCHA bloque localhost).
+      if (import.meta.env.DEV) {
+        self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
       }
+      // Import dynamique : le SDK App Check ne pèse dans le bundle QUE s'il est
+      // réellement activé (clé reCAPTCHA présente). Inactif aujourd'hui → 0 poids.
+      import('firebase/app-check')
+        .then(({ initializeAppCheck, ReCaptchaV3Provider }) => {
+          initializeAppCheck(app, {
+            provider: new ReCaptchaV3Provider(recaptchaKey),
+            isTokenAutoRefreshEnabled: true,
+          });
+          console.log('🛡️ App Check activé.');
+        })
+        .catch((e) => console.warn('App Check non initialisé :', e));
     }
 
     db = getFirestore(app);

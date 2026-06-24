@@ -122,7 +122,7 @@ export default function PublicStorefront() {
   // ── Vitrine animée : page d'entrée (diaporama) + carrousel produits ─────────
   const heroPhotos = products
     .filter(p => p.actif !== false && ((p.photos && p.photos[0]) || p.photo))
-    .slice(0, 8)
+    .slice(0, 5)
     .map(p => ({ id: p.id, name: p.name, price: p.price, category: p.category, photo: (p.photos && p.photos[0]) || p.photo }));
   const [showIntro, setShowIntro] = useState(true);
   const [introIdx, setIntroIdx] = useState(0);
@@ -525,7 +525,7 @@ export default function PublicStorefront() {
           `}</style>
           {heroPhotos.map((h, i) => (
             <div key={h.id} className={`absolute inset-0 transition-opacity ease-in-out ${i === introIdx ? 'opacity-100' : 'opacity-0'}`} style={{ transitionDuration: '1200ms' }}>
-              <img src={thumb(h.photo, 1280)} onError={fallbackSrc(h.photo)} alt="" aria-hidden="true"
+              <img src={thumb(h.photo, 1000)} onError={fallbackSrc(h.photo)} alt="" aria-hidden="true"
                 className="w-full h-full object-cover" style={i === introIdx ? { animation: 'sfKenburns 5s ease-out both' } : undefined} />
             </div>
           ))}
@@ -733,7 +733,7 @@ export default function PublicStorefront() {
                   <button key={h.id} type="button"
                     onClick={() => { if (prod) { setSelectedProduct(prod); setSelectedVariant(null); setModalQty(1); setActivePhotoIdx(0); } }}
                     className={`absolute inset-0 text-left transition-opacity duration-1000 ${i === featIdx ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-                    <img src={thumb(h.photo, 1280)} onError={fallbackSrc(h.photo)} alt={h.name}
+                    <img src={thumb(h.photo, 1000)} onError={fallbackSrc(h.photo)} alt={h.name}
                       className="w-full h-full object-cover" style={i === featIdx ? { animation: 'sfKenburns 5s ease-out both' } : undefined} />
                     <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/25 to-transparent" />
                     <div className="absolute left-6 sm:left-9 bottom-6 sm:bottom-8 right-6 max-w-md">
