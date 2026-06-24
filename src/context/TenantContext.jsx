@@ -566,6 +566,22 @@ export const TenantProvider = ({ children }) => {
     }
   };
 
+  // Écrit/maj une commande dans Firestore en SURFAÇANT les vrais échecs.
+  // Hors-ligne, Firestore met la requête en file et la synchronise tout seul au
+  // retour du réseau (la promesse ne rejette pas) → aucun toast inutile. Un rejet
+  // = échec permanent (ex. permission). On retente 1 fois, puis on alerte
+  // l'utilisateur : fini la commande « perdue en silence ».
+  const persistOrderWrite = (writeFn, label) => {
+    const attempt = (retriesLeft) => {
+      writeFn().catch((err) => {
+        console.error(label, err);
+        if (retriesLeft > 0) { setTimeout(() => attempt(retriesLeft - 1), 1500); return; }
+        toast("⚠️ La commande n'a pas pu être enregistrée en ligne. Vérifiez votre connexion, puis réessayez.", 'error', 8000);
+      });
+    };
+    attempt(1);
+  };
+
   const createOrder = (boutiqueId, clientInfo, cartItems, shippingCost, shippingLieu, paiementInfo = null, remiseInfo = null) => {
     // sous-total NET = après remises par ligne ; puis on retire la remise globale.
     const subtotal = cartNet(cartItems);
@@ -611,8 +627,7 @@ export const TenantProvider = ({ children }) => {
 
     setOrders(prev => [newOrder, ...prev]);
     if (isConfigured) {
-      setDoc(doc(db, 'orders', newOrder.id), newOrder)
-        .catch(err => console.error("Error writing order to Firestore:", err));
+      persistOrderWrite(() => setDoc(doc(db, 'orders', newOrder.id), newOrder), 'Enregistrement commande');
     }
     return newOrder;
   };
@@ -655,8 +670,7 @@ export const TenantProvider = ({ children }) => {
       const updatedOrder = { ...oldOrder, items: newItems, total, remise: newRemise };
 
       if (isConfigured) {
-        updateDoc(doc(db, 'orders', orderId), { items: newItems, total, remise: newRemise })
-          .catch(err => console.error("update order:", err));
+        persistOrderWrite(() => updateDoc(doc(db, 'orders', orderId), { items: newItems, total, remise: newRemise }), 'Mise à jour commande');
       }
       return prevOrders.map(o => o.id === orderId ? updatedOrder : o);
     });
@@ -682,8 +696,7 @@ export const TenantProvider = ({ children }) => {
       }));
 
       if (isConfigured) {
-        updateDoc(doc(db, 'orders', orderId), { statut: 'Annulée' })
-          .catch(err => console.error("cancel order:", err));
+        persistOrderWrite(() => updateDoc(doc(db, 'orders', orderId), { statut: 'Annulée' }), 'Annulation commande');
       }
       return prevOrders.map(o => o.id === orderId ? { ...o, statut: 'Annulée' } : o);
     });
@@ -700,10 +713,10 @@ export const TenantProvider = ({ children }) => {
         };
         
         if (isConfigured) {
-          updateDoc(doc(db, 'orders', orderId), { 
+          persistOrderWrite(() => updateDoc(doc(db, 'orders', orderId), {
             statut: newStatus,
-            'paiement.statut': paymentStatut 
-          }).catch(err => console.error("Error updating order status in Firestore:", err));
+            'paiement.statut': paymentStatut
+          }), 'Changement de statut');
         }
         return updated;
       }
@@ -720,9 +733,9 @@ export const TenantProvider = ({ children }) => {
         };
         
         if (isConfigured) {
-          updateDoc(doc(db, 'orders', orderId), { 
-            'paiement.statut': paymentStatus 
-          }).catch(err => console.error("Error updating payment status in Firestore:", err));
+          persistOrderWrite(() => updateDoc(doc(db, 'orders', orderId), {
+            'paiement.statut': paymentStatus
+          }), 'Encaissement');
         }
         return updated;
       }
