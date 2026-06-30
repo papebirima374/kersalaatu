@@ -273,7 +273,11 @@ export default function PublicStorefront() {
     );
   }
 
-  const isExpired = activeShop.abonnement?.dateExpiration
+  // Le plan Découverte (gratuit) n'expire JAMAIS : seul un plan payant peut
+  // expirer (cohérent avec la caisse et la console admin). Avant, une boutique
+  // gratuite était bloquée publiquement après 30 j à cause de sa dateExpiration.
+  // (isFreePlan est déjà défini plus haut dans le composant.)
+  const isExpired = !isFreePlan && activeShop.abonnement?.dateExpiration
     ? new Date(activeShop.abonnement.dateExpiration) < new Date()
     : false;
 
@@ -461,6 +465,7 @@ export default function PublicStorefront() {
     // 2. Build WhatsApp formatted text message — MÊME référence que la commande
     //    enregistrée côté marchand (avant : un id aléatoire différent → impossible
     //    de relier le message WhatsApp à la commande dans la console).
+    // eslint-disable-next-line react-hooks/purity
     const orderId = savedOrder?.id || `cmd-${Date.now().toString(36)}`;
     let message = `*✨ NOUVELLE COMMANDE - ${activeShop.name.toUpperCase()} ✨*\n`;
     message += `_Référence: ${orderId}_\n\n`;
